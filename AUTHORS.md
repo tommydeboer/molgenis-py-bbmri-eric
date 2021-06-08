@@ -1,3 +1,4 @@
 # Contributors
 
-* tommy <tommydeboer4@gmail.com>
+* Tommy de Boer < https://github.com/tommydeboer >
+* Jelmer Veen < https://github.com/jelmerveen >
