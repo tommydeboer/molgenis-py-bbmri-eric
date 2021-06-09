@@ -1,14 +1,11 @@
 # molgenis-py-bbmri-eric
 
-Add a short description here!
+Python tooling for BBMRI-ERIC
 
 
 ## Description
 
-A longer description of your project goes here...
-
-
-<!-- pyscaffold-notes -->
+TODO
 
 ## Note
 
