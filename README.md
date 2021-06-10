@@ -8,7 +8,7 @@ Python tooling for BBMRI-ERIC
 TODO
 
 ## For developers
-This project requires that you have `pre-commit` and `pipenv` installed.
+This project uses [pre-commit](https://pre-commit.com/) and [pipenv](https://pypi.org/project/pipenv/) for the development workflow.
 
 ```
 # install pre-commit and pipenv if you haven't already 
