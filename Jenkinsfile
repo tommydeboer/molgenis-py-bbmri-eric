@@ -52,6 +52,46 @@ pipeline {
                 }
             }
         }
+        stage('Release: [ main ]') {
+            when {
+                branch 'main'
+            }
+            environment {
+                REPOSITORY = 'molgenis/molgenis-py-bbmri-eric'
+            }
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    script {
+                        env.RELEASE_SCOPE = input(
+                                message: 'Do you want to release?',
+                                ok: 'Release',
+                                parameters: [
+                                        choice(choices: 'patch\nminor\nmajor', description: '', name: 'RELEASE_SCOPE')
+                                ]
+                        )
+                    }
+                }
+                milestone 2
+                container('python') {
+                    sh "git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
+
+                    sh "git checkout -f ${BRANCH_NAME}"
+
+                    script {
+                        env.CURRENT_PACKAGE_VERSION = sh(script: "python setup.py --version", returnStdout: true).trim()
+                    }
+
+                    script {
+                        env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
+                    }
+
+                    sh "tox -e --publish -- --repository pypi"
+
+                    sh "git push --tags origin master"
+                    hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
+                }
+            }
+        }
     }
     post{
         success {
