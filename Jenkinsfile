@@ -85,7 +85,7 @@ pipeline {
                         env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
                     }
 
-                    sh "tox -e --publish -- --repository pypi"
+                    sh "tox -e --publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
 
                     sh "git push --tags origin master"
                     hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
