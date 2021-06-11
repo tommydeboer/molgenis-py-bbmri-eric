@@ -102,7 +102,7 @@ pipeline {
                 timeout(time: 60, unit: 'MINUTES') {
                     script {
                         env.RELEASE_SCOPE = input(
-                                message: "Test the release at: \n https://test.pypi.org/project/molgenis-py-bbmri-eric/${NEW_PACKAGE_VERSION}/ \n If it's ok, continue the release, abort otherwise.",
+                                message: "Test the release at: \nhttps://test.pypi.org/project/molgenis-py-bbmri-eric/${NEW_PACKAGE_VERSION}/ \nContinue the release if it's ok, abort otherwise.",
                                 ok: 'Release to PyPi'
                         )
                     }
