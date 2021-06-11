@@ -80,7 +80,7 @@ pipeline {
                     sh "git checkout -f main"
 
                     script {
-                        env.CURRENT_PACKAGE_VERSION = sh(script: "python setup.py --version", returnStdout: true).trim()
+                        env.CURRENT_PACKAGE_VERSION = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
                     }
 
                     script {
@@ -89,7 +89,7 @@ pipeline {
 
                     sh "tox -e build"
 
-                    sh "tox -e --publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
+                    sh "tox -e publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
 
                     sh "git push --tags origin main"
                 }
@@ -102,7 +102,7 @@ pipeline {
                     }
                 }
                 container('python') {
-                    sh "tox -e --publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
+                    sh "tox -e publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
 
                     hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
                 }
