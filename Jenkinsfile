@@ -82,7 +82,7 @@ pipeline {
                     // bump the version based on the last tag and create a new tag
                     sh "pip install bumpversion"
                     script {
-                        env.NEW_PACKAGE_VERSION = sh(script: "sh bump-version.sh")
+                        env.NEW_PACKAGE_VERSION = sh(script: "sh bump-version.sh", returnStdout: true).trim()
                     }
 
                     // undo the formatting changes made by bumpversion to setup.cfg
