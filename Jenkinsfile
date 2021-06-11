@@ -83,6 +83,8 @@ pipeline {
                         env.CURRENT_PACKAGE_VERSION = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
                     }
 
+                    sh "pip install bumpversion"
+
                     script {
                         env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
                     }
