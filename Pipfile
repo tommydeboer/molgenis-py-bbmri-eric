@@ -10,6 +10,7 @@ molgenis-py-bbmri-eric = {editable = true, path = "."}
 pytest = "*"
 setuptools = "*"
 pytest-cov = "*"
+tox = "*"
 
 [requires]
 python_version = "3.9"
