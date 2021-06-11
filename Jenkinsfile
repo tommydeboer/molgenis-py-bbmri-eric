@@ -80,7 +80,11 @@ pipeline {
                     sh "git checkout -f main"
 
                     script {
-                        env.CURRENT_PACKAGE_VERSION = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
+                        def current_version = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
+                        if (current_version == "") {
+                            current_version = "0.0.0"
+                        }
+                        env.CURRENT_PACKAGE_VERSION = current_version
                     }
 
                     sh "pip install bumpversion"
@@ -98,7 +102,7 @@ pipeline {
                 timeout(time: 60, unit: 'MINUTES') {
                     script {
                         env.RELEASE_SCOPE = input(
-                                message: 'Continue releasing if the release to TestPyPi was successful (https://test.pypi.org/project/molgenis-py-bbmri-eric/${NEW_PACKAGE_VERSION}/), abort otherwise.',
+                                message: "Test the release at: \n https://test.pypi.org/project/molgenis-py-bbmri-eric/${NEW_PACKAGE_VERSION}/ \n If it's ok, continue the release, abort otherwise.",
                                 ok: 'Release to PyPi'
                         )
                     }
