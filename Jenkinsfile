@@ -79,18 +79,10 @@ pipeline {
                     sh "git checkout -f main"
                     sh "git fetch --tags"
 
-                    // get the version of the last release (0.0.0 if this is the first release)
-                    script {
-                        env.CURRENT_PACKAGE_VERSION = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
-                        if (env.CURRENT_PACKAGE_VERSION == "") {
-                            env.CURRENT_PACKAGE_VERSION = "0.0.0"
-                        }
-                    }
-
-                    // use bumpversion to increase the version and create a new tag
+                    // bump the version based on the last tag and create a new tag
                     sh "pip install bumpversion"
                     script {
-                        env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
+                        env.NEW_PACKAGE_VERSION = sh(script: "sh bump-version.sh")
                     }
 
                     // undo the formatting changes made by bumpversion to setup.cfg
