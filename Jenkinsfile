@@ -76,27 +76,31 @@ pipeline {
                 milestone 2
                 container('python') {
                     sh "git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
-
                     sh "git checkout -f main"
+                    sh "git fetch --tags"
 
+                    // get the version of the last release (0.0.0 if this is the first release)
                     script {
-                        def current_version = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
-                        if (current_version == "") {
-                            current_version = "0.0.0"
+                        env.CURRENT_PACKAGE_VERSION = sh(script: "git tag | sort -r --version-sort | head -n1", returnStdout: true).trim()
+                        if (env.CURRENT_PACKAGE_VERSION == "") {
+                            env.CURRENT_PACKAGE_VERSION = "0.0.0"
                         }
-                        env.CURRENT_PACKAGE_VERSION = current_version
                     }
 
+                    // use bumpversion to increase the version and create a new tag
                     sh "pip install bumpversion"
-
                     script {
                         env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
                     }
 
-                    sh "tox -e build"
+                    // undo the formatting changes made by bumpversion to setup.cfg
+                    sh "git checkout ."
 
+                    // build and publish the release
+                    sh "tox -e build"
                     sh "tox -e publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
 
+                    // push the new tag to molgenis/molgenis-py-bbmri-eric
                     sh "git push --tags origin main"
                 }
                 timeout(time: 60, unit: 'MINUTES') {
@@ -108,6 +112,7 @@ pipeline {
                     }
                 }
                 container('python') {
+                    // do the actual release to PyPi
                     sh "tox -e publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
 
                     hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
