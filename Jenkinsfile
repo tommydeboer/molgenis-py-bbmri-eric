@@ -87,6 +87,8 @@ pipeline {
                         env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
                     }
 
+                    sh "tox -e build"
+
                     sh "tox -e --publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
 
                     sh "git push --tags origin main"
