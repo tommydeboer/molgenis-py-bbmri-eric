@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-from molgenis.bbmri_eric import __version__, importer
+from molgenis.bbmri_eric import __version__, bbmri_client
 
 _logger = logging.getLogger(__name__)
 
@@ -70,7 +70,14 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    importer.import_national_nodes(args.nodes)
+    bbmriSession = bbmri_client.BBMRI_Session(
+        url=args.target,
+        national_nodes=args.external_national_nodes,
+        username=args.username,
+        password=args.password,
+    )
+    bbmriSession.update_external_entities()
+    bbmriSession.update_eric_entities()
 
 
 def run():
