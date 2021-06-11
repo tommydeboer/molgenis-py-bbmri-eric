@@ -12,10 +12,10 @@ pipeline {
                 }
                 container('vault') {
                     script {
-                        env.PYPI_USERNAME = sh(script: 'vault read -field=username secret/dev/account/pypi', returnStdout: true)
-                        env.PYPI_PASSWORD = sh(script: 'vault read -field=password secret/dev/account/pypi', returnStdout: true)
-                        env.TESTPYPI_USERNAME = sh(script: 'vault read -field=username secret/dev/account/testpypi', returnStdout: true)
-                        env.TESTPYPI_PASSWORD = sh(script: 'vault read -field=password secret/dev/account/testpypi', returnStdout: true)
+                        env.PYPI_USERNAME = sh(script: 'vault read -field=username secret/ops/account/pypi', returnStdout: true)
+                        env.PYPI_PASSWORD = sh(script: 'vault read -field=password secret/ops/account/pypi', returnStdout: true)
+                        env.TESTPYPI_USERNAME = sh(script: 'vault read -field=username secret/ops/account/testpypi', returnStdout: true)
+                        env.TESTPYPI_PASSWORD = sh(script: 'vault read -field=password secret/ops/account/testpypi', returnStdout: true)
                         env.GITHUB_TOKEN = sh(script: 'vault read -field=value secret/ops/token/github', returnStdout: true)
                         env.SONAR_TOKEN = sh(script: 'vault read -field=value secret/ops/token/sonar', returnStdout: true)
                     }
