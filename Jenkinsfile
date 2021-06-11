@@ -14,6 +14,8 @@ pipeline {
                     script {
                         env.PYPI_USERNAME = sh(script: 'vault read -field=username secret/dev/account/pypi', returnStdout: true)
                         env.PYPI_PASSWORD = sh(script: 'vault read -field=password secret/dev/account/pypi', returnStdout: true)
+                        env.TESTPYPI_USERNAME = sh(script: 'vault read -field=username secret/dev/account/testpypi', returnStdout: true)
+                        env.TESTPYPI_PASSWORD = sh(script: 'vault read -field=password secret/dev/account/testpypi', returnStdout: true)
                         env.GITHUB_TOKEN = sh(script: 'vault read -field=value secret/ops/token/github', returnStdout: true)
                         env.SONAR_TOKEN = sh(script: 'vault read -field=value secret/ops/token/sonar', returnStdout: true)
                     }
@@ -64,7 +66,7 @@ pipeline {
                     script {
                         env.RELEASE_SCOPE = input(
                                 message: 'Do you want to release?',
-                                ok: 'Release',
+                                ok: 'Release to TestPyPi',
                                 parameters: [
                                         choice(choices: 'patch\nminor\nmajor', description: '', name: 'RELEASE_SCOPE')
                                 ]
@@ -75,7 +77,7 @@ pipeline {
                 container('python') {
                     sh "git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
 
-                    sh "git checkout -f ${BRANCH_NAME}"
+                    sh "git checkout -f main"
 
                     script {
                         env.CURRENT_PACKAGE_VERSION = sh(script: "python setup.py --version", returnStdout: true).trim()
@@ -85,9 +87,21 @@ pipeline {
                         env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
                     }
 
+                    sh "tox -e --publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
+
+                    sh "git push --tags origin main"
+                }
+                timeout(time: 60, unit: 'MINUTES') {
+                    script {
+                        env.RELEASE_SCOPE = input(
+                                message: 'Was the release to TestPyPi successful? (will continue actual release!)',
+                                ok: 'Release to PyPi'
+                        )
+                    }
+                }
+                container('python') {
                     sh "tox -e --publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
 
-                    sh "git push --tags origin master"
                     hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
                 }
             }
