@@ -2,6 +2,9 @@ from molgenis.client import MolgenisRequestError
 
 
 def get_all_ids(data):
+    if len(data) == 0:
+        return []
+
     return [item["id"] for item in data]
 
 

@@ -12,8 +12,8 @@ target = config["TARGET"]
 username = config["USERNAME"]
 password = config["PASSWORD"]
 external_national_nodes = [
-    {"national_node": "DE", "source": "https://directory.bbmri.de/api/"},
-    {"national_node": "NL", "source": "https://catalogue.bbmri.nl/api/"},
+    {"national_node": "DE", "source": "https://directory.bbmri.de"},
+    {"national_node": "NL", "source": "https://catalogue.bbmri.nl"},
 ]
 
 bbmri_session = BbmriSession(
@@ -22,5 +22,6 @@ bbmri_session = BbmriSession(
     username=username,
     password=password,
 )
+
 bbmri_session.update_external_entities()
 bbmri_session.update_eric_entities()

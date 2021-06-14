@@ -1,15 +1,6 @@
 import re
 
-idSpecByEntity = {
-    "persons": "contactID",
-    "contact": "contactID",
-    "networks": "networkID",
-    "biobanks": "ID",
-    "collections": "ID",  # collectionID
-    "sub_collections": "ID",  # ref-check
-}
-
-registeredNationalNodes = [
+registered_national_nodes = [
     "AT",
     "BE",
     "BG",
@@ -32,7 +23,17 @@ registeredNationalNodes = [
     "TR",
     "UK",
     "IARC",
+    "EXT",
 ]
+
+idSpecByEntity = {
+    "persons": "contactID",
+    "contact": "contactID",
+    "networks": "networkID",
+    "biobanks": "ID",
+    "collections": "ID",  # collectionID
+    "sub_collections": "ID",  # ref-check
+}
 
 
 def validate_bbmri_id(entity, nn, bbmriId):
@@ -45,25 +46,9 @@ def validate_bbmri_id(entity, nn, bbmriId):
 
     idConstraint = f"bbmri-eric:{idSpec}:{nn}_"  # for error messages
     globalIdConstraint = f"bbmri-eric:{idSpec}:EU_"  # for global refs
-    extIdConstraint = "bbmri-eric:ID:EXT_"
 
-    extIdRegex = f"^{extIdConstraint}"
     idRegex = f"^{idConstraint}"
     globalIdRegex = f"^{globalIdConstraint}"
-
-    if nn not in registeredNationalNodes:
-        if not re.search(extIdRegex, bbmriId):
-            errors.append(
-                f"""{bbmriId} is not a registered national node
-                and must start with: {extIdConstraint} for entity: {entity}"""
-            )
-
-    if re.search(extIdRegex, bbmriId):
-        errors.append(
-            f"""Error in {bbmriId} found for {nn},
-            id's belonging to a registered national node must
-            start with {idConstraint} for entity: {entity}"""
-        )
 
     if not re.search(idRegex, bbmriId) and not re.search(
         globalIdRegex, bbmriId
@@ -102,7 +87,7 @@ def validate_bbmri_id(entity, nn, bbmriId):
 
 def _validate_id_in_nn_entry(
     entity: str, parent_entry: dict, parent_entity: str, nn: dict, entry: dict
-):
+) -> bool:
     bbmriId = entry["id"]
 
     if not validate_bbmri_id(entity=entity, nn=nn, bbmriId=bbmriId):
