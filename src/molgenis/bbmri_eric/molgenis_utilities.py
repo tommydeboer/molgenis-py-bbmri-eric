@@ -75,8 +75,11 @@ def bulk_add_all(session, entity, data):
     maxUpdateCount = 1000
 
     if len(data) <= maxUpdateCount:
-        session.add_all(entity=entity, entities=data)
-        return
+        try:
+            session.add_all(entity=entity, entities=data)
+            return
+        except MolgenisRequestError as exception:
+            raise ValueError(exception)
 
     numberOfCycles = int(len(data) / maxUpdateCount)
 

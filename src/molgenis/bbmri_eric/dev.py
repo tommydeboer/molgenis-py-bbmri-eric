@@ -23,5 +23,5 @@ bbmri_session = BbmriSession(
     password=password,
 )
 
-bbmri_session.update_external_entities()
+# bbmri_session.update_external_entities()
 bbmri_session.update_eric_entities()
