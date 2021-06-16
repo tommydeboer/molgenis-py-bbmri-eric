@@ -46,7 +46,6 @@ class BbmriSession(Session):
 
     package = "eu_bbmri_eric_"
     import_table_sequence = ["persons", "networks", "biobanks", "collections"]
-    combined_entity_cache = {}
     tables_to_cache_for_import = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
@@ -64,6 +63,8 @@ class BbmriSession(Session):
 
         if username and password:
             self.login(username=username, password=password)
+
+        self.combined_entity_cache = {}
 
     @property
     def get_national_node_codes(self) -> list[str]:
