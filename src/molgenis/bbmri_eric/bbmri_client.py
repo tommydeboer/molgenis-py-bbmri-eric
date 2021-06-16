@@ -307,7 +307,7 @@ class BbmriSession(Session):
                 print("\n")
                 print("---" * 10)
                 print("Failed to import, following error occurred:", exception)
-                print("---" * 10, end="\n")
+                print("---" * 10)
 
                 cached_data = self.__combined_entity_cache[entity_name]
                 original_data = _filter_national_node_data(
@@ -418,11 +418,12 @@ class BbmriSession(Session):
                     entity=target_entity,
                     ids=ids_for_national_node_data,
                 )
-                print("Removed:", len(ids_for_national_node_data), "rows", end="\n")
+                print("Removed:", len(ids_for_national_node_data), "rows")
             except ValueError as exception:
                 raise exception
         else:
-            print("Nothing to remove for", target_entity, end="\n\n")
+            print("Nothing to remove for ", target_entity)
+            print()
 
     def __replace_global_entities(self):
         """
