@@ -28,19 +28,13 @@ def validate_national_node(node: str) -> Union[bool, ValueError]:
     """
     if "national_node" not in node:
         raise ValueError(
-            """Argument
-            should have key: 'national_node',
-            which is the prefix of the national
-            node example: 'NL'"""
+            """Argument should have key: 'national_node', which is the prefix of the
+            national node example: 'NL'"""
         )
     if "source" not in node:
         raise ValueError(
-            """Argument
-            should have key:
-            'source',
-            which is the
-            complete url to
-            the source directory"""
+            """Argument should have key: 'source', which is the complete url to the
+            source directory"""
         )
     return True
 
@@ -115,9 +109,8 @@ class BbmriSession(Session):
 
     def get_data_for_entity(self, entity_name: str, national_node_code=None) -> dict:
         """
-        Get's data for entity,
-        if national node code is provided,
-        it will fetch data from it's own entity
+        Get's data for entity, if national node code is provided, it will fetch data
+        from it's own entity
         """
         entity_name = self.get_qualified_entity_name(
             entity_name=entity_name, national_node_code=national_node_code
@@ -137,8 +130,7 @@ class BbmriSession(Session):
         valid_entities: list[str] = None,
     ) -> list[dict]:
         """
-        Checks if any id in an xref or mref is invalid,
-        if so then it omits that row
+        Checks if any id in an xref or mref is invalid, if so then it omits that row
         """
         references = molgenis_utilities.get_all_references_for_entity(
             session=self, entity=entity
@@ -176,9 +168,7 @@ class BbmriSession(Session):
 
     def cache_combined_entity_data(self) -> None:
         """
-        Caches data
-        for all bbmri entities,
-        in case of rollback
+        Caches data for all bbmri entities, in case of rollback
         """
         for entity in self.import_table_sequence:
             source_entity = self.get_qualified_entity_name(entity_name=entity)
@@ -209,8 +199,7 @@ class BbmriSession(Session):
 
     def import_national_node_to_own_entity(self, national_node):
         """
-        Get data from staging area
-        to their own entity on 'self'
+        Get data from staging area to their own entity on 'self'
         """
         if national_node not in self.national_nodes:
             self.national_nodes.append(national_node)
@@ -258,9 +247,7 @@ class BbmriSession(Session):
     # import contents from a national node entity to the eric entity (combined table)
     def import_national_node_to_eric_entity(self, national_node_code, entity_name):
         """
-        Import all national node
-        data into the combined eric
-        entities
+        Import all national node data into the combined eric entities
         """
 
         print(
@@ -361,8 +348,7 @@ class BbmriSession(Session):
 
     def delete_national_node_own_entity_data(self, national_node):
         """
-        Delete data before import
-        from national node entity
+        Delete data before import from national node entity
         """
         if national_node not in self.national_nodes:
             self.national_nodes.append(national_node)
@@ -403,8 +389,7 @@ class BbmriSession(Session):
 
     def prepare_deletion_of_node_data(self):
         """
-        Checks the cache and makes one
-        if not found
+        Checks the cache and makes one if not found
         """
         # varify we have it cached, if not start caching
         if not all(
@@ -422,8 +407,7 @@ class BbmriSession(Session):
 
     def finish_importing_of_node_data(self):
         """
-        Places back entities
-        that are marked global
+        Places back entities that are marked global
         """
         self.replace_global_entities()
 
@@ -431,8 +415,7 @@ class BbmriSession(Session):
         self, national_node_code, entity_name
     ):
         """
-        Surgically delete all national node
-        data from combined entities
+        Surgically delete all national node data from combined entities
         """
         # sanity check
         if entity_name not in self.combined_entity_cache:
@@ -469,8 +452,7 @@ class BbmriSession(Session):
 
     def replace_global_entities(self):
         """
-        Function to loop over global entities
-        and place back the data
+        Function to loop over global entities and place back the data
         """
         print("Placing back the global entities")
         for global_entity in self.tables_to_cache_for_import:
@@ -502,8 +484,7 @@ class BbmriSession(Session):
 
     def update_eric_entities(self):
         """
-        Combine all national node data
-        into the Eric equivalent
+        Combine all national node data into the Eric equivalent
         """
         if not self.national_nodes:
             raise ValueError("No national nodes found to update")
