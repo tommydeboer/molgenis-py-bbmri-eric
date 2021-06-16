@@ -210,11 +210,7 @@ class BbmriSession(Session):
         national_node_code = national_node["national_node"]
 
         print(
-            "Importing data for staging area",
-            national_node_code,
-            "on",
-            self.target,
-            "\n",
+            f"Importing data for staging area ${national_node_code} on ${self.target}\n"
         )
 
         # imports
@@ -251,13 +247,7 @@ class BbmriSession(Session):
         Import all national node data into the combined eric entities
         """
 
-        print(
-            "Importing data for",
-            national_node_code,
-            "on",
-            self.target,
-            "\n",
-        )
+        print(f"Importing data for ${national_node_code} on ${self.target}\n")
 
         source = self.__get_data_for_entity(
             entity_name=entity_name, national_node_code=national_node_code
@@ -310,13 +300,8 @@ class BbmriSession(Session):
                     session=self, entity=target["name"], data=prepped_source_data
                 )
                 print(
-                    "Imported:",
-                    len(prepped_source_data),
-                    "rows",
-                    "to",
-                    target["name"],
-                    "out of",
-                    len(source["ids"]),
+                    f"Imported: ${len(prepped_source_data)} rows to ${target['name']}"
+                    f"out of ${len(source['ids'])}"
                 )
             except ValueError as exception:  # rollback
                 print("\n")
@@ -340,11 +325,8 @@ class BbmriSession(Session):
                         session=self, entity=target["name"], data=original_data
                     )
                     print(
-                        "Rolled back",
-                        target["name"],
-                        "with previous data for",
-                        national_node_code,
-                        end="\n",
+                        f"Rolled back ${target['name']} with previous data for "
+                        f"${national_node_code}"
                     )
 
     def __delete_national_node_own_entity_data(self, national_node):
@@ -356,13 +338,7 @@ class BbmriSession(Session):
 
         national_node_code = national_node["national_node"]
 
-        print(
-            "Deleting data for staging area",
-            national_node_code,
-            "on",
-            self.target,
-            "\n",
-        )
+        print(f"Deleting data for staging area ${national_node_code} on ${self.target}")
 
         previous_ids_per_entity = {}
 
@@ -423,11 +399,8 @@ class BbmriSession(Session):
             self.__cache_combined_entity_data()
 
         print(
-            "\nRemoving data from the entity:",
-            entity_name,
-            "for:",
-            national_node_code,
-            end="\n",
+            f"\nRemoving data from the entity: ${entity_name} for: "
+            f"${national_node_code}"
         )
         entity_cached_data = self.__combined_entity_cache[entity_name]
         target_entity = self.__get_qualified_entity_name(entity_name=entity_name)
@@ -462,7 +435,7 @@ class BbmriSession(Session):
                 molgenis_utilities.bulk_add_all(
                     session=self, entity=global_entity, data=source_data
                 )
-                print("Placed back:", len(source_data), "rows", "to", global_entity)
+                print(f"Placed back: ${len(source_data)} rows to ${global_entity}")
             else:
                 print("No rows found to place back")
 
