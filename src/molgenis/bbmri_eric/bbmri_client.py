@@ -382,12 +382,6 @@ class BbmriSession(Session):
                 session=self, entity=global_entity, ids=source_ids
             )
 
-    def __finish_importing_of_node_data(self):
-        """
-        Places back entities that are marked global
-        """
-        self.__replace_global_entities()
-
     def __delete_national_node_data_from_eric_entity(
         self, national_node_code, entity_name
     ):
@@ -485,4 +479,4 @@ class BbmriSession(Session):
                     )
                     print("\n")
         finally:
-            self.__finish_importing_of_node_data()
+            self.__replace_global_entities()
