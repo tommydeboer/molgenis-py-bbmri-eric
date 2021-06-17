@@ -48,6 +48,45 @@ class BbmriSession(Session):
 
         self.__combined_entity_cache = {}
 
+    def stage_external_nodes(self):
+        """
+        Fetch data from staging area
+        """
+        for node in nodes.get_all_external_nodes():
+            self.__delete_national_node_own_entity_data(node)
+            print("\n")
+
+            try:
+                self.__import_national_node_to_own_entity(node)
+                print("\n")
+            except ValueError as exception:  # rollback?
+                raise exception
+
+    def publish_nodes(self):
+        """
+        Combine all national node data into the Eric equivalent
+        """
+        self.__prepare_deletion_of_node_data()
+
+        try:
+
+            for entity_name in reversed(self.__IMPORT_SEQUENCE):
+                for node in nodes.get_all_nodes():
+                    self.__delete_national_node_data_from_eric_entity(
+                        node=node, entity_name=entity_name
+                    )
+
+            for import_entity_name in self.__IMPORT_SEQUENCE:
+                print("\n")
+                for node in nodes.get_all_nodes():
+                    self.__import_national_node_to_eric_entity(
+                        node=node,
+                        entity_name=import_entity_name,
+                    )
+                    print("\n")
+        finally:
+            self.__replace_global_entities()
+
     def __get_qualified_entity_name(self, entity_name: str, node: Node = None) -> str:
         """
         Method to create a correct name for an entity.
@@ -359,42 +398,3 @@ class BbmriSession(Session):
                 print(f"Placed back: ${len(source_data)} rows to ${global_entity}")
             else:
                 print("No rows found to place back")
-
-    def stage_external_nodes(self):
-        """
-        Fetch data from staging area
-        """
-        for node in nodes.get_all_external_nodes():
-            self.__delete_national_node_own_entity_data(node)
-            print("\n")
-
-            try:
-                self.__import_national_node_to_own_entity(node)
-                print("\n")
-            except ValueError as exception:  # rollback?
-                raise exception
-
-    def publish_nodes(self):
-        """
-        Combine all national node data into the Eric equivalent
-        """
-        self.__prepare_deletion_of_node_data()
-
-        try:
-
-            for entity_name in reversed(self.__IMPORT_SEQUENCE):
-                for node in nodes.get_all_nodes():
-                    self.__delete_national_node_data_from_eric_entity(
-                        node=node, entity_name=entity_name
-                    )
-
-            for import_entity_name in self.__IMPORT_SEQUENCE:
-                print("\n")
-                for node in nodes.get_all_nodes():
-                    self.__import_national_node_to_eric_entity(
-                        node=node,
-                        entity_name=import_entity_name,
-                    )
-                    print("\n")
-        finally:
-            self.__replace_global_entities()
