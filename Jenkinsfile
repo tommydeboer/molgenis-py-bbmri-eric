@@ -14,6 +14,8 @@ pipeline {
                     script {
                         env.PYPI_USERNAME = sh(script: 'vault read -field=username secret/ops/account/pypi', returnStdout: true)
                         env.PYPI_PASSWORD = sh(script: 'vault read -field=password secret/ops/account/pypi', returnStdout: true)
+                        env.TESTPYPI_USERNAME = sh(script: 'vault read -field=username secret/ops/account/testpypi', returnStdout: true)
+                        env.TESTPYPI_PASSWORD = sh(script: 'vault read -field=password secret/ops/account/testpypi', returnStdout: true)
                         env.GITHUB_TOKEN = sh(script: 'vault read -field=value secret/ops/token/github', returnStdout: true)
                         env.SONAR_TOKEN = sh(script: 'vault read -field=value secret/ops/token/sonar', returnStdout: true)
                     }
@@ -64,7 +66,7 @@ pipeline {
                     script {
                         env.RELEASE_SCOPE = input(
                                 message: 'Do you want to release?',
-                                ok: 'Release',
+                                ok: 'Release to TestPyPi',
                                 parameters: [
                                         choice(choices: 'patch\nminor\nmajor', description: '', name: 'RELEASE_SCOPE')
                                 ]
@@ -74,20 +76,37 @@ pipeline {
                 milestone 2
                 container('python') {
                     sh "git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPOSITORY}.git"
+                    sh "git checkout -f main"
+                    sh "git fetch --tags"
 
-                    sh "git checkout -f ${BRANCH_NAME}"
-
+                    // bump the version based on the last tag and create a new tag
+                    sh "pip install bumpversion"
                     script {
-                        env.CURRENT_PACKAGE_VERSION = sh(script: "python setup.py --version", returnStdout: true).trim()
+                        env.NEW_PACKAGE_VERSION = sh(script: "sh bump-version.sh", returnStdout: true).trim()
                     }
 
+                    // undo the formatting changes made by bumpversion to setup.cfg
+                    sh "git checkout ."
+
+                    // build and publish the release
+                    sh "tox -e build"
+                    sh "tox -e publish -- --repository testpypi --username ${TESTPYPI_USERNAME} --password ${TESTPYPI_PASSWORD}"
+
+                    // push the new tag to molgenis/molgenis-py-bbmri-eric
+                    sh "git push --tags origin main"
+                }
+                timeout(time: 60, unit: 'MINUTES') {
                     script {
-                        env.NEW_PACKAGE_VERSION = sh(script: "bumpversion --current-version ${CURRENT_PACKAGE_VERSION} --list ${RELEASE_SCOPE} | grep new_version= | cut -d'=' -f2", returnStdout: true).trim()
+                        env.RELEASE_SCOPE = input(
+                                message: "Test the release at: \nhttps://test.pypi.org/project/molgenis-py-bbmri-eric/${NEW_PACKAGE_VERSION}/ \nContinue the release if it's ok, abort otherwise.",
+                                ok: 'Release to PyPi'
+                        )
                     }
+                }
+                container('python') {
+                    // do the actual release to PyPi
+                    sh "tox -e publish -- --repository pypi --username ${PYPI_USERNAME} --password ${PYPI_PASSWORD}"
 
-                    sh "tox -e --publish -- --repository pypi"
-
-                    sh "git push --tags origin master"
                     hubotSend(message: "molgenis-py-bbmri-eric ${NEW_PACKAGE_VERSION} has been released! :tada: https://pypi.org/project/molgenis-py-bbmri-eric/", status:'SUCCESS')
                 }
             }

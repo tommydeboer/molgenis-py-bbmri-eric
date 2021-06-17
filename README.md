@@ -7,6 +7,31 @@ Python tooling for BBMRI-ERIC
 
 TODO
 
+## For developers
+This project uses [pre-commit](https://pre-commit.com/) and [pipenv](https://pypi.org/project/pipenv/) for the development workflow.
+
+```
+# install pre-commit and pipenv if you haven't already 
+pip install pre-commit
+pip install pipenv
+
+# install the git commit hooks
+pre-commit install
+
+# create an environment and install the package including all (dev) dependencies
+pipenv install
+
+# enter the environment
+pipenv shell
+
+# build and run the tests
+tox
+
+# the package's command-line entry point is already installed
+eric -h
+```
+
+
 ## Note
 
 This project has been set up using PyScaffold 4.0.2. For details and usage

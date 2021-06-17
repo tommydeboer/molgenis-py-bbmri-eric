@@ -17,7 +17,7 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    parser = argparse.ArgumentParser(description="MOLGENIS BBMRI-ERIC CLI")
     parser.add_argument(
         "--version",
         action="version",
