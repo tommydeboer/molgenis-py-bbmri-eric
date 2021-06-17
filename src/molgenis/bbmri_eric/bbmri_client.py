@@ -1,6 +1,7 @@
 """
 BBMRI interface for Molgenis
 """
+from typing import List
 
 import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
 import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
@@ -48,11 +49,17 @@ class BbmriSession(Session):
 
         self.__combined_entity_cache = {}
 
-    def stage_external_nodes(self):
+    def stage_all_external_nodes(self):
         """
-        Fetch data from staging area
+        Stages all data from external nodes in the BBMRI-ERIC directory.
         """
-        for node in nodes.get_all_external_nodes():
+        self.stage_external_nodes(nodes.get_all_external_nodes())
+
+    def stage_external_nodes(self, external_nodes: List[ExternalNode]):
+        """
+        Stages all data from the provided external nodes in the BBMRI-ERIC directory.
+        """
+        for node in external_nodes:
             self.__delete_national_node_own_entity_data(node)
             print("\n")
 
@@ -62,23 +69,29 @@ class BbmriSession(Session):
             except ValueError as exception:  # rollback?
                 raise exception
 
-    def publish_nodes(self):
+    def publish_all_nodes(self):
         """
-        Combine all national node data into the Eric equivalent
+        Publishes data from all nodes to the production tables.
+        """
+        self.publish_nodes(nodes.get_all_nodes())
+
+    def publish_nodes(self, national_nodes: List[Node]):
+        """
+        Publishes data from the provided nodes to the production tables.
         """
         self.__prepare_deletion_of_node_data()
 
         try:
 
             for entity_name in reversed(self.__IMPORT_SEQUENCE):
-                for node in nodes.get_all_nodes():
+                for node in national_nodes:
                     self.__delete_national_node_data_from_eric_entity(
                         node=node, entity_name=entity_name
                     )
 
             for import_entity_name in self.__IMPORT_SEQUENCE:
                 print("\n")
-                for node in nodes.get_all_nodes():
+                for node in national_nodes:
                     self.__import_national_node_to_eric_entity(
                         node=node,
                         entity_name=import_entity_name,

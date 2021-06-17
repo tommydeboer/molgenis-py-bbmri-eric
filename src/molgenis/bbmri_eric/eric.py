@@ -70,14 +70,13 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    bbmriSession = bbmri_client.BBMRI_Session(
+    bbmri_session = bbmri_client.BbmriSession(
         url=args.target,
-        national_nodes=args.external_national_nodes,
         username=args.username,
         password=args.password,
     )
-    bbmriSession.stage_external_nodes()
-    bbmriSession.publish_nodes()
+    bbmri_session.stage_all_external_nodes()
+    bbmri_session.publish_all_nodes()
 
 
 def run():

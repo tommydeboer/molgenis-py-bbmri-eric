@@ -11,17 +11,12 @@ config = dotenv_values(".env.local")
 target = config["TARGET"]
 username = config["USERNAME"]
 password = config["PASSWORD"]
-external_national_nodes = [
-    {"national_node": "DE", "source": "https://directory.bbmri.de"},
-    {"national_node": "NL", "source": "https://catalogue.bbmri.nl"},
-]
 
 bbmri_session = BbmriSession(
     url=target,
-    national_nodes=external_national_nodes,
     username=username,
     password=password,
 )
 
-bbmri_session.stage_external_nodes()
-bbmri_session.publish_nodes()
+bbmri_session.stage_all_external_nodes()
+bbmri_session.publish_all_nodes()
