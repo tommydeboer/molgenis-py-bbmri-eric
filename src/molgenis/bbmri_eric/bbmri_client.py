@@ -2,8 +2,6 @@
 BBMRI interface for Molgenis
 """
 
-from typing import Union
-
 import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
 import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
 from molgenis.bbmri_eric import nodes
@@ -24,23 +22,6 @@ def _filter_national_node_data(data: list[dict], node: Node) -> list[dict]:
     return data_from_national_node
 
 
-def _validate_national_node(node: str) -> Union[bool, ValueError]:
-    """
-    Validation for supplied national node
-    """
-    if "national_node" not in node:
-        raise ValueError(
-            """Argument should have key: 'national_node', which is the prefix of the
-            national node example: 'NL'"""
-        )
-    if "source" not in node:
-        raise ValueError(
-            """Argument should have key: 'source', which is the complete url to the
-            source directory"""
-        )
-    return True
-
-
 class BbmriSession(Session):
     """
     BBMRI Session Class, which extends the molgenis py client Session class
@@ -53,51 +34,19 @@ class BbmriSession(Session):
         "eu_bbmri_eric_col_qual_info",
     ]
 
-    def __init__(self, url, national_nodes, **kwargs):
+    def __init__(self, url, **kwargs):
 
         token = kwargs["token"] if " token" in kwargs else None
         username = kwargs["username"] if "username" in kwargs else None
         password = kwargs["password"] if "password" in kwargs else None
 
         super().__init__(url, token)
-        self.national_nodes = national_nodes
         self.target = url
 
         if username and password:
             self.login(username=username, password=password)
 
         self.__combined_entity_cache = {}
-
-    @property
-    def get_national_node_codes(self) -> list[str]:
-        """
-        Getter for the national node codes
-        """
-        return [node["national_node"] for node in self._national_nodes]
-
-    @property
-    def national_nodes(self) -> list[dict]:
-        """
-        Getter for national_nodes
-        """
-        return self._national_nodes
-
-    @national_nodes.setter
-    def national_nodes(self, value: Union[dict, list]) -> None:
-        """
-        Setter for a single node of a list of nodes, with validation
-        """
-        nodes = []
-
-        if value is dict:
-            nodes.append(value)
-        else:
-            nodes = value
-
-        for node in nodes:
-            _validate_national_node(node)
-
-        self._national_nodes = nodes
 
     def __get_qualified_entity_name(self, entity_name: str, node: Node = None) -> str:
         """
