@@ -204,7 +204,7 @@ class BbmriSession(Session):
         """
         source_session = Session(url=node.url)
 
-        print(f"Importing data for staging area ${node.code} on ${self.target}\n")
+        print(f"Importing data for staging area {node.code} on {self.target}\n")
 
         # imports
         for entity_name in self.__IMPORT_SEQUENCE:
@@ -240,7 +240,7 @@ class BbmriSession(Session):
         Import all national node data into the combined eric entities
         """
 
-        print(f"Importing data for ${node.code} on ${self.target}\n")
+        print(f"Importing data for {node.code} on {self.target}\n")
 
         source = self.__get_data_for_entity(entity_name=entity_name, node=node)
         target = self.__get_data_for_entity(entity_name)
@@ -261,18 +261,10 @@ class BbmriSession(Session):
             if valid_data["id"] in valid_ids and valid_data["id"] not in target["ids"]
         ]
 
-        print(len(valid_entries), "valid rows found")
+        # check the ids per entity if they exist
+        # > molgenis_utilities.get_all_ref_ids_by_entity
 
-        # validate the references
-        valid_source = self.__validate_refs(
-            entity=source["name"],
-            entries=valid_entries,
-            node=node,
-        )
-
-        print(len(valid_source), "valid rows found after reference check")
-
-        if len(valid_source) > 0:
+        if len(valid_entries) > 0:
 
             source_references = molgenis_utilities.get_all_references_for_entity(
                 session=self, entity=source["name"]
@@ -281,7 +273,7 @@ class BbmriSession(Session):
             print("Importing data to", target["name"])
             prepped_source_data = (
                 molgenis_utilities.transform_to_molgenis_upload_format(
-                    data=valid_source, one_to_manys=source_references["one_to_many"]
+                    data=valid_entries, one_to_manys=source_references["one_to_many"]
                 )
             )
 
@@ -290,8 +282,8 @@ class BbmriSession(Session):
                     session=self, entity=target["name"], data=prepped_source_data
                 )
                 print(
-                    f"Imported: ${len(prepped_source_data)} rows to ${target['name']}"
-                    f"out of ${len(source['ids'])}"
+                    f"Imported: {len(prepped_source_data)} rows to {target['name']}"
+                    f"out of {len(source['ids'])}"
                 )
             except ValueError as exception:  # rollback
                 print("\n")
@@ -313,15 +305,15 @@ class BbmriSession(Session):
                         session=self, entity=target["name"], data=original_data
                     )
                     print(
-                        f"Rolled back ${target['name']} with previous data for "
-                        f"${node.code}"
+                        f"Rolled back {target['name']} with previous data for "
+                        f"{node.code}"
                     )
 
     def __delete_national_node_own_entity_data(self, node: ExternalNode):
         """
         Delete data before import from national node entity
         """
-        print(f"Deleting data for staging area ${node.code} on ${self.target}")
+        print(f"Deleting data for staging area {node.code} on {self.target}")
 
         previous_ids_per_entity = {}
 
@@ -373,7 +365,7 @@ class BbmriSession(Session):
         if entity_name not in self.__combined_entity_cache:
             self.__cache_combined_entity_data()
 
-        print(f"\nRemoving data from the entity: ${entity_name} for: " f"${node.code}")
+        print(f"\nRemoving data from the entity: {entity_name} for: " f"{node.code}")
         entity_cached_data = self.__combined_entity_cache[entity_name]
         target_entity = self.__get_qualified_entity_name(entity_name=entity_name)
         national_node_data_for_entity = _filter_national_node_data(
@@ -408,6 +400,6 @@ class BbmriSession(Session):
                 molgenis_utilities.bulk_add_all(
                     session=self, entity=global_entity, data=source_data
                 )
-                print(f"Placed back: ${len(source_data)} rows to ${global_entity}")
+                print(f"Placed back: {len(source_data)} rows to {global_entity}")
             else:
                 print("No rows found to place back")

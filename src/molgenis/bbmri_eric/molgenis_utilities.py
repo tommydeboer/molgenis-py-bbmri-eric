@@ -91,3 +91,29 @@ def bulk_add_all(session, entity, data):
             session.add_all(entity=entity, entities=itemsToAdd)
     except MolgenisRequestError as exception:
         raise ValueError(exception)
+
+
+def get_all_ref_ids_by_entity(
+    entry: dict,
+    possible_entity_references: list,
+) -> dict:
+
+    ref_ids_by_entity = {}
+
+    for entity_reference in possible_entity_references:
+        if entity_reference not in ref_ids_by_entity:
+            ref_ids_by_entity[entity_reference] = []
+
+        ref_data = entry[entity_reference]
+
+        # check if its an xref
+        if type(ref_data) is dict:
+            ref_ids_by_entity[entity_reference].append(ref_data["id"])
+        else:
+            for ref in ref_data:
+                if type(ref) is dict:
+                    ref_ids_by_entity[entity_reference].append(ref["id"])
+                else:
+                    ref_ids_by_entity[entity_reference].append(ref)
+
+    return ref_ids_by_entity
