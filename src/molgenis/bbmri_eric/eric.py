@@ -76,8 +76,8 @@ def main(args):
         username=args.username,
         password=args.password,
     )
-    bbmriSession.update_external_entities()
-    bbmriSession.update_eric_entities()
+    bbmriSession.stage_external_nodes()
+    bbmriSession.publish_nodes()
 
 
 def run():

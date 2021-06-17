@@ -434,7 +434,7 @@ class BbmriSession(Session):
             else:
                 print("No rows found to place back")
 
-    def update_external_entities(self):
+    def stage_external_nodes(self):
         """
         Fetch data from staging area
         """
@@ -451,7 +451,7 @@ class BbmriSession(Session):
             except ValueError as exception:  # rollback?
                 raise exception
 
-    def update_eric_entities(self):
+    def publish_nodes(self):
         """
         Combine all national node data into the Eric equivalent
         """
