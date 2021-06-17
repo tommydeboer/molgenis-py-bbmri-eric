@@ -129,51 +129,6 @@ class BbmriSession(Session):
 
         return {"data": entity_data, "name": entity_name, "ids": entity_ids}
 
-    def validate_refs(
-        self,
-        entity: str,
-        entries: list[dict],
-        national_node_code: str,
-        valid_entities: list[str] = None,
-    ) -> list[dict]:
-        """
-        Checks if any id in an xref or mref is invalid,
-        if so then it omits that row
-        """
-        references = molgenis_utilities.get_all_references_for_entity(
-            session=self, entity=entity
-        )
-        all_references = references["xref"]
-        all_references.extend(references["one_to_many"])
-
-        valid_entries = []
-
-        for entry in entries:
-            validations = bbmri_validations.validate_refs_in_entry(
-                nn=national_node_code,
-                entry=entry,
-                parent_entity=entity,
-                possible_entity_references=all_references,
-            )
-
-            # check if the refs have been imported
-            references_imported = []
-            for validation in validations:
-                eric_entity = self.get_qualified_entity_name(
-                    validation["entity_reference"]
-                )
-                try:
-                    entry = self.get_by_id(entity=eric_entity, id_=validation["ref_id"])
-                    references_imported.append(entry)
-                except MolgenisRequestError:
-                    break
-
-            # only if all the references from this row are imported
-            if len(references_imported) == len(validations):
-                valid_entries.append(entry)
-
-        return valid_entries
-
     def cache_combined_entity_data(self) -> None:
         """
         Caches data
@@ -293,18 +248,10 @@ class BbmriSession(Session):
             if valid_data["id"] in valid_ids and valid_data["id"] not in target["ids"]
         ]
 
-        print(len(valid_entries), "valid rows found")
+        # check the ids per entity if they exist
+        # > molgenis_utilities.get_all_ref_ids_by_entity
 
-        # validate the references
-        valid_source = self.validate_refs(
-            entity=source["name"],
-            entries=valid_entries,
-            national_node_code=national_node_code,
-        )
-
-        print(len(valid_source), "valid rows found after reference check")
-
-        if len(valid_source) > 0:
+        if len(valid_entries) > 0:
 
             source_references = molgenis_utilities.get_all_references_for_entity(
                 session=self, entity=source["name"]
@@ -313,7 +260,7 @@ class BbmriSession(Session):
             print("Importing data to", target["name"])
             prepped_source_data = (
                 molgenis_utilities.transform_to_molgenis_upload_format(
-                    data=valid_source, one_to_manys=source_references["one_to_many"]
+                    data=valid_entries, one_to_manys=source_references["one_to_many"]
                 )
             )
 

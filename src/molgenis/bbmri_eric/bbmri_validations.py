@@ -57,10 +57,10 @@ def validate_bbmri_id(entity, nn, bbmri_id):
             (or {globalIdConstraint} if it's a xref/mref)"""
         )
 
-    if re.search("[^A-Za-z0-9:_-]", bbmri_id):
+    if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
         errors.append(
             f"""{bbmri_id} in entity: {entity} contains
-            characters other than: A-Z a-z 0-9 : _ -"""
+            characters other than: A-Z a-z 0-9 : _ - . @"""
         )
 
     if re.search("::", bbmri_id):
@@ -92,14 +92,15 @@ def _validate_id_in_nn_entry(
     if not validate_bbmri_id(entity=entity, nn=nn, bbmri_id=ref_bbmri_id):
         print(
             f"""{parent_id} in entity: {parent_entity}
-            contains references to entity: {entity}
-            with an invalid id ({ref_bbmri_id})"""
+            contains references to entity: {entity} with an invalid id ({ref_bbmri_id})
+            """
         )
         return False
     else:
         return True
 
 
+# get all ref ids and then check
 def validate_refs_in_entry(
     nn: dict,
     entry: dict,
