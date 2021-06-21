@@ -1,6 +1,6 @@
 from typing import List
 
-from molgenis.bbmri_eric import bbmri_validations, utils
+from molgenis.bbmri_eric import utils, validation
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import Node
 
@@ -127,7 +127,7 @@ class Publisher:
         valid_ids = [
             source_id
             for source_id in source["ids"]
-            if bbmri_validations.validate_bbmri_id(
+            if validation.validate_bbmri_id(
                 entity=entity_name, node=node, bbmri_id=source_id
             )
         ]
