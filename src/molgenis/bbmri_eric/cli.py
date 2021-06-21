@@ -2,8 +2,11 @@ import argparse
 import logging
 import sys
 import textwrap
+from getpass import getpass
+from typing import Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
+from molgenis.bbmri_eric import nodes as nnodes
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ example usage:
   eric stage *
   eric stage nl de be
 
-  # Publish all or some national nodes in the production directory:
+  # Publish all or some national nodes to the production tables:
   eric publish *
   eric publish nl de be uk
 """
@@ -37,14 +40,36 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
+
+    username, password = _get_username_password(args)
+
+    all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
+
     bbmri_session = bbmri_client.BbmriSession(
-        url=args.target,
-        username=args.username,
-        password=args.password,
+        url=args.target, username=username, password=password
     )
 
-    bbmri_session.stage_all_external_nodes()
-    bbmri_session.publish_all_nodes()
+    if args.action == "stage":
+        if all_nodes:
+            nodes = nnodes.get_all_external_nodes()
+        else:
+            nodes = nnodes.get_external_nodes(args.nodes)
+        bbmri_session.stage(nodes)
+    elif args.action == "publish":
+        if all_nodes:
+            nodes = nnodes.get_all_nodes()
+        else:
+            nodes = nnodes.get_nodes(args.nodes)
+        bbmri_session.publish(nodes)
+
+
+def _get_username_password(args) -> Tuple[str, str]:
+    if not args.username:
+        username = input("Username: ")
+    else:
+        username = args.username
+    password = getpass()
+    return username, password
 
 
 def setup_logging(loglevel):
@@ -62,10 +87,6 @@ def setup_logging(loglevel):
 def run():
     """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`"""
     main(sys.argv[1:])
-
-
-if __name__ == "__main__":
-    run()
 
 
 def parse_args(args):
@@ -94,6 +115,17 @@ def parse_args(args):
         nargs="+",
     )
     parser.add_argument(
+        "--target",
+        help="the URL of the target directory (default: "
+        "https://directory.bbmri-eric.eu/)",
+        default="https://directory.bbmri-eric.eu/",
+    )
+    parser.add_argument(
+        "--username",
+        help="the username to use when connecting to the target (will be prompted if "
+        "not provided)",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="molgenis-py-bbmri-eric {ver}".format(ver=__version__),
@@ -115,3 +147,7 @@ def parse_args(args):
         const=logging.DEBUG,
     )
     return parser.parse_args(args)
+
+
+if __name__ == "__main__":
+    run()

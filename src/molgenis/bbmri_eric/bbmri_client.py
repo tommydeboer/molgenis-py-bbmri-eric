@@ -5,7 +5,6 @@ from typing import List
 
 import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
 import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
-from molgenis.bbmri_eric import nodes
 from molgenis.bbmri_eric.nodes import ExternalNode, Node
 from molgenis.client import MolgenisRequestError, Session
 
@@ -49,13 +48,7 @@ class BbmriSession(Session):
 
         self.__combined_entity_cache = {}
 
-    def stage_all_external_nodes(self):
-        """
-        Stages all data from external nodes in the BBMRI-ERIC directory.
-        """
-        self.stage_external_nodes(nodes.get_all_external_nodes())
-
-    def stage_external_nodes(self, external_nodes: List[ExternalNode]):
+    def stage(self, external_nodes: List[ExternalNode]):
         """
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
@@ -69,13 +62,7 @@ class BbmriSession(Session):
             except ValueError as exception:  # rollback?
                 raise exception
 
-    def publish_all_nodes(self):
-        """
-        Publishes data from all nodes to the production tables.
-        """
-        self.publish_nodes(nodes.get_all_nodes())
-
-    def publish_nodes(self, national_nodes: List[Node]):
+    def publish(self, national_nodes: List[Node]):
         """
         Publishes data from the provided nodes to the production tables.
         """
