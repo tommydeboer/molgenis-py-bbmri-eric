@@ -214,12 +214,12 @@ class BbmriSession(Session):
                         data=source_data, one_to_manys=source_one_to_manys
                     )
                 )
-            try:
-                molgenis_utilities.bulk_add_all(
-                    session=self, entity=target_entity, data=prepped_source_data
-                )
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
+                try:
+                    molgenis_utilities.bulk_add_all(
+                        session=self, entity=target_entity, data=prepped_source_data
+                    )
+                except MolgenisRequestError as exception:
+                    raise ValueError(exception)
 
     # import contents from a national node entity to the eric entity (combined table)
     def __import_national_node_to_eric_entity(self, node: Node, entity_name):
