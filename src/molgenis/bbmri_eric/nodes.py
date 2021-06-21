@@ -5,17 +5,25 @@ from typing import List
 @dataclass
 class Node:
     code: str
-    url: str = None
 
+
+@dataclass
+class ExternalNode(Node):
+    url: str
+
+
+_external_nodes = {
+    "BE": ExternalNode("BE", "https://directory.bbmri.be"),
+    "BG": ExternalNode("BG", "https://directory.bbmri.bg"),
+    "DE": ExternalNode("DE", "https://directory.bbmri.de"),
+    "NL": ExternalNode("NL", "https://catalogue.bbmri.nl"),
+}
 
 _nodes = {
     "AT": Node("AT"),
-    "BE": Node("BE", "https://directory.bbmri.be"),
-    "BG": Node("BG", "https://directory.bbmri.bg"),
     "CH": Node("CH"),
     "CY": Node("CY"),
     "CZ": Node("CZ"),
-    "DE": Node("DE", "https://directory.bbmri.de"),
     "EE": Node("EE"),
     "EU": Node("EU"),
     "FI": Node("FI"),
@@ -24,13 +32,14 @@ _nodes = {
     "IT": Node("IT"),
     "LV": Node("LV"),
     "MT": Node("MT"),
-    "NL": Node("NL", "https://catalogue.bbmri.nl"),
     "NO": Node("NO"),
     "PL": Node("PL"),
     "SE": Node("SE"),
     "UK": Node("UK"),
     "EXT": Node("EXT"),
 }
+
+_nodes.update(_external_nodes)
 
 
 def get_node(code: str) -> Node:
@@ -43,3 +52,15 @@ def get_nodes(codes: List[str]) -> List[Node]:
 
 def get_all_nodes() -> List[Node]:
     return list(_nodes.values())
+
+
+def get_external_node(code: str) -> ExternalNode:
+    return _external_nodes[code]
+
+
+def get_external_nodes(codes: List[str]) -> List[ExternalNode]:
+    return [_external_nodes[code] for code in codes]
+
+
+def get_all_external_nodes() -> List[ExternalNode]:
+    return list(_external_nodes.values())

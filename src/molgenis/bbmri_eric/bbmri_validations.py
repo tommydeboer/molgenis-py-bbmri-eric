@@ -1,5 +1,7 @@
 import re
 
+from molgenis.bbmri_eric.nodes import Node
+
 registered_national_nodes = [
     "AT",
     "BE",
@@ -34,7 +36,7 @@ idSpecByEntity = {
 }
 
 
-def validate_bbmri_id(entity, nn, bbmri_id):
+def validate_bbmri_id(entity, node: Node, bbmri_id):
     errors = []
 
     if entity not in idSpecByEntity:
@@ -42,7 +44,7 @@ def validate_bbmri_id(entity, nn, bbmri_id):
 
     idSpec = idSpecByEntity[entity]
 
-    idConstraint = f"bbmri-eric:{idSpec}:{nn}_"  # for error messages
+    idConstraint = f"bbmri-eric:{idSpec}:{node.code}_"  # for error messages
     globalIdConstraint = f"bbmri-eric:{idSpec}:EU_"  # for global refs
 
     idRegex = f"^{idConstraint}"
@@ -82,12 +84,12 @@ def validate_bbmri_id(entity, nn, bbmri_id):
 
 
 def _validate_id_in_nn_entry(
-    entity: str, parent_entry: dict, parent_entity: str, nn: dict, entry: dict
+    entity: str, parent_entry: dict, parent_entity: str, node: Node, entry: dict
 ) -> bool:
     ref_bbmri_id = entry["id"]
     parent_id = parent_entry["id"]
 
-    if not validate_bbmri_id(entity=entity, nn=nn, bbmri_id=ref_bbmri_id):
+    if not validate_bbmri_id(entity=entity, node=node, bbmri_id=ref_bbmri_id):
         print(
             f"""{parent_id} in entity: {parent_entity} contains references to
             entity: {entity} with an invalid id ({ref_bbmri_id})"""
@@ -99,11 +101,10 @@ def _validate_id_in_nn_entry(
 
 # get all ref ids and then check
 def validate_refs_in_entry(
-    nn: dict,
+    node: Node,
     entry: dict,
     parent_entity: str,
     possible_entity_references: list,
-    valid_entities: list[str] = None,
 ) -> list[dict]:
 
     validations = []
@@ -120,7 +121,7 @@ def validate_refs_in_entry(
                 entity=entity_reference,
                 parent_entry=entry,
                 parent_entity=parent_entity,
-                nn=nn,
+                node=node,
                 entry=ref_data,
             )
             validations.append(
@@ -137,7 +138,7 @@ def validate_refs_in_entry(
                         entity=entity_reference,
                         parent_entry=entry,
                         parent_entity=parent_entity,
-                        nn=nn,
+                        node=node,
                         entry=ref,
                     )
                     validations.append(
@@ -149,7 +150,7 @@ def validate_refs_in_entry(
                     )
                 else:
                     if not validate_bbmri_id(
-                        entity=entity_reference, nn=nn, bbmri_id=ref
+                        entity=entity_reference, node=node, bbmri_id=ref
                     ):
                         validations.append(
                             {

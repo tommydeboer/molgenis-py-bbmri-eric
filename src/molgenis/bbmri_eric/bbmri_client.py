@@ -1,42 +1,25 @@
 """
 BBMRI interface for Molgenis
 """
-
-from typing import Union
+from typing import List
 
 import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
 import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
+from molgenis.bbmri_eric.nodes import ExternalNode, Node
 from molgenis.client import MolgenisRequestError, Session
 
 # Utility methods, maybe move elsewhere?
 
 
-def _filter_national_node_data(data: list[dict], national_node_code: str) -> list[dict]:
+def _filter_national_node_data(data: List[dict], node: Node) -> List[dict]:
     """
     Filters data from an entity based on national node code in an Id
     """
-    national_node_signature = f":{national_node_code}_"
+    national_node_signature = f":{node.code}_"
     data_from_national_node = [
         row for row in data if national_node_signature in row["id"]
     ]
     return data_from_national_node
-
-
-def _validate_national_node(node: str) -> Union[bool, ValueError]:
-    """
-    Validation for supplied national node
-    """
-    if "national_node" not in node:
-        raise ValueError(
-            """Argument should have key: 'national_node', which is the prefix of the
-            national node example: 'NL'"""
-        )
-    if "source" not in node:
-        raise ValueError(
-            """Argument should have key: 'source', which is the complete url to the
-            source directory"""
-        )
-    return True
 
 
 class BbmriSession(Session):
@@ -51,14 +34,13 @@ class BbmriSession(Session):
         "eu_bbmri_eric_col_qual_info",
     ]
 
-    def __init__(self, url, national_nodes, **kwargs):
+    def __init__(self, url, **kwargs):
 
         token = kwargs["token"] if " token" in kwargs else None
         username = kwargs["username"] if "username" in kwargs else None
         password = kwargs["password"] if "password" in kwargs else None
 
         super().__init__(url, token)
-        self.national_nodes = national_nodes
         self.target = url
 
         if username and password:
@@ -66,55 +48,61 @@ class BbmriSession(Session):
 
         self.__combined_entity_cache = {}
 
-    @property
-    def get_national_node_codes(self) -> list[str]:
+    def stage(self, external_nodes: List[ExternalNode]):
         """
-        Getter for the national node codes
+        Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
-        return [node["national_node"] for node in self._national_nodes]
+        for node in external_nodes:
+            self.__delete_national_node_own_entity_data(node)
+            print("\n")
 
-    @property
-    def national_nodes(self) -> list[dict]:
+            try:
+                self.__import_national_node_to_own_entity(node)
+                print("\n")
+            except ValueError as exception:  # rollback?
+                raise exception
+
+    def publish(self, national_nodes: List[Node]):
         """
-        Getter for national_nodes
+        Publishes data from the provided nodes to the production tables.
         """
-        return self._national_nodes
+        self.__prepare_deletion_of_node_data()
 
-    @national_nodes.setter
-    def national_nodes(self, value: Union[dict, list]) -> None:
-        """
-        Setter for a single node of a list of nodes, with validation
-        """
-        nodes = []
+        try:
 
-        if value is dict:
-            nodes.append(value)
-        else:
-            nodes = value
+            for entity_name in reversed(self.__IMPORT_SEQUENCE):
+                for node in national_nodes:
+                    self.__delete_national_node_data_from_eric_entity(
+                        node=node, entity_name=entity_name
+                    )
 
-        for node in nodes:
-            _validate_national_node(node)
+            for import_entity_name in self.__IMPORT_SEQUENCE:
+                print("\n")
+                for node in national_nodes:
+                    self.__import_national_node_to_eric_entity(
+                        node=node,
+                        entity_name=import_entity_name,
+                    )
+                    print("\n")
+        finally:
+            self.__replace_global_entities()
 
-        self._national_nodes = nodes
-
-    def __get_qualified_entity_name(
-        self, entity_name: str, national_node_code: str = None
-    ) -> str:
+    def __get_qualified_entity_name(self, entity_name: str, node: Node = None) -> str:
         """
         Method to create a correct name for an entity.
         """
-        if national_node_code:
-            return f"{self.__PACKAGE}{national_node_code}_{entity_name}"
+        if node:
+            return f"{self.__PACKAGE}{node.code}_{entity_name}"
+        else:
+            return f"{self.__PACKAGE}{entity_name}"
 
-        return f"{self.__PACKAGE}{entity_name}"
-
-    def __get_data_for_entity(self, entity_name: str, national_node_code=None) -> dict:
+    def __get_data_for_entity(self, entity_name: str, node: Node = None) -> dict:
         """
         Get's data for entity, if national node code is provided, it will fetch data
         from it's own entity
         """
         entity_name = self.__get_qualified_entity_name(
-            entity_name=entity_name, national_node_code=national_node_code
+            entity_name=entity_name, node=node
         )
 
         entity_data = molgenis_utilities.get_all_rows(session=self, entity=entity_name)
@@ -126,10 +114,9 @@ class BbmriSession(Session):
     def __validate_refs(
         self,
         entity: str,
-        entries: list[dict],
-        national_node_code: str,
-        valid_entities: list[str] = None,
-    ) -> list[dict]:
+        entries: List[dict],
+        node: Node,
+    ) -> List[dict]:
         """
         Checks if any id in an xref or mref is invalid, if so then it omits that row
         """
@@ -143,7 +130,7 @@ class BbmriSession(Session):
 
         for entry in entries:
             validations = bbmri_validations.validate_refs_in_entry(
-                nn=national_node_code,
+                node=node,
                 entry=entry,
                 parent_entity=entity,
                 possible_entity_references=all_references,
@@ -198,25 +185,18 @@ class BbmriSession(Session):
 
             self.__combined_entity_cache[global_entity] = uploadable_source
 
-    def __import_national_node_to_own_entity(self, national_node):
+    def __import_national_node_to_own_entity(self, node: ExternalNode):
         """
         Get data from staging area to their own entity on 'self'
         """
-        if national_node not in self.national_nodes:
-            self.national_nodes.append(national_node)
+        source_session = Session(url=node.url)
 
-        source_session = Session(url=national_node["source"])
-
-        national_node_code = national_node["national_node"]
-
-        print(
-            f"Importing data for staging area {national_node_code} on {self.target}\n"
-        )
+        print(f"Importing data for staging area {node.code} on {self.target}\n")
 
         # imports
         for entity_name in self.__IMPORT_SEQUENCE:
             target_entity = self.__get_qualified_entity_name(
-                entity_name=entity_name, national_node_code=national_node_code
+                entity_name=entity_name, node=node
             )
             source_entity = self.__get_qualified_entity_name(entity_name=entity_name)
             source_data = molgenis_utilities.get_all_rows(
@@ -234,32 +214,29 @@ class BbmriSession(Session):
                         data=source_data, one_to_manys=source_one_to_manys
                     )
                 )
-            try:
-                molgenis_utilities.bulk_add_all(
-                    session=self, entity=target_entity, data=prepped_source_data
-                )
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
+                try:
+                    molgenis_utilities.bulk_add_all(
+                        session=self, entity=target_entity, data=prepped_source_data
+                    )
+                except MolgenisRequestError as exception:
+                    raise ValueError(exception)
 
     # import contents from a national node entity to the eric entity (combined table)
-    def __import_national_node_to_eric_entity(self, national_node_code, entity_name):
+    def __import_national_node_to_eric_entity(self, node: Node, entity_name):
         """
         Import all national node data into the combined eric entities
         """
 
-        print(f"Importing data for {national_node_code} on {self.target}\n")
+        print(f"Importing data for {node.code} on {self.target}\n")
 
-        source = self.__get_data_for_entity(
-            entity_name=entity_name, national_node_code=national_node_code
-        )
-
-        target = self.__get_data_for_entity(entity_name=entity_name)
+        source = self.__get_data_for_entity(entity_name=entity_name, node=node)
+        target = self.__get_data_for_entity(entity_name)
 
         valid_ids = [
             source_id
             for source_id in source["ids"]
             if bbmri_validations.validate_bbmri_id(
-                entity=entity_name, nn=national_node_code, bbmri_id=source_id
+                entity=entity_name, node=node, bbmri_id=source_id
             )
         ]
 
@@ -302,9 +279,7 @@ class BbmriSession(Session):
                 print("---" * 10)
 
                 cached_data = self.__combined_entity_cache[entity_name]
-                original_data = _filter_national_node_data(
-                    data=cached_data, national_node_code=national_node_code
-                )
+                original_data = _filter_national_node_data(data=cached_data, node=node)
                 ids_to_revert = molgenis_utilities.get_all_ids(data=prepped_source_data)
 
                 if len(ids_to_revert) > 0:
@@ -318,25 +293,20 @@ class BbmriSession(Session):
                     )
                     print(
                         f"Rolled back {target['name']} with previous data for "
-                        f"{national_node_code}"
+                        f"{node.code}"
                     )
 
-    def __delete_national_node_own_entity_data(self, national_node):
+    def __delete_national_node_own_entity_data(self, node: ExternalNode):
         """
         Delete data before import from national node entity
         """
-        if national_node not in self.national_nodes:
-            self.national_nodes.append(national_node)
-
-        national_node_code = national_node["national_node"]
-
-        print(f"Deleting data for staging area {national_node_code} on {self.target}")
+        print(f"Deleting data for staging area {node.code} on {self.target}")
 
         previous_ids_per_entity = {}
 
         for entity_name in reversed(self.__IMPORT_SEQUENCE):
             target_entity = self.__get_qualified_entity_name(
-                entity_name=entity_name, national_node_code=national_node_code
+                entity_name=entity_name, node=node
             )
             target_data = molgenis_utilities.get_all_rows(
                 session=self, entity=target_entity
@@ -374,9 +344,7 @@ class BbmriSession(Session):
                 session=self, entity=global_entity, ids=source_ids
             )
 
-    def __delete_national_node_data_from_eric_entity(
-        self, national_node_code, entity_name
-    ):
+    def __delete_national_node_data_from_eric_entity(self, node: Node, entity_name):
         """
         Surgically delete all national node data from combined entities
         """
@@ -384,14 +352,11 @@ class BbmriSession(Session):
         if entity_name not in self.__combined_entity_cache:
             self.__cache_combined_entity_data()
 
-        print(
-            f"\nRemoving data from the entity: {entity_name} for: "
-            f"{national_node_code}"
-        )
+        print(f"\nRemoving data from the entity: {entity_name} for: " f"{node.code}")
         entity_cached_data = self.__combined_entity_cache[entity_name]
         target_entity = self.__get_qualified_entity_name(entity_name=entity_name)
         national_node_data_for_entity = _filter_national_node_data(
-            data=entity_cached_data, national_node_code=national_node_code
+            data=entity_cached_data, node=node
         )
         ids_for_national_node_data = molgenis_utilities.get_all_ids(
             data=national_node_data_for_entity
@@ -425,50 +390,3 @@ class BbmriSession(Session):
                 print(f"Placed back: {len(source_data)} rows to {global_entity}")
             else:
                 print("No rows found to place back")
-
-    def update_external_entities(self):
-        """
-        Fetch data from staging area
-        """
-        if not self.national_nodes:
-            raise ValueError("No national nodes found to update")
-
-        for national_node in self.national_nodes:
-            self.__delete_national_node_own_entity_data(national_node=national_node)
-            print("\n")
-
-            try:
-                self.__import_national_node_to_own_entity(national_node=national_node)
-                print("\n")
-            except ValueError as exception:  # rollback?
-                raise exception
-
-    def update_eric_entities(self):
-        """
-        Combine all national node data into the Eric equivalent
-        """
-        if not self.national_nodes:
-            raise ValueError("No national nodes found to update")
-
-        self.__prepare_deletion_of_node_data()
-
-        try:
-
-            for entity_name in reversed(self.__IMPORT_SEQUENCE):
-                for national_node_code in bbmri_validations.registered_national_nodes:
-                    self.__delete_national_node_data_from_eric_entity(
-                        national_node_code=national_node_code, entity_name=entity_name
-                    )
-
-            for import_entity_name in self.__IMPORT_SEQUENCE:
-                print("\n")
-                for (
-                    import_national_node_code
-                ) in bbmri_validations.registered_national_nodes:
-                    self.__import_national_node_to_eric_entity(
-                        national_node_code=import_national_node_code,
-                        entity_name=import_entity_name,
-                    )
-                    print("\n")
-        finally:
-            self.__replace_global_entities()
