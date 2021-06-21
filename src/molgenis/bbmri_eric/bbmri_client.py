@@ -11,7 +11,7 @@ from molgenis.client import MolgenisRequestError, Session
 # Utility methods, maybe move elsewhere?
 
 
-def _filter_national_node_data(data: list[dict], node: Node) -> list[dict]:
+def _filter_national_node_data(data: List[dict], node: Node) -> List[dict]:
     """
     Filters data from an entity based on national node code in an Id
     """
@@ -114,9 +114,9 @@ class BbmriSession(Session):
     def __validate_refs(
         self,
         entity: str,
-        entries: list[dict],
+        entries: List[dict],
         node: Node,
-    ) -> list[dict]:
+    ) -> List[dict]:
         """
         Checks if any id in an xref or mref is invalid, if so then it omits that row
         """
