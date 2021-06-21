@@ -45,9 +45,8 @@ def main(args):
 
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
 
-    bbmri_session = bbmri_client.BbmriSession(
-        url=args.target, username=username, password=password
-    )
+    bbmri_session = bbmri_client.BbmriSession(url=args.target)
+    bbmri_session.login(username, password)
 
     if args.action == "stage":
         if all_nodes:

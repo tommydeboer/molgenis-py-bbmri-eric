@@ -1,7 +1,7 @@
 """
 BBMRI interface for Molgenis
 """
-from typing import List
+from typing import List, Optional
 
 import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
 import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
@@ -34,18 +34,8 @@ class BbmriSession(Session):
         "eu_bbmri_eric_col_qual_info",
     ]
 
-    def __init__(self, url, **kwargs):
-
-        token = kwargs["token"] if " token" in kwargs else None
-        username = kwargs["username"] if "username" in kwargs else None
-        password = kwargs["password"] if "password" in kwargs else None
-
+    def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
-        self.target = url
-
-        if username and password:
-            self.login(username=username, password=password)
-
         self.__combined_entity_cache = {}
 
     def stage(self, external_nodes: List[ExternalNode]):
@@ -191,7 +181,7 @@ class BbmriSession(Session):
         """
         source_session = Session(url=node.url)
 
-        print(f"Importing data for staging area {node.code} on {self.target}\n")
+        print(f"Importing data for staging area {node.code} on {self._root_url}\n")
 
         # imports
         for entity_name in self.__IMPORT_SEQUENCE:
@@ -227,7 +217,7 @@ class BbmriSession(Session):
         Import all national node data into the combined eric entities
         """
 
-        print(f"Importing data for {node.code} on {self.target}\n")
+        print(f"Importing data for {node.code} on {self._root_url}\n")
 
         source = self.__get_data_for_entity(entity_name=entity_name, node=node)
         target = self.__get_data_for_entity(entity_name)
@@ -300,7 +290,7 @@ class BbmriSession(Session):
         """
         Delete data before import from national node entity
         """
-        print(f"Deleting data for staging area {node.code} on {self.target}")
+        print(f"Deleting data for staging area {node.code} on {self._root_url}")
 
         previous_ids_per_entity = {}
 

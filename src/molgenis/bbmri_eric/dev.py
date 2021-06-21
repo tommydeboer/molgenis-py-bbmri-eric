@@ -13,11 +13,8 @@ target = config["TARGET"]
 username = config["USERNAME"]
 password = config["PASSWORD"]
 
-bbmri_session = BbmriSession(
-    url=target,
-    username=username,
-    password=password,
-)
+bbmri_session = BbmriSession(url=target)
+bbmri_session.login(username, password)
 
 bbmri_session.stage(nodes.get_all_external_nodes())
 bbmri_session.publish(nodes.get_all_nodes())
