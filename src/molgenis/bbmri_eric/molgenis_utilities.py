@@ -1,4 +1,6 @@
-from molgenis.client import MolgenisRequestError
+from typing import List
+
+from molgenis.bbmri_eric.nodes import Node
 
 
 def get_all_ids(data):
@@ -6,46 +8,6 @@ def get_all_ids(data):
         return []
 
     return [item["id"] for item in data]
-
-
-def remove_rows(session, entity, ids):
-    if len(ids) > 0:
-        try:
-            session.delete_list(entity, ids)
-        except MolgenisRequestError as exception:
-            raise ValueError(exception)
-
-
-def get_all_rows(session, entity):
-    data = []
-    while True:
-        if len(data) == 0:
-            # api can handle 10.000 max per request
-            data = session.get(entity=entity, num=10000, start=len(data))
-            if len(data) == 0:
-                break  # if the table is empty
-        else:
-            newdata = session.get(entity=entity, num=10000, start=len(data))
-            if len(newdata) > 0:
-                data.extend(data)
-            else:
-                break
-
-    return data
-
-
-def get_all_references_for_entity(session, entity):
-    """retrieves one_to_many and xref attributes"""
-    meta = session.get_entity_meta_data(entity)["attributes"]
-    one_to_many = [attr for attr in meta if meta[attr]["fieldType"] == "ONE_TO_MANY"]
-    xref = [attr for attr in meta if meta[attr]["fieldType"] == "XREF"]
-    return {"xref": xref, "one_to_many": one_to_many}
-
-
-def get_one_to_manys(session, entity):
-    """Retrieves one-to-many's in table"""
-    all_references = get_all_references_for_entity(session=session, entity=entity)
-    return all_references["one_to_many"]
 
 
 def transform_to_molgenis_upload_format(data, one_to_manys):
@@ -66,31 +28,6 @@ def transform_to_molgenis_upload_format(data, one_to_manys):
                     new_item[key] = mref
         upload_format.append(new_item)
     return upload_format
-
-
-def bulk_add_all(session, entity, data):
-    if len(data) == 0:
-        return
-
-    maxUpdateCount = 1000
-
-    if len(data) <= maxUpdateCount:
-        try:
-            session.add_all(entity=entity, entities=data)
-            return
-        except MolgenisRequestError as exception:
-            raise ValueError(exception)
-
-    numberOfCycles = int(len(data) / maxUpdateCount)
-
-    try:
-        for cycle in range(numberOfCycles):
-            nextBatchStart = int(cycle * maxUpdateCount)
-            nextBatchStop = int(maxUpdateCount + cycle * maxUpdateCount)
-            itemsToAdd = data[nextBatchStart:nextBatchStop]
-            session.add_all(entity=entity, entities=itemsToAdd)
-    except MolgenisRequestError as exception:
-        raise ValueError(exception)
 
 
 def get_all_ref_ids_by_entity(
@@ -117,3 +54,14 @@ def get_all_ref_ids_by_entity(
                     ref_ids_by_entity[entity_reference].append(ref)
 
     return ref_ids_by_entity
+
+
+def filter_national_node_data(data: List[dict], node: Node) -> List[dict]:
+    """
+    Filters data from an entity based on national node code in an Id
+    """
+    national_node_signature = f":{node.code}_"
+    data_from_national_node = [
+        row for row in data if national_node_signature in row["id"]
+    ]
+    return data_from_national_node
