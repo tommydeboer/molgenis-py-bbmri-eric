@@ -17,13 +17,13 @@ class Publisher:
 
     def __init__(self, session: BbmriSession):
         self.session = session
-        self._combined_entity_cache = {}
+        self._cache = {}
 
     def publish(self, national_nodes: List[Node]):
         """
         Publishes data from the provided nodes to the production tables.
         """
-        self._combined_entity_cache = {}
+        self._cache = {}
 
         self._prepare_deletion_of_node_data()
 
@@ -38,7 +38,7 @@ class Publisher:
             for import_entity_name in self._IMPORT_SEQUENCE:
                 print("\n")
                 for node in national_nodes:
-                    self.__import_national_node_to_eric_entity(
+                    self._import_national_node_to_eric_entity(
                         node=node,
                         entity_name=import_entity_name,
                     )
@@ -51,14 +51,11 @@ class Publisher:
         Checks the cache and makes one if not found
         """
         # verify we have it cached, if not start caching
-        if not all(
-            entity_name in self._combined_entity_cache
-            for entity_name in self._IMPORT_SEQUENCE
-        ):
+        if not all(entity_name in self._cache for entity_name in self._IMPORT_SEQUENCE):
             self._cache_combined_entity_data()
 
         for global_entity in self._TABLES_TO_CACHE:
-            source_data = self._combined_entity_cache[global_entity]
+            source_data = self._cache[global_entity]
             source_ids = utils.get_all_ids(source_data)
             self.session.remove_rows(entity=global_entity, ids=source_ids)
 
@@ -74,7 +71,7 @@ class Publisher:
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
-            self._combined_entity_cache[entity] = uploadable_source
+            self._cache[entity] = uploadable_source
 
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
@@ -83,18 +80,18 @@ class Publisher:
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
-            self._combined_entity_cache[global_entity] = uploadable_source
+            self._cache[global_entity] = uploadable_source
 
     def _delete_national_node_data_from_eric_entity(self, node: Node, entity_name):
         """
         Surgically delete all national node data from combined entities
         """
         # sanity check
-        if entity_name not in self._combined_entity_cache:
+        if entity_name not in self._cache:
             self._cache_combined_entity_data()
 
         print(f"\nRemoving data from the entity: {entity_name} for: " f"{node.code}")
-        entity_cached_data = self._combined_entity_cache[entity_name]
+        entity_cached_data = self._cache[entity_name]
         target_entity = self._get_qualified_entity_name(entity_name=entity_name)
         national_node_data_for_entity = utils.filter_national_node_data(
             data=entity_cached_data, node=node
@@ -114,7 +111,7 @@ class Publisher:
             print("Nothing to remove for ", target_entity)
             print()
 
-    def __import_national_node_to_eric_entity(self, node: Node, entity_name):
+    def _import_national_node_to_eric_entity(self, node: Node, entity_name):
         """
         Import all national node data into the combined eric entities
         """
@@ -168,7 +165,7 @@ class Publisher:
                 print("Failed to import, following error occurred:", exception)
                 print("---" * 10)
 
-                cached_data = self._combined_entity_cache[entity_name]
+                cached_data = self._cache[entity_name]
                 original_data = utils.filter_national_node_data(
                     data=cached_data, node=node
                 )
@@ -205,7 +202,7 @@ class Publisher:
         """
         print("Placing back the global entities")
         for global_entity in self._TABLES_TO_CACHE:
-            source_data = self._combined_entity_cache[global_entity]
+            source_data = self._cache[global_entity]
             if len(source_data) > 0:
                 self.session.bulk_add_all(entity=global_entity, data=source_data)
                 print(f"Placed back: {len(source_data)} rows to {global_entity}")
