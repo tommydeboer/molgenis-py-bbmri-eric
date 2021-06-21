@@ -1,16 +1,13 @@
 from typing import List
 
-from molgenis.bbmri_eric import utils
+from molgenis.bbmri_eric import model, utils
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.nodes import ExternalNode, Node
+from molgenis.bbmri_eric.nodes import ExternalNode
 from molgenis.client import MolgenisRequestError
 
 
 class Stager:
     # TODO extract
-    _IMPORT_SEQUENCE = ["persons", "networks", "biobanks", "collections"]
-    _PACKAGE = "eu_bbmri_eric"
-
     def __init__(self, session: BbmriSession):
         self.session = session
 
@@ -36,13 +33,11 @@ class Stager:
 
         previous_ids_per_entity = {}
 
-        for entity_name in reversed(self._IMPORT_SEQUENCE):
-            target_entity = self._get_qualified_entity_name(
-                entity_name=entity_name, node=node
-            )
+        for table in reversed(model.get_import_sequence()):
+            target_entity = table.get_staging_name(node)
             target_data = self.session.get_all_rows(entity=target_entity)
             ids = utils.get_all_ids(target_data)
-            previous_ids_per_entity[entity_name] = ids
+            previous_ids_per_entity[table.name] = ids
 
             if len(ids) > 0:
                 # delete from node specific
@@ -65,11 +60,9 @@ class Stager:
         )
 
         # imports
-        for entity_name in self._IMPORT_SEQUENCE:
-            target_entity = self._get_qualified_entity_name(
-                entity_name=entity_name, node=node
-            )
-            source_entity = self._get_qualified_entity_name(entity_name=entity_name)
+        for table in model.get_import_sequence():
+            target_entity = table.get_staging_name(node)
+            source_entity = table.get_fullname()
             source_data = source_session.get_all_rows(entity=source_entity)
             source_one_to_manys = source_session.get_one_to_manys(entity=source_entity)
 
@@ -85,13 +78,3 @@ class Stager:
                     )
                 except MolgenisRequestError as exception:
                     raise ValueError(exception)
-
-    # TODO extract
-    def _get_qualified_entity_name(self, entity_name: str, node: Node = None) -> str:
-        """
-        Method to create a correct name for an entity.
-        """
-        if node:
-            return f"{self._PACKAGE}_{node.code}_{entity_name}"
-        else:
-            return f"{self._PACKAGE}_{entity_name}"

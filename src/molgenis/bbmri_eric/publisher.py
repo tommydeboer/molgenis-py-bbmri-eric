@@ -1,15 +1,13 @@
 from typing import List
 
-from molgenis.bbmri_eric import utils, validation
+from molgenis.bbmri_eric import model, utils, validation
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.model import Table
 from molgenis.bbmri_eric.nodes import Node
 
 
 class Publisher:
-    # TODO extract
-    _IMPORT_SEQUENCE = ["persons", "networks", "biobanks", "collections"]
-    _PACKAGE = "eu_bbmri_eric"
-
+    # TODO why only cache these two?
     _TABLES_TO_CACHE = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
@@ -29,19 +27,14 @@ class Publisher:
 
         try:
 
-            for entity_name in reversed(self._IMPORT_SEQUENCE):
+            for table in reversed(model.get_import_sequence()):
                 for node in national_nodes:
-                    self._delete_national_node_data_from_eric_entity(
-                        node=node, entity_name=entity_name
-                    )
+                    self._delete_national_node_data_from_eric_entity(node, table)
 
-            for import_entity_name in self._IMPORT_SEQUENCE:
+            for table in model.get_import_sequence():
                 print("\n")
                 for node in national_nodes:
-                    self._import_national_node_to_eric_entity(
-                        node=node,
-                        entity_name=import_entity_name,
-                    )
+                    self._import_national_node_to_eric_entity(node, table)
                     print("\n")
         finally:
             self._replace_global_entities()
@@ -51,7 +44,7 @@ class Publisher:
         Checks the cache and makes one if not found
         """
         # verify we have it cached, if not start caching
-        if not all(entity_name in self._cache for entity_name in self._IMPORT_SEQUENCE):
+        if not all(table.name in self._cache for table in model.get_import_sequence()):
             self._cache_combined_entity_data()
 
         for global_entity in self._TABLES_TO_CACHE:
@@ -63,15 +56,15 @@ class Publisher:
         """
         Caches data for all bbmri entities, in case of rollback
         """
-        for entity in self._IMPORT_SEQUENCE:
-            source_entity = self._get_qualified_entity_name(entity_name=entity)
+        for table in model.get_import_sequence():
+            source_entity = table.get_fullname()
             source_data = self.session.get_all_rows(source_entity)
             source_one_to_manys = self.session.get_one_to_manys(source_entity)
             uploadable_source = utils.transform_to_molgenis_upload_format(
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
-            self._cache[entity] = uploadable_source
+            self._cache[table.name] = uploadable_source
 
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
@@ -82,17 +75,17 @@ class Publisher:
 
             self._cache[global_entity] = uploadable_source
 
-    def _delete_national_node_data_from_eric_entity(self, node: Node, entity_name):
+    def _delete_national_node_data_from_eric_entity(self, node: Node, table: Table):
         """
         Surgically delete all national node data from combined entities
         """
         # sanity check
-        if entity_name not in self._cache:
+        if table.name not in self._cache:
             self._cache_combined_entity_data()
 
-        print(f"\nRemoving data from the entity: {entity_name} for: " f"{node.code}")
-        entity_cached_data = self._cache[entity_name]
-        target_entity = self._get_qualified_entity_name(entity_name=entity_name)
+        print(f"\nRemoving data from the entity: {table.name} for: " f"{node.code}")
+        entity_cached_data = self._cache[table.name]
+        target_entity = table.get_fullname()
         national_node_data_for_entity = utils.filter_national_node_data(
             data=entity_cached_data, node=node
         )
@@ -111,21 +104,21 @@ class Publisher:
             print("Nothing to remove for ", target_entity)
             print()
 
-    def _import_national_node_to_eric_entity(self, node: Node, entity_name):
+    def _import_national_node_to_eric_entity(self, node: Node, table: Table):
         """
         Import all national node data into the combined eric entities
         """
 
         print(f"Importing data for {node.code} on {self.session._root_url}\n")
 
-        source = self._get_data_for_entity(entity_name=entity_name, node=node)
-        target = self._get_data_for_entity(entity_name)
+        source = self._get_data_for_entity(table, node)
+        target = self._get_data_for_entity(table)
 
         valid_ids = [
             source_id
             for source_id in source["ids"]
             if validation.validate_bbmri_id(
-                entity=entity_name, node=node, bbmri_id=source_id
+                entity=table.name, node=node, bbmri_id=source_id
             )
         ]
 
@@ -165,7 +158,7 @@ class Publisher:
                 print("Failed to import, following error occurred:", exception)
                 print("---" * 10)
 
-                cached_data = self._cache[entity_name]
+                cached_data = self._cache[table.name]
                 original_data = utils.filter_national_node_data(
                     data=cached_data, node=node
                 )
@@ -181,16 +174,17 @@ class Publisher:
                         f"{node.code}"
                     )
 
-    def _get_data_for_entity(self, entity_name: str, node: Node = None) -> dict:
+    def _get_data_for_entity(self, table: Table, node: Node = None) -> dict:
         """
         Get's data for entity, if national node code is provided, it will fetch data
         from it's own entity
         """
-        entity_name = self._get_qualified_entity_name(
-            entity_name=entity_name, node=node
-        )
+        if node:
+            entity_name = table.get_staging_name(node)
+        else:
+            entity_name = table.get_fullname()
 
-        entity_data = self.session.get_all_rows(entity=entity_name)
+        entity_data = self.session.get_all_rows(entity_name)
 
         entity_ids = utils.get_all_ids(entity_data)
 
@@ -208,13 +202,3 @@ class Publisher:
                 print(f"Placed back: {len(source_data)} rows to {global_entity}")
             else:
                 print("No rows found to place back")
-
-    # TODO extract
-    def _get_qualified_entity_name(self, entity_name: str, node: Node = None) -> str:
-        """
-        Method to create a correct name for an entity.
-        """
-        if node:
-            return f"{self._PACKAGE}_{node.code}_{entity_name}"
-        else:
-            return f"{self._PACKAGE}_{entity_name}"
