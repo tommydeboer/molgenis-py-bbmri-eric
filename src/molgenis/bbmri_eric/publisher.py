@@ -1,6 +1,6 @@
 from typing import List
 
-from molgenis.bbmri_eric import bbmri_validations, molgenis_utilities
+from molgenis.bbmri_eric import bbmri_validations, utils
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import Node
 
@@ -59,7 +59,7 @@ class Publisher:
 
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self._combined_entity_cache[global_entity]
-            source_ids = molgenis_utilities.get_all_ids(source_data)
+            source_ids = utils.get_all_ids(source_data)
             self.session.remove_rows(entity=global_entity, ids=source_ids)
 
     def _cache_combined_entity_data(self) -> None:
@@ -70,7 +70,7 @@ class Publisher:
             source_entity = self._get_qualified_entity_name(entity_name=entity)
             source_data = self.session.get_all_rows(source_entity)
             source_one_to_manys = self.session.get_one_to_manys(source_entity)
-            uploadable_source = molgenis_utilities.transform_to_molgenis_upload_format(
+            uploadable_source = utils.transform_to_molgenis_upload_format(
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
@@ -79,7 +79,7 @@ class Publisher:
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
             source_one_to_manys = self.session.get_one_to_manys(entity=global_entity)
-            uploadable_source = molgenis_utilities.transform_to_molgenis_upload_format(
+            uploadable_source = utils.transform_to_molgenis_upload_format(
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
@@ -96,12 +96,10 @@ class Publisher:
         print(f"\nRemoving data from the entity: {entity_name} for: " f"{node.code}")
         entity_cached_data = self._combined_entity_cache[entity_name]
         target_entity = self._get_qualified_entity_name(entity_name=entity_name)
-        national_node_data_for_entity = molgenis_utilities.filter_national_node_data(
+        national_node_data_for_entity = utils.filter_national_node_data(
             data=entity_cached_data, node=node
         )
-        ids_for_national_node_data = molgenis_utilities.get_all_ids(
-            national_node_data_for_entity
-        )
+        ids_for_national_node_data = utils.get_all_ids(national_node_data_for_entity)
 
         if len(ids_for_national_node_data) > 0:
             try:
@@ -152,10 +150,8 @@ class Publisher:
             )
 
             print("Importing data to", target["name"])
-            prepped_source_data = (
-                molgenis_utilities.transform_to_molgenis_upload_format(
-                    data=valid_entries, one_to_manys=source_references["one_to_many"]
-                )
+            prepped_source_data = utils.transform_to_molgenis_upload_format(
+                data=valid_entries, one_to_manys=source_references["one_to_many"]
             )
 
             try:
@@ -173,10 +169,10 @@ class Publisher:
                 print("---" * 10)
 
                 cached_data = self._combined_entity_cache[entity_name]
-                original_data = molgenis_utilities.filter_national_node_data(
+                original_data = utils.filter_national_node_data(
                     data=cached_data, node=node
                 )
-                ids_to_revert = molgenis_utilities.get_all_ids(data=prepped_source_data)
+                ids_to_revert = utils.get_all_ids(data=prepped_source_data)
 
                 if len(ids_to_revert) > 0:
                     self.session.remove_rows(entity=target["name"], ids=ids_to_revert)
@@ -199,7 +195,7 @@ class Publisher:
 
         entity_data = self.session.get_all_rows(entity=entity_name)
 
-        entity_ids = molgenis_utilities.get_all_ids(entity_data)
+        entity_ids = utils.get_all_ids(entity_data)
 
         return {"data": entity_data, "name": entity_name, "ids": entity_ids}
 
