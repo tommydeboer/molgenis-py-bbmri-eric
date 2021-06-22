@@ -109,7 +109,7 @@ class Publisher:
         Import all national node data into the combined eric entities
         """
 
-        print(f"Importing data for {node.code} on {self.session._root_url}\n")
+        print(f"Importing data for {node.code} on {self.session.url}\n")
 
         source = self._get_data_for_entity(table, node)
         target = self._get_data_for_entity(table)

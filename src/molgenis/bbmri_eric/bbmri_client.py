@@ -13,6 +13,7 @@ class BbmriSession(Session):
 
     def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
+        self.url = url
 
     def remove_rows(self, entity, ids):
         if len(ids) > 0:
@@ -56,22 +57,22 @@ class BbmriSession(Session):
         if len(data) == 0:
             return
 
-        maxUpdateCount = 1000
+        max_update_count = 1000
 
-        if len(data) <= maxUpdateCount:
+        if len(data) <= max_update_count:
             try:
                 self.add_all(entity=entity, entities=data)
                 return
             except MolgenisRequestError as exception:
                 raise ValueError(exception)
 
-        numberOfCycles = int(len(data) / maxUpdateCount)
+        number_of_cycles = int(len(data) / max_update_count)
 
         try:
-            for cycle in range(numberOfCycles):
-                nextBatchStart = int(cycle * maxUpdateCount)
-                nextBatchStop = int(maxUpdateCount + cycle * maxUpdateCount)
-                itemsToAdd = data[nextBatchStart:nextBatchStop]
-                self.add_all(entity=entity, entities=itemsToAdd)
+            for cycle in range(number_of_cycles):
+                next_batch_start = int(cycle * max_update_count)
+                next_batch_stop = int(max_update_count + cycle * max_update_count)
+                items_to_add = data[next_batch_start:next_batch_stop]
+                self.add_all(entity=entity, entities=items_to_add)
         except MolgenisRequestError as exception:
             raise ValueError(exception)

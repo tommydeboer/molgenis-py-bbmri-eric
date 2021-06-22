@@ -7,7 +7,6 @@ from molgenis.client import MolgenisRequestError
 
 
 class Stager:
-    # TODO extract
     def __init__(self, session: BbmriSession):
         self.session = session
 
@@ -29,7 +28,7 @@ class Stager:
         """
         Delete data before import from national node entity
         """
-        print(f"Deleting data for staging area {node.code} on {self.session._root_url}")
+        print(f"Deleting data for staging area {node.code} on {self.session.url}")
 
         previous_ids_per_entity = {}
 
@@ -55,9 +54,7 @@ class Stager:
         """
         source_session = BbmriSession(url=node.url)
 
-        print(
-            f"Importing data for staging area {node.code} on {self.session._root_url}\n"
-        )
+        print(f"Importing data for staging area {node.code} on {self.session.url}\n")
 
         # imports
         for table in model.get_import_sequence():
