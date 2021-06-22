@@ -7,7 +7,6 @@ from molgenis.bbmri_eric.nodes import Node
 
 
 class Publisher:
-    # TODO why only cache these two?
     _TABLES_TO_CACHE = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
@@ -22,50 +21,25 @@ class Publisher:
         Publishes data from the provided nodes to the production tables.
         """
         self._cache = {}
-
-        self._prepare_deletion_of_node_data()
-
+        self._cache_production_tables()
         try:
 
             for table in reversed(model.get_import_sequence()):
                 for node in national_nodes:
-                    self._delete_national_node_data_from_eric_entity(node, table)
+                    self._clear_node_from_production_tables(node, table)
 
             for table in model.get_import_sequence():
                 print("\n")
                 for node in national_nodes:
-                    self._import_national_node_to_eric_entity(node, table)
+                    self._publish_node(node, table)
                     print("\n")
         finally:
             self._replace_global_entities()
 
-    def _prepare_deletion_of_node_data(self):
-        """
-        Checks the cache and makes one if not found
-        """
-        # verify we have it cached, if not start caching
-        if not all(table.name in self._cache for table in model.get_import_sequence()):
-            self._cache_combined_entity_data()
-
-        for global_entity in self._TABLES_TO_CACHE:
-            source_data = self._cache[global_entity]
-            source_ids = utils.get_all_ids(source_data)
-            self.session.remove_rows(entity=global_entity, ids=source_ids)
-
-    def _cache_combined_entity_data(self) -> None:
+    def _cache_production_tables(self) -> None:
         """
         Caches data for all bbmri entities, in case of rollback
         """
-        for table in model.get_import_sequence():
-            source_entity = table.get_fullname()
-            source_data = self.session.get_all_rows(source_entity)
-            source_one_to_manys = self.session.get_one_to_manys(source_entity)
-            uploadable_source = utils.transform_to_molgenis_upload_format(
-                data=source_data, one_to_manys=source_one_to_manys
-            )
-
-            self._cache[table.name] = uploadable_source
-
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
             source_one_to_manys = self.session.get_one_to_manys(entity=global_entity)
@@ -75,38 +49,32 @@ class Publisher:
 
             self._cache[global_entity] = uploadable_source
 
-    def _delete_national_node_data_from_eric_entity(self, node: Node, table: Table):
+    def _clear_node_from_production_tables(self, node: Node, table: Table):
         """
-        Surgically delete all national node data from combined entities
+        Surgically delete all data of one national node from the production tables
         """
-        # sanity check
-        if table.name not in self._cache:
-            self._cache_combined_entity_data()
-
         print(f"\nRemoving data from the entity: {table.name} for: " f"{node.code}")
-        entity_cached_data = self._cache[table.name]
+        all_rows = self._cache[table.name]
         target_entity = table.get_fullname()
-        national_node_data_for_entity = utils.filter_national_node_data(
-            data=entity_cached_data, node=node
-        )
-        ids_for_national_node_data = utils.get_all_ids(national_node_data_for_entity)
+        node_rows = utils.filter_national_node_data(data=all_rows, node=node)
+        ids = utils.get_all_ids(node_rows)
 
-        if len(ids_for_national_node_data) > 0:
+        if len(ids) > 0:
             try:
                 self.session.remove_rows(
                     entity=target_entity,
-                    ids=ids_for_national_node_data,
+                    ids=ids,
                 )
-                print("Removed:", len(ids_for_national_node_data), "rows")
+                print("Removed:", len(ids), "rows")
             except ValueError as exception:
                 raise exception
         else:
             print("Nothing to remove for ", target_entity)
             print()
 
-    def _import_national_node_to_eric_entity(self, node: Node, table: Table):
+    def _publish_node(self, node: Node, table: Table):
         """
-        Import all national node data into the combined eric entities
+        Import all data of one national node into the production tables
         """
 
         print(f"Importing data for {node.code} on {self.session.url}\n")
