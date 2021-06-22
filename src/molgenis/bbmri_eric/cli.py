@@ -3,12 +3,11 @@ import logging
 import sys
 import textwrap
 from getpass import getpass
-from typing import Tuple
+from typing import List, Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
 from molgenis.bbmri_eric import nodes as nnodes
-from molgenis.bbmri_eric.publisher import Publisher
-from molgenis.bbmri_eric.stager import Stager
+from molgenis.bbmri_eric.eric import Eric
 
 _logger = logging.getLogger(__name__)
 
@@ -33,12 +32,11 @@ example usage:
 )
 
 
-def main(args):
-    """Wrapper allowing functions to be called with string arguments in a CLI fashion
+def main(args: List[str]):
+    """Parses the command line arguments and calls the corresponding actions.
 
     Args:
       args (List[str]): command line parameters as list of strings
-          (for example  ``["--verbose", "42"]``).
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
@@ -47,21 +45,20 @@ def main(args):
 
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
 
-    bbmri_session = bbmri_client.BbmriSession(url=args.target)
-    bbmri_session.login(username, password)
+    session = bbmri_client.BbmriSession(url=args.target)
+    session.login(username, password)
+    eric = Eric(session)
 
     if args.action == "stage":
         if all_nodes:
-            nodes = nnodes.get_all_external_nodes()
+            eric.stage_all_external_nodes()
         else:
-            nodes = nnodes.get_external_nodes(args.nodes)
-        Stager(bbmri_session).stage(nodes)
+            eric.stage_external_nodes(nnodes.get_external_nodes(args.nodes))
     elif args.action == "publish":
         if all_nodes:
-            nodes = nnodes.get_all_nodes()
+            eric.publish_all_nodes()
         else:
-            nodes = nnodes.get_nodes(args.nodes)
-        Publisher(bbmri_session).publish(nodes)
+            eric.publish_nodes(nnodes.get_nodes(args.nodes))
 
 
 def _get_username_password(args) -> Tuple[str, str]:

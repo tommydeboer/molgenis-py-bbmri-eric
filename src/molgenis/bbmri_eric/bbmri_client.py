@@ -1,6 +1,3 @@
-"""
-BBMRI interface for Molgenis
-"""
 from typing import Optional
 
 from molgenis.client import MolgenisRequestError, Session
