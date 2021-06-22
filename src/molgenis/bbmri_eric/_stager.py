@@ -1,6 +1,6 @@
 from typing import List
 
-from molgenis.bbmri_eric import model, utils
+from molgenis.bbmri_eric import _model, _utils
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import ExternalNode
 from molgenis.client import MolgenisRequestError
@@ -32,10 +32,10 @@ class Stager:
 
         previous_ids_per_entity = {}
 
-        for table in reversed(model.get_import_sequence()):
+        for table in reversed(_model.get_import_sequence()):
             target_entity = table.get_staging_name(node)
             target_data = self.session.get_all_rows(entity=target_entity)
-            ids = utils.get_all_ids(target_data)
+            ids = _utils.get_all_ids(target_data)
             previous_ids_per_entity[table.name] = ids
 
             if len(ids) > 0:
@@ -57,7 +57,7 @@ class Stager:
         print(f"Importing data for staging area {node.code} on {self.session.url}\n")
 
         # imports
-        for table in model.get_import_sequence():
+        for table in _model.get_import_sequence():
             target_entity = table.get_staging_name(node)
             source_entity = table.get_fullname()
             source_data = source_session.get_all_rows(entity=source_entity)
@@ -66,7 +66,7 @@ class Stager:
             # import all the data
             if len(source_data) > 0:
                 print("Importing data to", target_entity)
-                prepped_source_data = utils.transform_to_molgenis_upload_format(
+                prepped_source_data = _utils.transform_to_molgenis_upload_format(
                     data=source_data, one_to_manys=source_one_to_manys
                 )
                 try:

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import List, Set
 
-from molgenis.bbmri_eric import model, utils, validation
+from molgenis.bbmri_eric import _model, _utils, _validation
+from molgenis.bbmri_eric._model import Table
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.model import Table
 from molgenis.bbmri_eric.nodes import Node
 
 
@@ -32,11 +32,11 @@ class Publisher:
         self._cache_production_tables()
         try:
 
-            for table in reversed(model.get_import_sequence()):
+            for table in reversed(_model.get_import_sequence()):
                 for node in national_nodes:
                     self._clear_node_from_production_tables(node, table)
 
-            for table in model.get_import_sequence():
+            for table in _model.get_import_sequence():
                 print("\n")
                 for node in national_nodes:
                     self._publish_node(node, table)
@@ -51,7 +51,7 @@ class Publisher:
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
             source_one_to_manys = self.session.get_one_to_manys(entity=global_entity)
-            uploadable_source = utils.transform_to_molgenis_upload_format(
+            uploadable_source = _utils.transform_to_molgenis_upload_format(
                 data=source_data, one_to_manys=source_one_to_manys
             )
 
@@ -64,8 +64,8 @@ class Publisher:
         print(f"\nRemoving data from the entity: {table.name} for: " f"{node.code}")
         all_rows = self._cache[table.name]
         target_entity = table.get_fullname()
-        node_rows = utils.filter_national_node_data(data=all_rows, node=node)
-        ids = utils.get_all_ids(node_rows)
+        node_rows = _utils.filter_national_node_data(data=all_rows, node=node)
+        ids = _utils.get_all_ids(node_rows)
 
         if len(ids) > 0:
             try:
@@ -94,7 +94,7 @@ class Publisher:
         valid_ids = [
             source_id
             for source_id in source.ids
-            if validation.validate_bbmri_id(
+            if _validation.validate_bbmri_id(
                 entity=table.name, node=node, bbmri_id=source_id
             )
         ]
@@ -117,7 +117,7 @@ class Publisher:
             )
 
             print("Importing data to", target.name)
-            prepped_source_data = utils.transform_to_molgenis_upload_format(
+            prepped_source_data = _utils.transform_to_molgenis_upload_format(
                 data=valid_entries, one_to_manys=source_references["one_to_many"]
             )
 
@@ -134,10 +134,10 @@ class Publisher:
                 print("---" * 10)
 
                 cached_data = self._cache[table.name]
-                original_data = utils.filter_national_node_data(
+                original_data = _utils.filter_national_node_data(
                     data=cached_data, node=node
                 )
-                ids_to_revert = utils.get_all_ids(data=prepped_source_data)
+                ids_to_revert = _utils.get_all_ids(data=prepped_source_data)
 
                 if len(ids_to_revert) > 0:
                     self.session.remove_rows(entity=target.name, ids=ids_to_revert)
@@ -160,7 +160,7 @@ class Publisher:
             name = table.get_fullname()
 
         rows = self.session.get_all_rows(name)
-        ids = utils.get_all_ids(rows)
+        ids = _utils.get_all_ids(rows)
 
         return self.TableData(name, rows, ids)
 
