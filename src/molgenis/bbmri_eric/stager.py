@@ -15,16 +15,16 @@ class Stager:
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
         for node in external_nodes:
-            self._delete_national_node_own_entity_data(node)
+            self._clear_staging_area(node)
             print("\n")
 
             try:
-                self._import_national_node_to_own_entity(node)
+                self._stage_node(node)
                 print("\n")
             except ValueError as exception:  # rollback?
                 raise exception
 
-    def _delete_national_node_own_entity_data(self, node: ExternalNode):
+    def _clear_staging_area(self, node: ExternalNode):
         """
         Delete data before import from national node entity
         """
@@ -48,7 +48,7 @@ class Stager:
 
         return previous_ids_per_entity
 
-    def _import_national_node_to_own_entity(self, node: ExternalNode):
+    def _stage_node(self, node: ExternalNode):
         """
         Get data from staging area to their own entity on 'self'
         """
