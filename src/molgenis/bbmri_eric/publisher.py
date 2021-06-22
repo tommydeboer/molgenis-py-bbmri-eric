@@ -8,6 +8,7 @@ from molgenis.bbmri_eric.nodes import Node
 
 
 class Publisher:
+    # TODO move to model.py
     _TABLES_TO_CACHE = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
@@ -79,6 +80,7 @@ class Publisher:
             print("Nothing to remove for ", target_entity)
             print()
 
+    # TODO split up this large method
     def _publish_node(self, node: Node, table: Table):
         """
         Import all data of one national node into the production tables
