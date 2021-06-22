@@ -1,30 +1,7 @@
 import re
+from typing import List
 
 from molgenis.bbmri_eric.nodes import Node
-
-registered_national_nodes = [
-    "AT",
-    "BE",
-    "BG",
-    "CH",
-    "CY",
-    "CZ",
-    "DE",
-    "EE",
-    "EU",
-    "FI",
-    "FR",
-    "GR",
-    "IT",
-    "LV",
-    "MT",
-    "NL",
-    "NO",
-    "PL",
-    "SE",
-    "UK",
-    "EXT",
-]
 
 id_spec_by_entity = {
     "persons": "contactID",
@@ -104,8 +81,8 @@ def validate_refs_in_entry(
     node: Node,
     entry: dict,
     parent_entity: str,
-    possible_entity_references: list,
-) -> list[dict]:
+    possible_entity_references: List[str],
+) -> List[str]:
 
     validations = []
 
