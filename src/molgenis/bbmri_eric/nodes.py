@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from typing import List
 
 
-@dataclass
+@dataclass(frozen=True)
 class Node:
     code: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExternalNode(Node):
     url: str
 
