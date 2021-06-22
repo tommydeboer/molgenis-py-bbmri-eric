@@ -7,6 +7,8 @@ from typing import Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
 from molgenis.bbmri_eric import nodes as nnodes
+from molgenis.bbmri_eric.publisher import Publisher
+from molgenis.bbmri_eric.stager import Stager
 
 _logger = logging.getLogger(__name__)
 
@@ -45,22 +47,21 @@ def main(args):
 
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
 
-    bbmri_session = bbmri_client.BbmriSession(
-        url=args.target, username=username, password=password
-    )
+    bbmri_session = bbmri_client.BbmriSession(url=args.target)
+    bbmri_session.login(username, password)
 
     if args.action == "stage":
         if all_nodes:
             nodes = nnodes.get_all_external_nodes()
         else:
             nodes = nnodes.get_external_nodes(args.nodes)
-        bbmri_session.stage(nodes)
+        Stager(bbmri_session).stage(nodes)
     elif args.action == "publish":
         if all_nodes:
             nodes = nnodes.get_all_nodes()
         else:
             nodes = nnodes.get_nodes(args.nodes)
-        bbmri_session.publish(nodes)
+        Publisher(bbmri_session).publish(nodes)
 
 
 def _get_username_password(args) -> Tuple[str, str]:
@@ -116,12 +117,14 @@ def parse_args(args):
     )
     parser.add_argument(
         "--target",
+        "-t",
         help="the URL of the target directory (default: "
         "https://directory.bbmri-eric.eu/)",
         default="https://directory.bbmri-eric.eu/",
     )
     parser.add_argument(
         "--username",
+        "-u",
         help="the username to use when connecting to the target (will be prompted if "
         "not provided)",
     )

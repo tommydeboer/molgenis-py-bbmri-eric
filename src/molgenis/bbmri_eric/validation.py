@@ -26,7 +26,7 @@ registered_national_nodes = [
     "EXT",
 ]
 
-idSpecByEntity = {
+id_spec_by_entity = {
     "persons": "contactID",
     "contact": "contactID",
     "networks": "networkID",
@@ -39,23 +39,23 @@ idSpecByEntity = {
 def validate_bbmri_id(entity, node: Node, bbmri_id):
     errors = []
 
-    if entity not in idSpecByEntity:
+    if entity not in id_spec_by_entity:
         return True  # no constraints found
 
-    idSpec = idSpecByEntity[entity]
+    id_spec = id_spec_by_entity[entity]
 
-    idConstraint = f"bbmri-eric:{idSpec}:{node.code}_"  # for error messages
-    globalIdConstraint = f"bbmri-eric:{idSpec}:EU_"  # for global refs
+    id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
+    global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs
 
-    idRegex = f"^{idConstraint}"
-    globalIdRegex = f"^{globalIdConstraint}"
+    id_regex = f"^{id_constraint}"
+    global_id_regex = f"^{global_id_constraint}"
 
-    if not re.search(idRegex, bbmri_id) and not re.search(
-        globalIdRegex, bbmri_id
+    if not re.search(id_regex, bbmri_id) and not re.search(
+        global_id_regex, bbmri_id
     ):  # they can ref to a global 'EU' entity.
         errors.append(
-            f"""{bbmri_id} in entity: {entity} does not start with {idConstraint} (or
-            {globalIdConstraint} if it's a xref/mref)"""
+            f"""{bbmri_id} in entity: {entity} does not start with {id_constraint} (or
+            {global_id_constraint} if it's a xref/mref)"""
         )
 
     if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
@@ -110,7 +110,7 @@ def validate_refs_in_entry(
     validations = []
 
     for entity_reference in possible_entity_references:
-        if entity_reference not in entry or entity_reference not in idSpecByEntity:
+        if entity_reference not in entry or entity_reference not in id_spec_by_entity:
             continue
 
         ref_data = entry[entity_reference]
