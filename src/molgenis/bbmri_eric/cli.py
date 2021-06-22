@@ -117,12 +117,14 @@ def parse_args(args):
     )
     parser.add_argument(
         "--target",
+        "-t",
         help="the URL of the target directory (default: "
         "https://directory.bbmri-eric.eu/)",
         default="https://directory.bbmri-eric.eu/",
     )
     parser.add_argument(
         "--username",
+        "-u",
         help="the username to use when connecting to the target (will be prompted if "
         "not provided)",
     )
