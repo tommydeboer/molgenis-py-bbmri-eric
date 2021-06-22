@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from molgenis.bbmri_eric.nodes import Node
 
 
-@dataclass
+@dataclass(frozen=True)
 class Table:
     name: str
     package = "eu_bbmri_eric"

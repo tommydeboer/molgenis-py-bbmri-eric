@@ -2,6 +2,8 @@
 Development only module
 """
 
+# TODO dev code in src: remove or move to /tests
+
 from dotenv import dotenv_values
 
 from molgenis.bbmri_eric import nodes

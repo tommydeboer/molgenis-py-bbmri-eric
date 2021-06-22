@@ -1,4 +1,5 @@
-from typing import List
+from dataclasses import dataclass
+from typing import List, Set
 
 from molgenis.bbmri_eric import model, utils, validation
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
@@ -7,10 +8,17 @@ from molgenis.bbmri_eric.nodes import Node
 
 
 class Publisher:
+    # TODO move to model.py
     _TABLES_TO_CACHE = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
     ]
+
+    @dataclass(frozen=True)
+    class TableData:
+        name: str
+        rows: List[dict]
+        ids: Set[str]
 
     def __init__(self, session: BbmriSession):
         self.session = session
@@ -72,6 +80,7 @@ class Publisher:
             print("Nothing to remove for ", target_entity)
             print()
 
+    # TODO split up this large method
     def _publish_node(self, node: Node, table: Table):
         """
         Import all data of one national node into the production tables
@@ -79,12 +88,12 @@ class Publisher:
 
         print(f"Importing data for {node.code} on {self.session.url}\n")
 
-        source = self._get_data_for_entity(table, node)
-        target = self._get_data_for_entity(table)
+        source = self._get_data(table, node)
+        target = self._get_data(table)
 
         valid_ids = [
             source_id
-            for source_id in source["ids"]
+            for source_id in source.ids
             if validation.validate_bbmri_id(
                 entity=table.name, node=node, bbmri_id=source_id
             )
@@ -93,9 +102,9 @@ class Publisher:
         # check for target ids because there could be eric
         # leftovers from the national node in the table.
         valid_entries = [
-            valid_data
-            for valid_data in source["data"]
-            if valid_data["id"] in valid_ids and valid_data["id"] not in target["ids"]
+            valid_row
+            for valid_row in source.rows
+            if valid_row["id"] in valid_ids and valid_row["id"] not in target.ids
         ]
 
         # check the ids per entity if they exist
@@ -104,21 +113,19 @@ class Publisher:
         if len(valid_entries) > 0:
 
             source_references = self.session.get_all_references_for_entity(
-                entity=source["name"]
+                entity=source.name
             )
 
-            print("Importing data to", target["name"])
+            print("Importing data to", target.name)
             prepped_source_data = utils.transform_to_molgenis_upload_format(
                 data=valid_entries, one_to_manys=source_references["one_to_many"]
             )
 
             try:
-                self.session.bulk_add_all(
-                    entity=target["name"], data=prepped_source_data
-                )
+                self.session.bulk_add_all(entity=target.name, data=prepped_source_data)
                 print(
-                    f"Imported: {len(prepped_source_data)} rows to {target['name']}"
-                    f"out of {len(source['ids'])}"
+                    f"Imported: {len(prepped_source_data)} rows to {target.name}"
+                    f"out of {len(source.ids)}"
                 )
             except ValueError as exception:  # rollback
                 print("\n")
@@ -133,30 +140,29 @@ class Publisher:
                 ids_to_revert = utils.get_all_ids(data=prepped_source_data)
 
                 if len(ids_to_revert) > 0:
-                    self.session.remove_rows(entity=target["name"], ids=ids_to_revert)
+                    self.session.remove_rows(entity=target.name, ids=ids_to_revert)
 
                 if len(original_data) > 0:
-                    self.session.bulk_add_all(entity=target["name"], data=original_data)
+                    self.session.bulk_add_all(entity=target.name, data=original_data)
                     print(
-                        f"Rolled back {target['name']} with previous data for "
+                        f"Rolled back {target.name} with previous data for "
                         f"{node.code}"
                     )
 
-    def _get_data_for_entity(self, table: Table, node: Node = None) -> dict:
+    def _get_data(self, table: Table, node: Node = None) -> TableData:
         """
         Get's data for entity, if national node code is provided, it will fetch data
         from it's own entity
         """
         if node:
-            entity_name = table.get_staging_name(node)
+            name = table.get_staging_name(node)
         else:
-            entity_name = table.get_fullname()
+            name = table.get_fullname()
 
-        entity_data = self.session.get_all_rows(entity_name)
+        rows = self.session.get_all_rows(name)
+        ids = utils.get_all_ids(rows)
 
-        entity_ids = utils.get_all_ids(entity_data)
-
-        return {"data": entity_data, "name": entity_name, "ids": entity_ids}
+        return self.TableData(name, rows, ids)
 
     def _replace_global_entities(self):
         """
