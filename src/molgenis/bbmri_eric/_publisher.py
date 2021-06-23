@@ -1,10 +1,60 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Set
 
-from molgenis.bbmri_eric import _model, _utils, _validation
+from molgenis.bbmri_eric import _utils, _validation
 from molgenis.bbmri_eric._model import Table
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import Node
+from molgenis.client import MolgenisRequestError
+
+
+@dataclass(frozen=True)
+class TableData:
+    name: str
+    rows: List[dict]
+    ids: Set[str]
+
+
+class ValidationException(Exception):
+    pass
+
+
+@dataclass()
+class ValidationState:
+    valid_persons: TableData = field(default_factory=lambda: [])
+    valid_networks: TableData = field(default_factory=lambda: [])
+    valid_biobanks: TableData = field(default_factory=lambda: [])
+    valid_collections: TableData = field(default_factory=lambda: [])
+    errors: List[ValidationException] = field(default_factory=lambda: [])
+
+    def get_valid_data(self):
+        """
+        Returns the validated tables in the correct import order.
+        """
+        return [
+            self.valid_persons,
+            self.valid_networks,
+            self.valid_biobanks,
+            self.valid_biobanks,
+        ]
+
+
+class PublishingException(Exception):
+    pass
+
+
+class PublishingReport:
+    errors: List[PublishingException] = field(default_factory=lambda: [])
+    validation_errors: List[ValidationException] = field(default_factory=lambda: [])
+
+    def add_error(self, error: PublishingException):
+        self.errors.append(error)
+
+    def add_validation_errors(self, errors: List[ValidationException]):
+        self.validation_errors += errors
+
+    def has_errors(self) -> bool:
+        return len(self.errors) > 0 or len(self.validation_errors) > 0
 
 
 class Publisher:
@@ -14,12 +64,6 @@ class Publisher:
         "eu_bbmri_eric_col_qual_info",
     ]
 
-    @dataclass(frozen=True)
-    class TableData:
-        name: str
-        rows: List[dict]
-        ids: Set[str]
-
     def __init__(self, session: BbmriSession):
         self.session = session
         self._cache = {}
@@ -28,82 +72,62 @@ class Publisher:
         """
         Publishes data from the provided nodes to the production tables.
         """
-        self._cache = {}
-        self._cache_and_clear_quality_tables()
-        try:
+        report = PublishingReport()
+        for node in nodes:
+            result = self._validate_node(node)
+            report.add_validation_errors(result.errors)
 
-            for node in nodes:
-                for table in reversed(_model.get_import_sequence()):
-                    self._clear_node_from_production_tables(node, table)
-
-                for table in _model.get_import_sequence():
-                    for node in nodes:
-                        self._publish_node(node, table)
-        finally:
-            # TODO remove?
-            self._restore_quality_tables()
-
-    def _cache_and_clear_quality_tables(self) -> None:
-        """
-        Stores the quality tables in a cache. The quality tables have references to the
-        other production tables, so they need to be (temporarily) cleared before you
-        can remove and re-add rows to the production tables.
-        """
-        for quality_table in self._QUALITY_TABLES:
-            source_data = self.session.get_all_rows(entity=quality_table)
-            ref_names = self.session.get_reference_attribute_names(quality_table)
-            uploadable_source = _utils.transform_to_molgenis_upload_format(
-                data=source_data, one_to_manys=ref_names.one_to_manys
-            )
-
-            self._cache[quality_table] = uploadable_source
-
-            # TODO don't remove the quality data, alternatives:
-            #  1. Create backup .csv
-            #  2. Make the XREF a STRING <-- not allowed
-            #  3. Temporary table
-            #  4. Just delete it and hope for the best
-            #  5. Don't delete biobanks/collections but update them
-
-            # TODO delete biobank from quality table if a biobank/collection was deleted
-            #  and create a warning when this happens
-
-            self.session.delete(quality_table)
-
-    def _clear_node_from_production_tables(self, node: Node, table: Table):
-        """
-        Surgically delete all data of one national node from the production tables
-        """
-        # TODO incorrect method name
-        print(f"\nRemoving data from the entity: {table.name} for: " f"{node.code}")
-        all_rows = self._cache[table.name]
-        target_entity = table.get_fullname()
-        node_rows = _utils.filter_national_node_data(data=all_rows, node=node)
-        ids = _utils.get_all_ids(node_rows)
-
-        if len(ids) > 0:
             try:
-                self.session.remove_rows(
-                    entity=target_entity,
-                    ids=ids,
-                )
-                print("Removed:", len(ids), "rows")
-            except ValueError as exception:
-                raise exception
-        else:
-            print("Nothing to remove for ", target_entity)
-            print()
+                self._publish(node, result)
+            except PublishingException as e:
+                report.add_error(e)
 
-    def _publish_node(self, node: Node, table: Table):
+        if report.has_errors():
+            # TODO raise program failed error
+            pass
+
+    def _validate_node(self, node: Node) -> ValidationState:
+        """
+        Validates the staging tables of a single node. Will store all correct rows in a
+        ValidationReport together with any warnings encountered along the way.
+        """
+        state = ValidationState()
+
+        # TODO for each table:
+        #  1. Validate rows
+        #  2. Add valid rows to the state
+        #  3. Add any warnings/errors to the state
+
+        return state
+
+    def _publish(self, node: Node, state: ValidationState):
+        try:
+            for table_data in state.get_valid_data():
+                self._upsert_rows(node, table_data)
+                self._delete_rows(node, table_data)
+        except MolgenisRequestError as e:
+            raise PublishingException(e.message)
+
+    def _upsert_rows(self, node: Node, data: TableData):
+        # TODO adds or updates rows in the production tables
+        pass
+
+    def _delete_rows(self, node: Node, data: TableData):
+        # TODO
+        #  1. Deletes rows from the production table that are not present in staging
+        #  2. Don't delete the row if it is referred to from the quality tables, raise
+        #     a warning instead
+        pass
+
+    def _publish_node_old(self, node: Node, table: Table):
         """
         Import all data of one national node into the production tables
         """
-        # TODO incorrect method name
-        # TODO split up this large method
+        # TODO this is the old way, remove this method when code has been rearranged
         print(f"Importing data for {node.code} on {self.session.url}\n")
 
-        staging = self._get_data(table, node)
-        production = self._get_data(table)
+        staging = self._get_data(table.get_staging_name(node))
+        production = self._get_data(table.get_fullname())
 
         valid_ids = [
             source_id
@@ -113,6 +137,7 @@ class Publisher:
             )
         ]
 
+        # TODO is this still needed if we are not clearing the tables anymore?
         # check for target ids because there could be eric
         # leftovers from the national node in the table.
         valid_entries = [
@@ -166,32 +191,13 @@ class Publisher:
                         f"{node.code}"
                     )
 
-    def _get_data(self, table: Table, node: Node = None) -> TableData:
+    def _get_data(self, table_name: str) -> TableData:
         """
-        Get's data for entity, if national node code is provided, it will fetch data
-        from it's own entity
+        Gets all the rows of a table and wraps it in a TableData object.
         """
-        if node:
-            name = table.get_staging_name(node)
-        else:
-            name = table.get_fullname()
+        rows = self.session.get_all_rows(table_name)
 
-        rows = self.session.get_all_rows(name)
+        # TODO move this to the TableData class (not always needed)
         ids = _utils.get_all_ids(rows)
 
-        return self.TableData(name, rows, ids)
-
-    def _restore_quality_tables(self):
-        """
-        Restores the quality tables.
-        """
-        # TODO this will fail if some nodes weren't added correctly. Then you might end
-        #  up with partially filled quality tables due to the nature of bulk_add_all()
-        print("Restoring the quality tables")
-        for quality_table in self._QUALITY_TABLES:
-            rows = self._cache[quality_table]
-            if len(rows) > 0:
-                self.session.bulk_add_all(entity=quality_table, data=rows)
-                print(f"Placed back: {len(rows)} rows to {quality_table}")
-            else:
-                print("No rows found to place back")
+        return TableData(table_name, rows, ids)
