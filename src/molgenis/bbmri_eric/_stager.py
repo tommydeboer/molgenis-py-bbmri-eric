@@ -16,7 +16,6 @@ class Stager:
         """
         for node in external_nodes:
             self._clear_staging_area(node)
-            print("\n")
 
             try:
                 self._stage_node(node)

@@ -9,7 +9,7 @@ from molgenis.bbmri_eric.nodes import Node
 
 class Publisher:
     # TODO move to model.py?
-    _TABLES_TO_CACHE = [
+    _QUALITY_TABLES = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
     ]
@@ -29,38 +29,51 @@ class Publisher:
         Publishes data from the provided nodes to the production tables.
         """
         self._cache = {}
-        self._cache_production_tables()
+        self._cache_and_clear_quality_tables()
         try:
 
-            for table in reversed(_model.get_import_sequence()):
-                for node in nodes:
+            for node in nodes:
+                for table in reversed(_model.get_import_sequence()):
                     self._clear_node_from_production_tables(node, table)
 
-            for table in _model.get_import_sequence():
-                print("\n")
-                for node in nodes:
-                    self._publish_node(node, table)
-                    print("\n")
+                for table in _model.get_import_sequence():
+                    for node in nodes:
+                        self._publish_node(node, table)
         finally:
-            self._replace_global_entities()
+            # TODO remove?
+            self._restore_quality_tables()
 
-    def _cache_production_tables(self) -> None:
+    def _cache_and_clear_quality_tables(self) -> None:
         """
-        Caches data for all bbmri entities, in case of rollback
+        Stores the quality tables in a cache. The quality tables have references to the
+        other production tables, so they need to be (temporarily) cleared before you
+        can remove and re-add rows to the production tables.
         """
-        for global_entity in self._TABLES_TO_CACHE:
-            source_data = self.session.get_all_rows(entity=global_entity)
-            ref_names = self.session.get_reference_attribute_names(global_entity)
+        for quality_table in self._QUALITY_TABLES:
+            source_data = self.session.get_all_rows(entity=quality_table)
+            ref_names = self.session.get_reference_attribute_names(quality_table)
             uploadable_source = _utils.transform_to_molgenis_upload_format(
                 data=source_data, one_to_manys=ref_names.one_to_manys
             )
 
-            self._cache[global_entity] = uploadable_source
+            self._cache[quality_table] = uploadable_source
+
+            # TODO don't remove the quality data, alternatives:
+            #  1. Create backup .csv
+            #  2. Make the XREF a STRING <-- not allowed
+            #  3. Temporary table
+            #  4. Just delete it and hope for the best
+            #  5. Don't delete biobanks/collections but update them
+
+            # TODO delete biobank from quality table if a biobank/collection was deleted
+
+            self.session.delete(quality_table)
 
     def _clear_node_from_production_tables(self, node: Node, table: Table):
         """
         Surgically delete all data of one national node from the production tables
         """
+        # TODO incorrect method name
         print(f"\nRemoving data from the entity: {table.name} for: " f"{node.code}")
         all_rows = self._cache[table.name]
         target_entity = table.get_fullname()
@@ -80,20 +93,20 @@ class Publisher:
             print("Nothing to remove for ", target_entity)
             print()
 
-    # TODO split up this large method
     def _publish_node(self, node: Node, table: Table):
         """
         Import all data of one national node into the production tables
         """
-
+        # TODO incorrect method name
+        # TODO split up this large method
         print(f"Importing data for {node.code} on {self.session.url}\n")
 
-        source = self._get_data(table, node)
-        target = self._get_data(table)
+        staging = self._get_data(table, node)
+        production = self._get_data(table)
 
         valid_ids = [
             source_id
-            for source_id in source.ids
+            for source_id in staging.ids
             if _validation.validate_bbmri_id(
                 entity=table.name, node=node, bbmri_id=source_id
             )
@@ -103,8 +116,8 @@ class Publisher:
         # leftovers from the national node in the table.
         valid_entries = [
             valid_row
-            for valid_row in source.rows
-            if valid_row["id"] in valid_ids and valid_row["id"] not in target.ids
+            for valid_row in staging.rows
+            if valid_row["id"] in valid_ids and valid_row["id"] not in production.ids
         ]
 
         # check the ids per entity if they exist
@@ -112,19 +125,21 @@ class Publisher:
 
         if len(valid_entries) > 0:
 
-            ref_names = self.session.get_reference_attribute_names(id_=source.name)
+            ref_names = self.session.get_reference_attribute_names(id_=staging.name)
 
-            print("Importing data to", target.name)
+            print("Importing data to", production.name)
             prepped_source_data = _utils.transform_to_molgenis_upload_format(
                 data=valid_entries,
                 one_to_manys=ref_names.one_to_manys,
             )
 
             try:
-                self.session.bulk_add_all(entity=target.name, data=prepped_source_data)
+                self.session.bulk_add_all(
+                    entity=production.name, data=prepped_source_data
+                )
                 print(
-                    f"Imported: {len(prepped_source_data)} rows to {target.name}"
-                    f"out of {len(source.ids)}"
+                    f"Imported: {len(prepped_source_data)} rows to {production.name}"
+                    f"out of {len(staging.ids)}"
                 )
             except ValueError as exception:  # rollback
                 print("\n")
@@ -139,12 +154,14 @@ class Publisher:
                 ids_to_revert = _utils.get_all_ids(data=prepped_source_data)
 
                 if len(ids_to_revert) > 0:
-                    self.session.remove_rows(entity=target.name, ids=ids_to_revert)
+                    self.session.remove_rows(entity=production.name, ids=ids_to_revert)
 
                 if len(original_data) > 0:
-                    self.session.bulk_add_all(entity=target.name, data=original_data)
+                    self.session.bulk_add_all(
+                        entity=production.name, data=original_data
+                    )
                     print(
-                        f"Rolled back {target.name} with previous data for "
+                        f"Rolled back {production.name} with previous data for "
                         f"{node.code}"
                     )
 
@@ -163,15 +180,17 @@ class Publisher:
 
         return self.TableData(name, rows, ids)
 
-    def _replace_global_entities(self):
+    def _restore_quality_tables(self):
         """
-        Function to loop over global entities and place back the data
+        Restores the quality tables.
         """
-        print("Placing back the global entities")
-        for global_entity in self._TABLES_TO_CACHE:
-            source_data = self._cache[global_entity]
-            if len(source_data) > 0:
-                self.session.bulk_add_all(entity=global_entity, data=source_data)
-                print(f"Placed back: {len(source_data)} rows to {global_entity}")
+        # TODO this will fail if some nodes weren't added correctly. Then you might end
+        #  up with partially filled quality tables due to the nature of bulk_add_all()
+        print("Restoring the quality tables")
+        for quality_table in self._QUALITY_TABLES:
+            rows = self._cache[quality_table]
+            if len(rows) > 0:
+                self.session.bulk_add_all(entity=quality_table, data=rows)
+                print(f"Placed back: {len(rows)} rows to {quality_table}")
             else:
                 print("No rows found to place back")
