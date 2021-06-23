@@ -26,27 +26,13 @@ class Stager:
 
     def _clear_staging_area(self, node: ExternalNode):
         """
-        Delete data before import from national node entity
+        Deletes all data in the staging area of an external node
         """
-        print(f"Deleting data for staging area {node.code} on {self.session.url}")
-
-        previous_ids_per_entity = {}
+        print(f"Clearing staging area {node.code} on {self.session.url}")
 
         for table in reversed(_model.get_import_sequence()):
-            target_entity = table.get_staging_name(node)
-            target_data = self.session.get_all_rows(entity=target_entity)
-            ids = _utils.get_all_ids(target_data)
-            previous_ids_per_entity[table.name] = ids
-
-            if len(ids) > 0:
-                # delete from node specific
-                print("Deleting data in", target_entity)
-                try:
-                    self.session.remove_rows(entity=target_entity, ids=ids)
-                except ValueError as exception:
-                    raise exception
-
-        return previous_ids_per_entity
+            name = table.get_staging_name(node)
+            self.session.delete(name)
 
     def _stage_node(self, node: ExternalNode):
         """
