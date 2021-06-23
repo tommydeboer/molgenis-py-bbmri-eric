@@ -1,6 +1,26 @@
-from typing import Optional
+from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Optional
 
 from molgenis.client import MolgenisRequestError, Session
+
+
+@dataclass(frozen=True)
+class ReferenceAttributeNames:
+    xrefs: List[str]
+    mrefs: List[str]
+    categoricals: List[str]
+    categorical_mrefs: List[str]
+    one_to_manys: List[str]
+
+
+class ReferenceType(Enum):
+    XREF = "XREF"
+    MREF = "MREF"
+    CATEGORICAL = "CATEGORICAL"
+    CATEGORICAL_MREF = "CATEGORICAL_MREF"
+    ONE_TO_MANY = "ONE_TO_MANY"
 
 
 class BbmriSession(Session):
@@ -36,19 +56,30 @@ class BbmriSession(Session):
 
         return data
 
-    def get_all_references_for_entity(self, entity):
-        """retrieves one_to_many and xref attributes"""
-        meta = self.get_entity_meta_data(entity)["attributes"]
-        one_to_many = [
-            attr for attr in meta if meta[attr]["fieldType"] == "ONE_TO_MANY"
-        ]
-        xref = [attr for attr in meta if meta[attr]["fieldType"] == "XREF"]
-        return {"xref": xref, "one_to_many": one_to_many}
+    def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
+        """
+        Gets the names of all reference attributes of an entity type
 
-    def get_one_to_manys(self, entity):
-        """Retrieves one-to-many's in table"""
-        all_references = self.get_all_references_for_entity(entity=entity)
-        return all_references["one_to_many"]
+        Parameters:
+            id_ (str): the id of the entity type
+        """
+        attrs = self.get_entity_meta_data(id_)["attributes"]
+
+        result = defaultdict(list)
+        for name, attr in attrs.items():
+            try:
+                type_ = ReferenceType[attr["fieldType"]]
+                result[type_].append(name)
+            except KeyError:
+                pass
+
+        return ReferenceAttributeNames(
+            xrefs=result.get(ReferenceType.XREF, []),
+            mrefs=result.get(ReferenceType.MREF, []),
+            categoricals=result.get(ReferenceType.CATEGORICAL, []),
+            categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
+            one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
+        )
 
     def bulk_add_all(self, entity, data):
         if len(data) == 0:

@@ -10,7 +10,7 @@ def get_all_ids(data):
     return [item["id"] for item in data]
 
 
-def transform_to_molgenis_upload_format(data, one_to_manys):
+def transform_to_molgenis_upload_format(data, one_to_manys: List[str]):
     upload_format = []
     for item in data:
         new_item = item

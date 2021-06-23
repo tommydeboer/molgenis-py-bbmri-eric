@@ -8,7 +8,7 @@ from molgenis.bbmri_eric.nodes import Node
 
 
 class Publisher:
-    # TODO move to model.py
+    # TODO move to model.py?
     _TABLES_TO_CACHE = [
         "eu_bbmri_eric_bio_qual_info",
         "eu_bbmri_eric_col_qual_info",
@@ -24,7 +24,7 @@ class Publisher:
         self.session = session
         self._cache = {}
 
-    def publish(self, national_nodes: List[Node]):
+    def publish(self, nodes: List[Node]):
         """
         Publishes data from the provided nodes to the production tables.
         """
@@ -33,12 +33,12 @@ class Publisher:
         try:
 
             for table in reversed(_model.get_import_sequence()):
-                for node in national_nodes:
+                for node in nodes:
                     self._clear_node_from_production_tables(node, table)
 
             for table in _model.get_import_sequence():
                 print("\n")
-                for node in national_nodes:
+                for node in nodes:
                     self._publish_node(node, table)
                     print("\n")
         finally:
@@ -50,9 +50,9 @@ class Publisher:
         """
         for global_entity in self._TABLES_TO_CACHE:
             source_data = self.session.get_all_rows(entity=global_entity)
-            source_one_to_manys = self.session.get_one_to_manys(entity=global_entity)
+            ref_names = self.session.get_reference_attribute_names(global_entity)
             uploadable_source = _utils.transform_to_molgenis_upload_format(
-                data=source_data, one_to_manys=source_one_to_manys
+                data=source_data, one_to_manys=ref_names.one_to_manys
             )
 
             self._cache[global_entity] = uploadable_source
@@ -112,13 +112,12 @@ class Publisher:
 
         if len(valid_entries) > 0:
 
-            source_references = self.session.get_all_references_for_entity(
-                entity=source.name
-            )
+            ref_names = self.session.get_reference_attribute_names(id_=source.name)
 
             print("Importing data to", target.name)
             prepped_source_data = _utils.transform_to_molgenis_upload_format(
-                data=valid_entries, one_to_manys=source_references["one_to_many"]
+                data=valid_entries,
+                one_to_manys=ref_names.one_to_manys,
             )
 
             try:

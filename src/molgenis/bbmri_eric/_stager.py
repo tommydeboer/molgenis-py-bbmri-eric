@@ -61,13 +61,15 @@ class Stager:
             target_entity = table.get_staging_name(node)
             source_entity = table.get_fullname()
             source_data = source_session.get_all_rows(entity=source_entity)
-            source_one_to_manys = source_session.get_one_to_manys(entity=source_entity)
+            source_ref_names = source_session.get_reference_attribute_names(
+                source_entity
+            )
 
             # import all the data
             if len(source_data) > 0:
                 print("Importing data to", target_entity)
                 prepped_source_data = _utils.transform_to_molgenis_upload_format(
-                    data=source_data, one_to_manys=source_one_to_manys
+                    data=source_data, one_to_manys=source_ref_names.one_to_manys
                 )
                 try:
                     self.session.bulk_add_all(
