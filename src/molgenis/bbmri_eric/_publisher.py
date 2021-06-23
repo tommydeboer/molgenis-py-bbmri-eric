@@ -66,6 +66,7 @@ class Publisher:
             #  5. Don't delete biobanks/collections but update them
 
             # TODO delete biobank from quality table if a biobank/collection was deleted
+            #  and create a warning when this happens
 
             self.session.delete(quality_table)
 
