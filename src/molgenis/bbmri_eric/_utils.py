@@ -3,13 +3,6 @@ from typing import List
 from molgenis.bbmri_eric.nodes import Node
 
 
-def get_all_ids(data):
-    if len(data) == 0:
-        return []
-
-    return [item["id"] for item in data]
-
-
 def transform_to_molgenis_upload_format(data, one_to_manys: List[str]):
     upload_format = []
     for item in data:

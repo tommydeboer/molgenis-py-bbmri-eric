@@ -5,6 +5,8 @@ from molgenis.bbmri_eric.nodes import Node
 
 @dataclass(frozen=True)
 class Table:
+    # TODO make node part of Table
+
     name: str
     package = "eu_bbmri_eric"
 
@@ -15,13 +17,14 @@ class Table:
         return f"{self.package}_{node.code}_{self.name}"
 
 
-_import_sequence = [
-    Table("persons"),
-    Table("networks"),
-    Table("biobanks"),
-    Table("collections"),
-]
+persons = Table("persons")
+networks = Table("networks")
+biobanks = Table("biobanks")
+collections = Table("collections")
 
 
 def get_import_sequence():
-    return _import_sequence
+    return [persons, networks, biobanks, collections]
+
+
+# TODO def get_import_sequence(Node)

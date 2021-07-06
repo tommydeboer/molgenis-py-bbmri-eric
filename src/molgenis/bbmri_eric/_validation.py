@@ -3,6 +3,11 @@ from typing import List
 
 from molgenis.bbmri_eric.nodes import Node
 
+
+class ValidationException(Exception):
+    pass
+
+
 id_spec_by_entity = {
     "persons": "contactID",
     "contact": "contactID",
@@ -13,13 +18,13 @@ id_spec_by_entity = {
 }
 
 
-def validate_bbmri_id(entity, node: Node, bbmri_id):
+def validate_bbmri_id(table_name: str, node: Node, bbmri_id: str):
     errors = []
 
-    if entity not in id_spec_by_entity:
+    if table_name not in id_spec_by_entity:
         return True  # no constraints found
 
-    id_spec = id_spec_by_entity[entity]
+    id_spec = id_spec_by_entity[table_name]
 
     id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
     global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs
@@ -31,25 +36,25 @@ def validate_bbmri_id(entity, node: Node, bbmri_id):
         global_id_regex, bbmri_id
     ):  # they can ref to a global 'EU' entity.
         errors.append(
-            f"""{bbmri_id} in entity: {entity} does not start with {id_constraint} (or
+            f"""{bbmri_id} in entity: {table_name} does not start with {id_constraint} (or
             {global_id_constraint} if it's a xref/mref)"""
         )
 
     if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {entity} contains characters other than:
+            f"""{bbmri_id} in entity: {table_name} contains characters other than:
             A-Z a-z 0-9 : _ -"""
         )
 
     if re.search("::", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {entity}
+            f"""{bbmri_id} in entity: {table_name}
             contains :: indicating an empty component in ID hierarchy"""
         )
 
     if not re.search("[A-Z]{2}_[A-Za-z0-9-_:@.]+$", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {entity} does not comply with a two letter
+            f"""{bbmri_id} in entity: {table_name} does not comply with a two letter
             national node code, an _ and alphanumeric characters ( : @ . are allowed)
             afterwards \ne.g: NL_myid1234"""
         )
@@ -66,7 +71,7 @@ def _validate_id_in_nn_entry(
     ref_bbmri_id = entry["id"]
     parent_id = parent_entry["id"]
 
-    if not validate_bbmri_id(entity=entity, node=node, bbmri_id=ref_bbmri_id):
+    if not validate_bbmri_id(table_name=entity, node=node, bbmri_id=ref_bbmri_id):
         print(
             f"""{parent_id} in entity: {parent_entity} contains references to
             entity: {entity} with an invalid id ({ref_bbmri_id})"""
@@ -127,7 +132,7 @@ def validate_refs_in_entry(
                     )
                 else:
                     if not validate_bbmri_id(
-                        entity=entity_reference, node=node, bbmri_id=ref
+                        table_name=entity_reference, node=node, bbmri_id=ref
                     ):
                         validations.append(
                             {
