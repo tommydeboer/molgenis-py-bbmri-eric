@@ -1,6 +1,6 @@
 from typing import List
 
-from molgenis.bbmri_eric import _model, _utils
+from molgenis.bbmri_eric import _utils
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import ExternalNode
 from molgenis.client import MolgenisRequestError
@@ -29,9 +29,8 @@ class Stager:
         """
         print(f"Clearing staging area {node.code} on {self.session.url}")
 
-        for table in reversed(_model.get_import_sequence()):
-            name = table.get_staging_name(node)
-            self.session.delete(name)
+        for table_name in reversed(node.get_staging_table_ids()):
+            self.session.delete(table_name)
 
     def _stage_node(self, node: ExternalNode):
         """
@@ -42,23 +41,22 @@ class Stager:
         print(f"Importing data for staging area {node.code} on {self.session.url}\n")
 
         # imports
-        for table in _model.get_import_sequence():
-            target_entity = table.get_staging_name(node)
-            source_entity = table.get_fullname()
-            source_data = source_session.get_all_rows(entity=source_entity)
-            source_ref_names = source_session.get_reference_attribute_names(
-                source_entity
-            )
+        for target_name, source_name in zip(
+            node.get_staging_table_ids(), node.get_external_table_ids()
+        ):
+            # TODO use session.get_node_data()
+            source_data = source_session.get_all_rows(entity=source_name)
+            source_ref_names = source_session.get_reference_attribute_names(source_name)
 
             # import all the data
             if len(source_data) > 0:
-                print("Importing data to", target_entity)
+                print("Importing data to", target_name)
                 prepped_source_data = _utils.transform_to_molgenis_upload_format(
                     data=source_data, one_to_manys=source_ref_names.one_to_manys
                 )
                 try:
                     self.session.bulk_add_all(
-                        entity=target_entity, data=prepped_source_data
+                        entity=target_name, data=prepped_source_data
                     )
                 except MolgenisRequestError as exception:
                     raise ValueError(exception)
