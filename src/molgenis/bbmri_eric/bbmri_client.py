@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
+from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError, Session
 
 
@@ -31,6 +33,39 @@ class BbmriSession(Session):
     def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
         self.url = url
+
+    def get_node_staging_data(self, node: Node) -> NodeData:
+        persons = Table(
+            simple_name="persons",
+            full_name=node.persons_staging_id,
+            rows=self.get_all_rows(node.persons_staging_id),
+        )
+
+        networks = Table(
+            simple_name="networks",
+            full_name=node.networks_staging_id,
+            rows=self.get_all_rows(node.networks_staging_id),
+        )
+
+        biobanks = Table(
+            simple_name="biobanks",
+            full_name=node.biobanks_staging_id,
+            rows=self.get_all_rows(node.biobanks_staging_id),
+        )
+
+        collections = Table(
+            simple_name="collections",
+            full_name=node.persons_staging_id,
+            rows=self.get_all_rows(node.collections_staging_id),
+        )
+
+        return NodeData(
+            node=node,
+            persons=persons,
+            networks=networks,
+            biobanks=biobanks,
+            collections=collections,
+        )
 
     def remove_rows(self, entity, ids):
         if len(ids) > 0:

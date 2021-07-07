@@ -1,30 +1,26 @@
 from dataclasses import dataclass
+from typing import List
 
 from molgenis.bbmri_eric.nodes import Node
 
 
 @dataclass(frozen=True)
 class Table:
-    # TODO make node part of Table
-
-    name: str
-    package = "eu_bbmri_eric"
-
-    def get_fullname(self):
-        return f"{self.package}_{self.name}"
-
-    def get_staging_name(self, node: Node):
-        return f"{self.package}_{node.code}_{self.name}"
+    simple_name: str
+    full_name: str
+    rows: List[dict]
 
 
-persons = Table("persons")
-networks = Table("networks")
-biobanks = Table("biobanks")
-collections = Table("collections")
+@dataclass(frozen=True)
+class NodeData:
+    # TODO rename because this might be confusing: is it external or staging data?
 
+    node: Node
+    persons: Table
+    networks: Table
+    biobanks: Table
+    collections: Table
 
-def get_import_sequence():
-    return [persons, networks, biobanks, collections]
-
-
-# TODO def get_import_sequence(Node)
+    @property
+    def tables(self):
+        return [self.persons, self.networks, self.biobanks, self.collections]
