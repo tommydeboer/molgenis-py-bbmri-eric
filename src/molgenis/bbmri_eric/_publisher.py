@@ -3,8 +3,8 @@ from pprint import pprint
 from typing import List
 
 from molgenis.bbmri_eric import _validation
-from molgenis.bbmri_eric._model import Table
-from molgenis.bbmri_eric._validation import ValidationException, ValidationState
+from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric._validation import ValidationException
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError
@@ -46,38 +46,39 @@ class Publisher:
         """
         report = PublishingReport()
         for node in nodes:
-            node_data = self.session.get_node_staging_data(node)
-            result = _validation.validate_node(node_data)
-            report.add_validation_errors(result.errors)
-
             try:
-                self._publish(node, result)
-                pass
-            except PublishingException as e:
-                report.add_error(e)
+                node_data = self.session.get_node_staging_data(node)
+            except MolgenisRequestError:
+                # TODO add warning
+                continue
+            else:
+                result = _validation.validate_node(node_data)
+                report.add_validation_errors(result.errors)
+
+                try:
+                    self._publish(node_data)
+                    pass
+                except PublishingException as e:
+                    report.add_error(e)
 
         if report.has_errors():
             # TODO raise program failed error
-            for error in report.validation_errors:
-                print(error)
-                print()
             pass
 
         pprint(report)
 
-    def _publish(self, node: Node, state: ValidationState):
+    def _publish(self, node_data: NodeData):
         try:
-            pass
+            self._publish_table(node_data.persons, "eu_bbmri_eric_persons")
+            self._publish_table(node_data.networks, "eu_bbmri_eric_networks")
+            self._publish_table(node_data.biobanks, "eu_bbmri_eric_biobanks")
+            self._publish_table(node_data.collections, "eu_bbmri_eric_collections")
         except MolgenisRequestError as e:
             raise PublishingException(e.message)
 
-    def _publish_table(self, table_data: Table, node: Node):
-        self._upsert_rows(table_data, node)
-        self._delete_rows(table_data, node)
-
-    def _upsert_rows(self, data: Table, node: Node):
-        # TODO adds or updates rows in the production tables
-        pass
+    def _publish_table(self, table: Table, production_id: str):
+        self.session.upsert_batched(production_id, table.rows)
+        # self._delete_rows(table, node)
 
     def _delete_rows(self, data: Table, node: Node):
         # TODO
