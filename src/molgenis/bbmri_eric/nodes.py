@@ -37,6 +37,7 @@ class Node:
 
 @dataclass(frozen=True)
 class ExternalNode(Node):
+    # TODO rename to IndependentNode
     url: str
 
     @property

@@ -19,7 +19,7 @@ class Table:
 @dataclass(frozen=True)
 class NodeData:
     # TODO rename because this might be confusing: is it external or staging data?
-
+    # TODO introduce is_staging flag
     node: Node
     persons: Table
     networks: Table
