@@ -1,6 +1,9 @@
 import re
-from typing import List
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import DefaultDict, List, Optional
 
+from molgenis.bbmri_eric._model import NodeData, Table
 from molgenis.bbmri_eric.nodes import Node
 
 
@@ -10,21 +13,102 @@ class ValidationException(Exception):
 
 id_spec_by_entity = {
     "persons": "contactID",
-    "contact": "contactID",
     "networks": "networkID",
     "biobanks": "ID",
-    "collections": "ID",  # collectionID
-    "sub_collections": "ID",  # ref-check
+    "collections": "ID",
 }
 
 
-def validate_bbmri_id(table_name: str, node: Node, bbmri_id: str):
+@dataclass()
+class ValidationState:
+
+    invalid_ids: DefaultDict[str, List[ValidationException]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    invalid_references: DefaultDict[str, List[ValidationException]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    @property
+    def errors(self):
+        return sum(self.invalid_ids.values(), []) + sum(
+            self.invalid_references.values(), []
+        )
+
+
+def validate_node(node_data: NodeData) -> ValidationState:
+    """
+    Validates the staging tables of a single node. Will store all valid rows in a
+    ValidationState together with any warnings encountered along the way.
+    """
+    state = ValidationState()
+
+    for table in node_data.tables:
+        _validate_ids(table, node_data.node, state)
+
+    _validate_networks(node_data.networks, state)
+    _validate_biobanks(node_data.biobanks, state)
+    _validate_networks(node_data.collections, state)
+
+    return state
+
+
+def _validate_ids(table: Table, node: Node, state: ValidationState):
+    for row in table.rows:
+        id_ = row["id"]
+        errors = validate_bbmri_id(table, node, row["id"])
+        if errors:
+            state.invalid_ids[id_] += errors
+
+
+def _validate_networks(networks: Table, state: ValidationState):
+    for network in networks.rows:
+        _validate_xref(network, "contact", state)
+        _validate_mref(network, "parent_network", state)
+
+
+def _validate_biobanks(biobanks: Table, state: ValidationState):
+    for biobank in biobanks.rows:
+        _validate_xref(biobank, "contact", state)
+        _validate_mref(biobank, "network", state)
+
+
+def _validate_collections(collections: Table, state: ValidationState):
+    for collection in collections.rows:
+        _validate_xref(collection, "contact", state)
+        _validate_xref(collection, "biobank", state)
+        _validate_mref(collection, "parent_collection", state)
+        _validate_mref(collection, "networks", state)
+
+
+def _validate_xref(row: dict, ref_attr: str, state: ValidationState):
+    if ref_attr in row:
+        ref_id = row[ref_attr]["id"]
+        if ref_id in state.invalid_ids:
+            state.invalid_references[ref_id].append(
+                ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
+            )
+
+
+def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
+    if mref_attr in row:
+        for ref in row[mref_attr]:
+            ref_id = ref["id"]
+            if ref_id in state.invalid_ids:
+                state.invalid_references[ref_id].append(
+                    ValidationException(
+                        f"""{row["id"]} references invalid id: {ref_id}"""
+                    )
+                )
+
+
+def validate_bbmri_id(
+    table: Table, node: Node, bbmri_id: str
+) -> Optional[List[ValidationException]]:
     errors = []
+    # TODO refactor: split id on ':' and validate each piece separately
 
-    if table_name not in id_spec_by_entity:
-        return True  # no constraints found
-
-    id_spec = id_spec_by_entity[table_name]
+    id_spec = id_spec_by_entity[table.simple_name]
 
     id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
     global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs
@@ -36,109 +120,35 @@ def validate_bbmri_id(table_name: str, node: Node, bbmri_id: str):
         global_id_regex, bbmri_id
     ):  # they can ref to a global 'EU' entity.
         errors.append(
-            f"""{bbmri_id} in entity: {table_name} does not start with {id_constraint} (or
-            {global_id_constraint} if it's a xref/mref)"""
+            ValidationException(
+                f"""{bbmri_id} in entity: {table.full_name} does not start with
+                {id_constraint} (or {global_id_constraint} if it's a xref/mref) """
+            )
         )
 
     if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {table_name} contains characters other than:
-            A-Z a-z 0-9 : _ -"""
+            ValidationException(
+                f"""{bbmri_id} in entity: {table.full_name} contains characters other than:
+                A-Z a-z 0-9 : _ -"""
+            )
         )
 
     if re.search("::", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {table_name}
-            contains :: indicating an empty component in ID hierarchy"""
+            ValidationException(
+                f"""{bbmri_id} in entity: {table.full_name}
+                contains :: indicating an empty component in ID hierarchy"""
+            )
         )
 
     if not re.search("[A-Z]{2}_[A-Za-z0-9-_:@.]+$", bbmri_id):
         errors.append(
-            f"""{bbmri_id} in entity: {table_name} does not comply with a two letter
-            national node code, an _ and alphanumeric characters ( : @ . are allowed)
-            afterwards \ne.g: NL_myid1234"""
+            ValidationException(
+                f"""{bbmri_id} in entity: {table.full_name} does not comply with a
+                two letter national node code, an _ and alphanumeric characters ( : @
+                . are allowed) afterwards \ne.g: NL_myid1234 """
+            )
         )
 
-    for error in errors:
-        print(error)
-
-    return len(errors) == 0
-
-
-def _validate_id_in_nn_entry(
-    entity: str, parent_entry: dict, parent_entity: str, node: Node, entry: dict
-) -> bool:
-    ref_bbmri_id = entry["id"]
-    parent_id = parent_entry["id"]
-
-    if not validate_bbmri_id(table_name=entity, node=node, bbmri_id=ref_bbmri_id):
-        print(
-            f"""{parent_id} in entity: {parent_entity} contains references to
-            entity: {entity} with an invalid id ({ref_bbmri_id})"""
-        )
-        return False
-    else:
-        return True
-
-
-# get all ref ids and then check
-def validate_refs_in_entry(
-    node: Node,
-    entry: dict,
-    parent_entity: str,
-    possible_entity_references: List[str],
-) -> List[str]:
-
-    validations = []
-
-    for entity_reference in possible_entity_references:
-        if entity_reference not in entry or entity_reference not in id_spec_by_entity:
-            continue
-
-        ref_data = entry[entity_reference]
-
-        # check if its an xref
-        if type(ref_data) is dict:
-            valid_id = _validate_id_in_nn_entry(
-                entity=entity_reference,
-                parent_entry=entry,
-                parent_entity=parent_entity,
-                node=node,
-                entry=ref_data,
-            )
-            validations.append(
-                {
-                    "entity_reference": entity_reference,
-                    "ref_id": ref_data["id"],
-                    "valid": valid_id,
-                }
-            )
-        else:
-            for ref in ref_data:
-                if type(ref) is dict:
-                    valid_id = _validate_id_in_nn_entry(
-                        entity=entity_reference,
-                        parent_entry=entry,
-                        parent_entity=parent_entity,
-                        node=node,
-                        entry=ref,
-                    )
-                    validations.append(
-                        {
-                            "entity_reference": entity_reference,
-                            "ref_id": ref["id"],
-                            "valid": valid_id,
-                        }
-                    )
-                else:
-                    if not validate_bbmri_id(
-                        table_name=entity_reference, node=node, bbmri_id=ref
-                    ):
-                        validations.append(
-                            {
-                                "entity_reference": entity_reference,
-                                "ref_id": ref,
-                                "valid": False,
-                            }
-                        )
-    return validations
+    return errors
