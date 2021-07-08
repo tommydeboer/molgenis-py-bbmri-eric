@@ -30,3 +30,9 @@ def transform_to_molgenis_upload_format(
 
         upload_format.append(row)
     return upload_format
+
+
+def batched(list_: List, batch_size: int):
+    """Yield successive n-sized batches from list_."""
+    for i in range(0, len(list_), batch_size):
+        yield list_[i : i + batch_size]

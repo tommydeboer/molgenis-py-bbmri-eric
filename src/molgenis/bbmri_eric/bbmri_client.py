@@ -1,10 +1,15 @@
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
+from urllib.parse import quote_plus
+
+import requests
 
 from molgenis.bbmri_eric import _utils
 from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric._utils import batched
 from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError, Session
 
@@ -108,28 +113,55 @@ class BbmriSession(Session):
             one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
         )
 
-    def bulk_add_all(self, entity, data):
-        # TODO adding things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed.
-        if len(data) == 0:
-            return
+    def upsert_batched(self, entity_type_id: str, entities: List[dict]):
+        """
+        Upserts entities in an entity type (in batches, if needed).
+        @param entity_type_id: the id of the entity type to upsert to
+        @param entities: the entities to upsert
+        """
+        meta = self.get_entity_meta_data(entity_type_id)
+        id_attr = meta["idAttribute"]
+        existing_entities = self.get(
+            entity_type_id, batch_size=10000, attributes=meta["idAttribute"]
+        )
+        existing_ids = {entity[id_attr] for entity in existing_entities}
 
-        max_update_count = 1000
+        add = list()
+        update = list()
+        for entity in entities:
+            if entity[id_attr] in existing_ids:
+                update.append(entity)
+            else:
+                add.append(entity)
 
-        if len(data) <= max_update_count:
-            try:
-                self.add_all(entity=entity, entities=data)
-                return
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
+        self.add_batched(entity_type_id, add)
+        self.update_batched(entity_type_id, update)
 
-        number_of_cycles = int(len(data) / max_update_count)
+    def update(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities."""
+        response = self._session.put(
+            self._api_url + "v2/" + quote_plus(entity_type_id),
+            headers=self._get_token_header_with_content_type(),
+            data=json.dumps({"entities": entities}),
+        )
 
         try:
-            for cycle in range(number_of_cycles):
-                next_batch_start = int(cycle * max_update_count)
-                next_batch_stop = int(max_update_count + cycle * max_update_count)
-                items_to_add = data[next_batch_start:next_batch_stop]
-                self.add_all(entity=entity, entities=items_to_add)
-        except MolgenisRequestError as exception:
-            raise ValueError(exception)
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
+
+        return response
+
+    def update_batched(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities in batches of 1000."""
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.update(entity_type_id, batch)
+
+    def add_batched(self, entity_type_id: str, entities: List[dict]):
+        """Adds multiple entities in batches of 1000."""
+        # TODO adding things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed.
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.add_all(entity_type_id, batch)

@@ -48,7 +48,7 @@ def validate_node(node_data: NodeData) -> ValidationState:
 
     _validate_networks(node_data.networks, state)
     _validate_biobanks(node_data.biobanks, state)
-    _validate_networks(node_data.collections, state)
+    _validate_collections(node_data.collections, state)
 
     return state
 

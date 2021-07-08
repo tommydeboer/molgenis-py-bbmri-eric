@@ -55,8 +55,8 @@ class Stager:
                     rows=source_data, one_to_manys=source_ref_names.one_to_manys
                 )
                 try:
-                    self.session.bulk_add_all(
-                        entity=target_name, data=prepped_source_data
+                    self.session.add_batched(
+                        entity_type_id=target_name, entities=prepped_source_data
                     )
                 except MolgenisRequestError as exception:
                     raise ValueError(exception)
