@@ -83,23 +83,21 @@ def _validate_collections(collections: Table, state: ValidationState):
 
 def _validate_xref(row: dict, ref_attr: str, state: ValidationState):
     if ref_attr in row:
-        ref_id = row[ref_attr]["id"]
-        if ref_id in state.invalid_ids:
-            state.invalid_references[ref_id].append(
-                ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
-            )
+        _validate_ref(row, row[ref_attr], state)
 
 
 def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
     if mref_attr in row:
         for ref in row[mref_attr]:
-            ref_id = ref["id"]
-            if ref_id in state.invalid_ids:
-                state.invalid_references[ref_id].append(
-                    ValidationException(
-                        f"""{row["id"]} references invalid id: {ref_id}"""
-                    )
-                )
+            _validate_ref(row, ref, state)
+
+
+def _validate_ref(row: dict, ref: dict, state):
+    ref_id = ref["id"]
+    if ref_id in state.invalid_ids:
+        state.invalid_references[ref_id].append(
+            ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
+        )
 
 
 def validate_bbmri_id(
