@@ -45,7 +45,7 @@ class Stager:
             node.get_staging_table_ids(), node.get_external_table_ids()
         ):
             # TODO use session.get_node_data()
-            source_data = source_session.get_all_rows(entity=source_name)
+            source_data = source_session.get(entity=source_name, batch_size=10000)
             source_ref_names = source_session.get_reference_attribute_names(source_name)
 
             # import all the data

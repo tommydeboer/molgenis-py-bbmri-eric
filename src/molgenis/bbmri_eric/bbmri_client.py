@@ -72,7 +72,7 @@ class BbmriSession(Session):
         """
         Returns all the rows of an entity type, transformed to the uploadable format.
         """
-        rows = self.get_all_rows(entity_type_id)
+        rows = self.get(entity_type_id, batch_size=10000)
         ref_names = self.get_reference_attribute_names(entity_type_id)
         return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
 
@@ -82,23 +82,6 @@ class BbmriSession(Session):
                 self.delete_list(entity, ids)
             except MolgenisRequestError as exception:
                 raise ValueError(exception)
-
-    def get_all_rows(self, entity):
-        data = []
-        while True:
-            if len(data) == 0:
-                # api can handle 10.000 max per request
-                data = self.get(entity=entity, num=10000, start=len(data))
-                if len(data) == 0:
-                    break  # if the table is empty
-            else:
-                newdata = self.get(entity=entity, num=10000, start=len(data))
-                if len(newdata) > 0:
-                    data.extend(data)
-                else:
-                    break
-
-        return data
 
     def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
         """
@@ -127,7 +110,7 @@ class BbmriSession(Session):
 
     def bulk_add_all(self, entity, data):
         # TODO adding things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed
+        #  batches. Dependency resolving is needed.
         if len(data) == 0:
             return
 
