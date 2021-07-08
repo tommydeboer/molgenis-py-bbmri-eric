@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
+from molgenis.bbmri_eric import _utils
 from molgenis.bbmri_eric._model import NodeData, Table
 from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError, Session
@@ -38,25 +39,25 @@ class BbmriSession(Session):
         persons = Table(
             simple_name="persons",
             full_name=node.persons_staging_id,
-            rows=self.get_all_rows(node.persons_staging_id),
+            rows=self.get_uploadable_data(node.persons_staging_id),
         )
 
         networks = Table(
             simple_name="networks",
             full_name=node.networks_staging_id,
-            rows=self.get_all_rows(node.networks_staging_id),
+            rows=self.get_uploadable_data(node.networks_staging_id),
         )
 
         biobanks = Table(
             simple_name="biobanks",
             full_name=node.biobanks_staging_id,
-            rows=self.get_all_rows(node.biobanks_staging_id),
+            rows=self.get_uploadable_data(node.biobanks_staging_id),
         )
 
         collections = Table(
             simple_name="collections",
             full_name=node.persons_staging_id,
-            rows=self.get_all_rows(node.collections_staging_id),
+            rows=self.get_uploadable_data(node.collections_staging_id),
         )
 
         return NodeData(
@@ -66,6 +67,14 @@ class BbmriSession(Session):
             biobanks=biobanks,
             collections=collections,
         )
+
+    def get_uploadable_data(self, entity_type_id: str) -> List[dict]:
+        """
+        Returns all the rows of an entity type, transformed to the uploadable format.
+        """
+        rows = self.get_all_rows(entity_type_id)
+        ref_names = self.get_reference_attribute_names(entity_type_id)
+        return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
 
     def remove_rows(self, entity, ids):
         if len(ids) > 0:
@@ -117,6 +126,8 @@ class BbmriSession(Session):
         )
 
     def bulk_add_all(self, entity, data):
+        # TODO adding things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed
         if len(data) == 0:
             return
 

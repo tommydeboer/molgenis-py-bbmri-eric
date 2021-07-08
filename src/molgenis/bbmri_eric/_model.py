@@ -6,7 +6,12 @@ from molgenis.bbmri_eric.nodes import Node
 
 @dataclass(frozen=True)
 class Table:
-    simple_name: str
+    """
+    Simple representation of a BBMRI ERIC node table. The rows should be in the
+    uploadable format. (See _utils.py)
+    """
+
+    simple_name: str  # TODO use enum (persons, networks, biobanks, collections)
     full_name: str
     rows: List[dict]
 

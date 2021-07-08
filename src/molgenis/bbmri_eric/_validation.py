@@ -88,12 +88,11 @@ def _validate_xref(row: dict, ref_attr: str, state: ValidationState):
 
 def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
     if mref_attr in row:
-        for ref in row[mref_attr]:
-            _validate_ref(row, ref, state)
+        for ref_id in row[mref_attr]:
+            _validate_ref(row, ref_id, state)
 
 
-def _validate_ref(row: dict, ref: dict, state):
-    ref_id = ref["id"]
+def _validate_ref(row: dict, ref_id: str, state):
     if ref_id in state.invalid_ids:
         state.invalid_references[ref_id].append(
             ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
