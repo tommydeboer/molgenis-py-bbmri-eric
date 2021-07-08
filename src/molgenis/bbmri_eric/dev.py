@@ -21,4 +21,4 @@ bbmri_session.login(username, password)
 
 eric = Eric(bbmri_session)
 # eric.stage_external_nodes([nodes.get_external_node("BE")])
-eric.publish_nodes([nodes.get_node("BE")])
+eric.publish_nodes([nodes.get_node("NL")])

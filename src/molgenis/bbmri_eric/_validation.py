@@ -38,8 +38,8 @@ class ValidationState:
 
 def validate_node(node_data: NodeData) -> ValidationState:
     """
-    Validates the staging tables of a single node. Will store all valid rows in a
-    ValidationState together with any warnings encountered along the way.
+    Validates the staging tables of a single node. Keeps track of any invalid rows in a
+    ValidationState object.
     """
     state = ValidationState()
 
