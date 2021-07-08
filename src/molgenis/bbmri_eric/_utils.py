@@ -1,21 +1,32 @@
 from typing import List
 
 
-def transform_to_molgenis_upload_format(data, one_to_manys: List[str]):
+def transform_to_molgenis_upload_format(
+    rows: List[dict], one_to_manys: List[str]
+) -> List[dict]:
+    """
+    Changes the output of the REST Client such that it can be uploaded again:
+    1. One to manys are removed.
+    2. Reference objects are removed and replaced with their identifiers.
+    """
     upload_format = []
-    for item in data:
-        new_item = item
-        del new_item["_href"]
+    for row in rows:
+        del row["_href"]
+
+        # Remove one to manys
         for one_to_many in one_to_manys:
-            del new_item[one_to_many]
-        for key in new_item:
-            if type(new_item[key]) is dict:
-                ref = new_item[key]["id"]
-                new_item[key] = ref
-            elif type(new_item[key]) is list:
-                if len(new_item[key]) > 0:
-                    # get id for each new_item in list
-                    mref = [ref["id"] for ref in new_item[key]]
-                    new_item[key] = mref
-        upload_format.append(new_item)
+            del row[one_to_many]
+
+        for attr in row:
+            if type(row[attr]) is dict:
+                # Change xref dicts to id
+                ref = row[attr]["id"]
+                row[attr] = ref
+            elif type(row[attr]) is list:
+                if len(row[attr]) > 0:
+                    # Change mref list of dicts to list of ids
+                    mref = [ref["id"] for ref in row[attr]]
+                    row[attr] = mref
+
+        upload_format.append(row)
     return upload_format

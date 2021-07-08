@@ -52,7 +52,7 @@ class Stager:
             if len(source_data) > 0:
                 print("Importing data to", target_name)
                 prepped_source_data = _utils.transform_to_molgenis_upload_format(
-                    data=source_data, one_to_manys=source_ref_names.one_to_manys
+                    rows=source_data, one_to_manys=source_ref_names.one_to_manys
                 )
                 try:
                     self.session.bulk_add_all(
