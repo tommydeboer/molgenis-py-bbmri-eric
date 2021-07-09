@@ -39,10 +39,14 @@ class BbmriSession(Session):
         super().__init__(url, token)
         self.url = url
 
-    def get_node_staging_data(self, node: Node) -> NodeData:
+    def get_node_data(self, node: Node, staging: bool) -> NodeData:
         tables = dict()
         for table_type in TableType.get_import_order():
-            id_ = node.get_staging_id(table_type)
+            if staging:
+                id_ = node.get_staging_id(table_type)
+            else:
+                id_ = table_type.base_id
+
             tables[table_type] = Table(
                 type=table_type,
                 full_name=id_,
@@ -51,10 +55,11 @@ class BbmriSession(Session):
 
         return NodeData(
             node=node,
+            is_staging=staging,
             persons=tables[TableType.PERSONS],
-            networks=tables[TableType.PERSONS],
-            biobanks=tables[TableType.PERSONS],
-            collections=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
         )
 
     def get_uploadable_data(self, entity_type_id: str) -> List[dict]:

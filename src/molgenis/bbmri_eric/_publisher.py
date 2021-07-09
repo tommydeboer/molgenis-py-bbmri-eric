@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 from molgenis.bbmri_eric import _validation
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._model import Node, NodeData, Table
 from molgenis.bbmri_eric._validation import ValidationException
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
@@ -46,7 +46,7 @@ class Publisher:
         for node in nodes:
             try:
                 print(f"Getting staging data of node {node.code}")
-                node_data = self.session.get_node_staging_data(node)
+                node_data = self.session.get_node_data(node, staging=True)
             except MolgenisRequestError:
                 # TODO add warning
                 continue
@@ -67,22 +67,20 @@ class Publisher:
                     report.add_error(e)
 
         if report.has_errors():
-            # TODO raise program failed error
+            for error in report.errors:
+                print(error)
             pass
 
     def _publish(self, node_data: NodeData):
         try:
-            self._publish_table(node_data.persons)
-            self._publish_table(node_data.networks)
-            self._publish_table(node_data.biobanks)
-            self._publish_table(node_data.collections)
+            for table in node_data.tables:
+                self._publish_table(table)
         except MolgenisRequestError as e:
             raise PublishingException(e.message)
 
     def _publish_table(self, table: Table):
         print(f"  Publishing table {table.type.value}")
-        production_id = self.to_eric_full_name(table.type)
-        self.session.upsert_batched(production_id, table.rows)
+        self.session.upsert_batched(table.type.base_id, table.rows)
         # self._delete_rows(table, production_id)
 
     def _delete_rows(self, table: Table, production_id: str):
@@ -101,10 +99,6 @@ class Publisher:
         #  2. Don't delete the row if it is referred to from the quality tables, raise
         #     a warning instead
         pass
-
-    @staticmethod
-    def to_eric_full_name(table_type: TableType):
-        return f"eu_bbmri_eric_{table_type}"
 
     @staticmethod
     def filter_national_node_data(data: List[dict], node: Node) -> List[dict]:

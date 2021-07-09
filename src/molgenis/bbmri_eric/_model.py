@@ -40,10 +40,16 @@ class Node:
 
 
 @dataclass(frozen=True)
+class ExternalNode(Node):
+    # TODO rename to IndependentNode
+    url: str
+
+
+@dataclass(frozen=True)
 class NodeData:
     # TODO rename because this might be confusing: is it external or staging data?
-    # TODO introduce is_staging flag
     node: Node
+    is_staging: bool
     persons: Table
     networks: Table
     biobanks: Table
@@ -52,9 +58,3 @@ class NodeData:
     @property
     def tables(self):
         return [self.persons, self.networks, self.biobanks, self.collections]
-
-
-@dataclass(frozen=True)
-class ExternalNode(Node):
-    # TODO rename to IndependentNode
-    url: str
