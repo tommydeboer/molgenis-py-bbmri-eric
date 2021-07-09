@@ -24,11 +24,11 @@ _description = textwrap.dedent(
 
 example usage:
   # Stage data from all or some external national nodes to the directory:
-  eric stage *
+  eric stage all
   eric stage nl de be
 
   # Publish all or some national nodes to the production tables:
-  eric publish *
+  eric publish all
   eric publish nl de be uk
 """
 )
@@ -42,23 +42,9 @@ def main(args: List[str]):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-
-    # TODO * will give list of files in this dir
-    all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
-
     session = _create_session(args)
     eric = Eric(session)
-
-    if args.action == "stage":
-        if all_nodes:
-            eric.stage_all_external_nodes()
-        else:
-            eric.stage_external_nodes(nnodes.get_external_nodes(args.nodes))
-    elif args.action == "publish":
-        if all_nodes:
-            eric.publish_all_nodes()
-        else:
-            eric.publish_nodes(nnodes.get_nodes(args.nodes))
+    execute_command(args, eric)
 
 
 def _create_session(args) -> BbmriSession:
@@ -79,6 +65,20 @@ def _get_username_password(args) -> Tuple[str, str]:
         username = args.username
     password = getpass()
     return username, password
+
+
+def execute_command(args, eric):
+    all_nodes = len(args.nodes) == 1 and args.nodes[0] == "all"
+    if args.action == "stage":
+        if all_nodes:
+            eric.stage_all_external_nodes()
+        else:
+            eric.stage_external_nodes(nnodes.get_external_nodes(args.nodes))
+    elif args.action == "publish":
+        if all_nodes:
+            eric.publish_all_nodes()
+        else:
+            eric.publish_nodes(nnodes.get_nodes(args.nodes))
 
 
 def setup_logging(loglevel):
@@ -119,7 +119,8 @@ def parse_args(args):
     )
     parser.add_argument(
         dest="nodes",
-        help="one or more nodes to stage or publish (separated by whitespace)",
+        help="one or more nodes to stage or publish (separated by whitespace) - "
+        "use 'all' to select all nodes",
         type=str,
         nargs="+",
     )
