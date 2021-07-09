@@ -1,8 +1,8 @@
 from typing import List
 
 from molgenis.bbmri_eric import _utils
+from molgenis.bbmri_eric._model import ExternalNode
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.nodes import ExternalNode
 from molgenis.client import MolgenisRequestError
 
 

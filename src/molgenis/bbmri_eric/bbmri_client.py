@@ -8,9 +8,8 @@ from urllib.parse import quote_plus
 import requests
 
 from molgenis.bbmri_eric import _utils
-from molgenis.bbmri_eric._model import NodeData, Table, TableType
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric._utils import batched
-from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError, Session
 
 

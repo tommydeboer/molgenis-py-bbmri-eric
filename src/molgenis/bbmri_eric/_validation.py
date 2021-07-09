@@ -3,8 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, List, Optional
 
-from molgenis.bbmri_eric._model import NodeData, Table, TableType
-from molgenis.bbmri_eric.nodes import Node
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 
 
 class ValidationException(Exception):

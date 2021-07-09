@@ -2,10 +2,9 @@ from dataclasses import dataclass, field
 from typing import List
 
 from molgenis.bbmri_eric import _validation
-from molgenis.bbmri_eric._model import NodeData, Table, TableType
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric._validation import ValidationException
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError
 
 

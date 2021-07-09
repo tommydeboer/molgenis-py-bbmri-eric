@@ -1,10 +1,10 @@
 from typing import List
 
 from molgenis.bbmri_eric import nodes as nnodes
+from molgenis.bbmri_eric._model import ExternalNode, Node
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.nodes import ExternalNode, Node
 
 
 class Eric:
