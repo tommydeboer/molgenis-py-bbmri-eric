@@ -40,36 +40,21 @@ class BbmriSession(Session):
         self.url = url
 
     def get_node_staging_data(self, node: Node) -> NodeData:
-        persons = Table(
-            type=TableType.PERSONS,
-            full_name=node.persons_staging_id,
-            rows=self.get_uploadable_data(node.persons_staging_id),
-        )
-
-        networks = Table(
-            type=TableType.NETWORKS,
-            full_name=node.networks_staging_id,
-            rows=self.get_uploadable_data(node.networks_staging_id),
-        )
-
-        biobanks = Table(
-            type=TableType.BIOBANKS,
-            full_name=node.biobanks_staging_id,
-            rows=self.get_uploadable_data(node.biobanks_staging_id),
-        )
-
-        collections = Table(
-            type=TableType.COLLECTIONS,
-            full_name=node.persons_staging_id,
-            rows=self.get_uploadable_data(node.collections_staging_id),
-        )
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = node.get_staging_id(table_type)
+            tables[table_type] = Table(
+                type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(id_),
+            )
 
         return NodeData(
             node=node,
-            persons=persons,
-            networks=networks,
-            biobanks=biobanks,
-            collections=collections,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.PERSONS],
+            biobanks=tables[TableType.PERSONS],
+            collections=tables[TableType.PERSONS],
         )
 
     def get_uploadable_data(self, entity_type_id: str) -> List[dict]:

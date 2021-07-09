@@ -1,7 +1,7 @@
 from typing import List
 
 from molgenis.bbmri_eric import _utils
-from molgenis.bbmri_eric._model import ExternalNode
+from molgenis.bbmri_eric._model import ExternalNode, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
 
@@ -29,8 +29,8 @@ class Stager:
         """
         print(f"Clearing staging area {node.code} on {self.session.url}")
 
-        for table_name in reversed(node.get_staging_table_ids()):
-            self.session.delete(table_name)
+        for table_type in reversed(TableType.get_import_order()):
+            self.session.delete(node.get_staging_id(table_type))
 
     def _stage_node(self, node: ExternalNode):
         """
@@ -41,9 +41,10 @@ class Stager:
         print(f"Importing data for staging area {node.code} on {self.session.url}\n")
 
         # imports
-        for target_name, source_name in zip(
-            node.get_staging_table_ids(), node.get_external_table_ids()
-        ):
+        for table_type in TableType.get_import_order():
+            source_name = table_type.base_id
+            target_name = node.get_staging_id(table_type)
+
             # TODO use session.get_node_data()
             source_data = source_session.get(entity=source_name, batch_size=10000)
             source_ref_names = source_session.get_reference_attribute_names(source_name)
