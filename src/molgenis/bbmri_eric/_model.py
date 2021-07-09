@@ -56,5 +56,5 @@ class NodeData:
     collections: Table
 
     @property
-    def tables(self):
+    def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]

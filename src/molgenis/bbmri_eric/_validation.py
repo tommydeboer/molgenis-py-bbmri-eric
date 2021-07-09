@@ -42,7 +42,7 @@ def validate_node(node_data: NodeData) -> ValidationState:
     """
     state = ValidationState()
 
-    for table in node_data.tables:
+    for table in node_data.import_order:
         _validate_ids(table, node_data.node, state)
 
     _validate_networks(node_data.networks, state)

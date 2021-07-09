@@ -73,7 +73,7 @@ class Publisher:
 
     def _publish(self, node_data: NodeData):
         try:
-            for table in node_data.tables:
+            for table in node_data.import_order:
                 self._publish_table(table)
         except MolgenisRequestError as e:
             raise PublishingException(e.message)

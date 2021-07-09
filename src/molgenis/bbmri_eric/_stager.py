@@ -41,7 +41,7 @@ class Stager:
         source_session = BbmriSession(url=node.url)
         source_data = source_session.get_node_data(node, staging=False)
 
-        for table in source_data.tables:
+        for table in source_data.import_order:
             target_name = node.get_staging_id(table.type)
 
             print("Importing data to", target_name)
