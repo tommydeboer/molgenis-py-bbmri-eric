@@ -45,9 +45,9 @@ def validate_node(node_data: NodeData) -> ValidationState:
     for table in node_data.import_order:
         _validate_ids(table, node_data.node, state)
 
-    _validate_networks(node_data.networks, state)
-    _validate_biobanks(node_data.biobanks, state)
-    _validate_collections(node_data.collections, state)
+    _validate_networks(node_data, state)
+    _validate_biobanks(node_data, state)
+    _validate_collections(node_data, state)
 
     return state
 
@@ -60,20 +60,20 @@ def _validate_ids(table: Table, node: Node, state: ValidationState):
             state.invalid_ids[id_] += errors
 
 
-def _validate_networks(networks: Table, state: ValidationState):
-    for network in networks.rows:
+def _validate_networks(node_data: NodeData, state: ValidationState):
+    for network in node_data.networks.rows:
         _validate_xref(network, "contact", state)
         _validate_mref(network, "parent_network", state)
 
 
-def _validate_biobanks(biobanks: Table, state: ValidationState):
-    for biobank in biobanks.rows:
+def _validate_biobanks(node_data: NodeData, state: ValidationState):
+    for biobank in node_data.biobanks.rows:
         _validate_xref(biobank, "contact", state)
         _validate_mref(biobank, "network", state)
 
 
-def _validate_collections(collections: Table, state: ValidationState):
-    for collection in collections.rows:
+def _validate_collections(node_data: NodeData, state: ValidationState):
+    for collection in node_data.collections.rows:
         _validate_xref(collection, "contact", state)
         _validate_xref(collection, "biobank", state)
         _validate_mref(collection, "parent_collection", state)

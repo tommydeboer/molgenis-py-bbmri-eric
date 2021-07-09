@@ -1,9 +1,3 @@
-"""
-Development only module
-"""
-
-# TODO dev code in src: remove or move to /tests
-
 from dotenv import dotenv_values
 
 from molgenis.bbmri_eric import nodes
@@ -20,5 +14,8 @@ bbmri_session = BbmriSession(url=target)
 bbmri_session.login(username, password)
 
 eric = Eric(bbmri_session)
-# eric.stage_external_nodes([nodes.get_external_node("BE")])
-eric.publish_nodes([nodes.get_node("NL")])
+
+
+nl = nodes.get_external_node("NL")
+# eric.stage_external_nodes([nl])
+eric.publish_nodes([nl])
