@@ -1,7 +1,15 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import List
 
 from molgenis.bbmri_eric.nodes import Node
+
+
+class TableType(Enum):
+    PERSONS = "persons"
+    NETWORKS = "networks"
+    BIOBANKS = "biobanks"
+    COLLECTIONS = "collections"
 
 
 @dataclass(frozen=True)
@@ -11,7 +19,7 @@ class Table:
     uploadable format. (See _utils.py)
     """
 
-    simple_name: str  # TODO use enum (persons, networks, biobanks, collections)
+    type: TableType
     full_name: str
     rows: List[dict]
 

@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, List, Optional
 
-from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric._model import NodeData, Table, TableType
 from molgenis.bbmri_eric.nodes import Node
 
 
@@ -12,10 +12,10 @@ class ValidationException(Exception):
 
 
 id_spec_by_entity = {
-    "persons": "contactID",
-    "networks": "networkID",
-    "biobanks": "ID",
-    "collections": "ID",
+    TableType.PERSONS: "contactID",
+    TableType.NETWORKS: "networkID",
+    TableType.BIOBANKS: "ID",
+    TableType.COLLECTIONS: "ID",
 }
 
 
@@ -105,7 +105,7 @@ def validate_bbmri_id(
     errors = []
     # TODO refactor: split id on ':' and validate each piece separately
 
-    id_spec = id_spec_by_entity[table.simple_name]
+    id_spec = id_spec_by_entity[table.type]
 
     id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
     global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs

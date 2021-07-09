@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 import requests
 
 from molgenis.bbmri_eric import _utils
-from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric._model import NodeData, Table, TableType
 from molgenis.bbmri_eric._utils import batched
 from molgenis.bbmri_eric.nodes import Node
 from molgenis.client import MolgenisRequestError, Session
@@ -42,25 +42,25 @@ class BbmriSession(Session):
 
     def get_node_staging_data(self, node: Node) -> NodeData:
         persons = Table(
-            simple_name="persons",
+            type=TableType.PERSONS,
             full_name=node.persons_staging_id,
             rows=self.get_uploadable_data(node.persons_staging_id),
         )
 
         networks = Table(
-            simple_name="networks",
+            type=TableType.NETWORKS,
             full_name=node.networks_staging_id,
             rows=self.get_uploadable_data(node.networks_staging_id),
         )
 
         biobanks = Table(
-            simple_name="biobanks",
+            type=TableType.BIOBANKS,
             full_name=node.biobanks_staging_id,
             rows=self.get_uploadable_data(node.biobanks_staging_id),
         )
 
         collections = Table(
-            simple_name="collections",
+            type=TableType.COLLECTIONS,
             full_name=node.persons_staging_id,
             rows=self.get_uploadable_data(node.collections_staging_id),
         )
