@@ -111,7 +111,7 @@ class BbmriSession(Session):
         meta = self.get_entity_meta_data(entity_type_id)
         id_attr = meta["idAttribute"]
         existing_entities = self.get(
-            entity_type_id, batch_size=10000, attributes=meta["idAttribute"]
+            entity_type_id, batch_size=10000, attributes=id_attr
         )
         existing_ids = {entity[id_attr] for entity in existing_entities}
 
