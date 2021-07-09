@@ -118,33 +118,33 @@ def validate_bbmri_id(
     ):  # they can ref to a global 'EU' entity.
         errors.append(
             ValidationException(
-                f"""{bbmri_id} in entity: {table.full_name} does not start with
-                {id_constraint} (or {global_id_constraint} if it's a xref/mref) """
+                f"{bbmri_id} in entity: {table.full_name} does not start with "
+                f"{id_constraint} (or {global_id_constraint} if it's a xref/mref)"
             )
         )
 
     if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
         errors.append(
             ValidationException(
-                f"""{bbmri_id} in entity: {table.full_name} contains characters other than:
-                A-Z a-z 0-9 : _ -"""
+                f"{bbmri_id} in entity: {table.full_name} contains characters other "
+                f"than: A-Z a-z 0-9 : _ -"
             )
         )
 
     if re.search("::", bbmri_id):
         errors.append(
             ValidationException(
-                f"""{bbmri_id} in entity: {table.full_name}
-                contains :: indicating an empty component in ID hierarchy"""
+                f"{bbmri_id} in entity: {table.full_name} contains :: indicating an "
+                f"empty component in ID hierarchy"
             )
         )
 
     if not re.search("[A-Z]{2}_[A-Za-z0-9-_:@.]+$", bbmri_id):
         errors.append(
             ValidationException(
-                f"""{bbmri_id} in entity: {table.full_name} does not comply with a
-                two letter national node code, an _ and alphanumeric characters ( : @
-                . are allowed) afterwards \ne.g: NL_myid1234 """
+                f"{bbmri_id} in entity: {table.full_name} does not comply with a "
+                f"two letter national node code, an _ and alphanumeric characters ( : @"
+                f" . are allowed) afterwards \ne.g: NL_myid1234 "
             )
         )
 
