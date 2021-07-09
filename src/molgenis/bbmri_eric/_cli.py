@@ -7,7 +7,9 @@ from typing import List, Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
 from molgenis.bbmri_eric import nodes as nnodes
+from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.eric import Eric
+from molgenis.client import MolgenisRequestError
 
 _logger = logging.getLogger(__name__)
 
@@ -41,12 +43,10 @@ def main(args: List[str]):
     args = parse_args(args)
     setup_logging(args.loglevel)
 
-    username, password = _get_username_password(args)
-
+    # TODO * will give list of files in this dir
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
 
-    session = bbmri_client.BbmriSession(url=args.target)
-    session.login(username, password)
+    session = _create_session(args)
     eric = Eric(session)
 
     if args.action == "stage":
@@ -59,6 +59,17 @@ def main(args: List[str]):
             eric.publish_all_nodes()
         else:
             eric.publish_nodes(nnodes.get_nodes(args.nodes))
+
+
+def _create_session(args) -> BbmriSession:
+    username, password = _get_username_password(args)
+    session = bbmri_client.BbmriSession(url=args.target)
+    try:
+        session.login(username, password)
+    except MolgenisRequestError as e:
+        print(e.message)
+        exit(1)
+    return session
 
 
 def _get_username_password(args) -> Tuple[str, str]:
