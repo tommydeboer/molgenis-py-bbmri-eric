@@ -6,8 +6,9 @@ from typing import DefaultDict, List, Optional
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 
 
-class ValidationException(Exception):
-    pass
+@dataclass(frozen=True)
+class ConstraintViolation:
+    message: str
 
 
 _classifiers = {
@@ -21,10 +22,10 @@ _classifiers = {
 @dataclass()
 class ValidationState:
 
-    invalid_ids: DefaultDict[str, List[ValidationException]] = field(
+    invalid_ids: DefaultDict[str, List[ConstraintViolation]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    invalid_references: DefaultDict[str, List[ValidationException]] = field(
+    invalid_references: DefaultDict[str, List[ConstraintViolation]] = field(
         default_factory=lambda: defaultdict(list)
     )
 
@@ -94,28 +95,28 @@ def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
 def _validate_ref(row: dict, ref_id: str, state):
     if ref_id in state.invalid_ids:
         state.invalid_references[ref_id].append(
-            ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
+            ConstraintViolation(f"{row['id']} references invalid id: {ref_id}")
         )
 
 
 def validate_bbmri_id(
     table: Table, node: Node, id_: str
-) -> Optional[List[ValidationException]]:
+) -> Optional[List[ConstraintViolation]]:
     errors = []
     classifier = _classifiers[table.type]
     prefix = f"bbmri-eric:{classifier}:{node.code}_"
 
     if not id_.startswith(prefix):
         errors.append(
-            ValidationException(
-                f"{id_} in entity: {table.full_name} does not start with " f"{prefix}"
+            ConstraintViolation(
+                f"{id_} in entity: {table.full_name} does not start with {prefix}"
             )
         )
 
     id_value = id_.lstrip(prefix)
     if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
         errors.append(
-            ValidationException(
+            ConstraintViolation(
                 f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
                 f"invalid characters. Only alphanumerics and -_:@. are allowed."
             )
