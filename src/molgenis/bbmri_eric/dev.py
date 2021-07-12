@@ -1,15 +1,8 @@
-"""
-Development only module
-"""
-
-# TODO dev code in src: remove or move to /tests
-
 from dotenv import dotenv_values
 
 from molgenis.bbmri_eric import nodes
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.publisher import Publisher
-from molgenis.bbmri_eric.stager import Stager
+from molgenis.bbmri_eric.eric import Eric
 
 config = dotenv_values(".env.local")
 
@@ -20,5 +13,9 @@ password = config["PASSWORD"]
 bbmri_session = BbmriSession(url=target)
 bbmri_session.login(username, password)
 
-Stager(bbmri_session).stage(nodes.get_all_external_nodes())
-Publisher(bbmri_session).publish(nodes.get_all_nodes())
+eric = Eric(bbmri_session)
+
+
+nl = nodes.get_external_node("NL")
+# eric.stage_external_nodes([nl])
+eric.publish_nodes([nl])

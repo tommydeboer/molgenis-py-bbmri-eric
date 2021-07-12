@@ -3,12 +3,13 @@ import logging
 import sys
 import textwrap
 from getpass import getpass
-from typing import Tuple
+from typing import List, Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
 from molgenis.bbmri_eric import nodes as nnodes
-from molgenis.bbmri_eric.publisher import Publisher
-from molgenis.bbmri_eric.stager import Stager
+from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.eric import Eric
+from molgenis.client import MolgenisRequestError
 
 _logger = logging.getLogger(__name__)
 
@@ -23,45 +24,38 @@ _description = textwrap.dedent(
 
 example usage:
   # Stage data from all or some external national nodes to the directory:
-  eric stage *
+  eric stage all
   eric stage nl de be
 
   # Publish all or some national nodes to the production tables:
-  eric publish *
+  eric publish all
   eric publish nl de be uk
 """
 )
 
 
-def main(args):
-    """Wrapper allowing functions to be called with string arguments in a CLI fashion
+def main(args: List[str]):
+    """Parses the command line arguments and calls the corresponding actions.
 
     Args:
       args (List[str]): command line parameters as list of strings
-          (for example  ``["--verbose", "42"]``).
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
+    session = _create_session(args)
+    eric = Eric(session)
+    execute_command(args, eric)
 
+
+def _create_session(args) -> BbmriSession:
     username, password = _get_username_password(args)
-
-    all_nodes = len(args.nodes) == 1 and args.nodes[0] == "*"
-
-    bbmri_session = bbmri_client.BbmriSession(url=args.target)
-    bbmri_session.login(username, password)
-
-    if args.action == "stage":
-        if all_nodes:
-            nodes = nnodes.get_all_external_nodes()
-        else:
-            nodes = nnodes.get_external_nodes(args.nodes)
-        Stager(bbmri_session).stage(nodes)
-    elif args.action == "publish":
-        if all_nodes:
-            nodes = nnodes.get_all_nodes()
-        else:
-            nodes = nnodes.get_nodes(args.nodes)
-        Publisher(bbmri_session).publish(nodes)
+    session = bbmri_client.BbmriSession(url=args.target)
+    try:
+        session.login(username, password)
+    except MolgenisRequestError as e:
+        print(e.message)
+        exit(1)
+    return session
 
 
 def _get_username_password(args) -> Tuple[str, str]:
@@ -71,6 +65,20 @@ def _get_username_password(args) -> Tuple[str, str]:
         username = args.username
     password = getpass()
     return username, password
+
+
+def execute_command(args, eric):
+    all_nodes = len(args.nodes) == 1 and args.nodes[0] == "all"
+    if args.action == "stage":
+        if all_nodes:
+            eric.stage_all_external_nodes()
+        else:
+            eric.stage_external_nodes(nnodes.get_external_nodes(args.nodes))
+    elif args.action == "publish":
+        if all_nodes:
+            eric.publish_all_nodes()
+        else:
+            eric.publish_nodes(nnodes.get_nodes(args.nodes))
 
 
 def setup_logging(loglevel):
@@ -111,7 +119,8 @@ def parse_args(args):
     )
     parser.add_argument(
         dest="nodes",
-        help="one or more nodes to stage or publish (separated by whitespace)",
+        help="one or more nodes to stage or publish (separated by whitespace) - "
+        "use 'all' to select all nodes",
         type=str,
         nargs="+",
     )

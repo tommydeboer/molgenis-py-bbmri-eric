@@ -1,9 +1,33 @@
-"""
-BBMRI interface for Molgenis
-"""
-from typing import Optional
+import json
+from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Optional
+from urllib.parse import quote_plus
 
+import requests
+
+from molgenis.bbmri_eric import _utils
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._utils import batched
 from molgenis.client import MolgenisRequestError, Session
+
+
+@dataclass(frozen=True)
+class ReferenceAttributeNames:
+    xrefs: List[str]
+    mrefs: List[str]
+    categoricals: List[str]
+    categorical_mrefs: List[str]
+    one_to_manys: List[str]
+
+
+class ReferenceType(Enum):
+    XREF = "XREF"
+    MREF = "MREF"
+    CATEGORICAL = "CATEGORICAL"
+    CATEGORICAL_MREF = "CATEGORICAL_MREF"
+    ONE_TO_MANY = "ONE_TO_MANY"
 
 
 class BbmriSession(Session):
@@ -15,6 +39,37 @@ class BbmriSession(Session):
         super().__init__(url, token)
         self.url = url
 
+    def get_node_data(self, node: Node, staging: bool) -> NodeData:
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            if staging:
+                id_ = node.get_staging_id(table_type)
+            else:
+                id_ = table_type.base_id
+
+            tables[table_type] = Table(
+                type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(id_),
+            )
+
+        return NodeData(
+            node=node,
+            is_staging=staging,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
+        )
+
+    def get_uploadable_data(self, entity_type_id: str) -> List[dict]:
+        """
+        Returns all the rows of an entity type, transformed to the uploadable format.
+        """
+        rows = self.get(entity_type_id, batch_size=10000)
+        ref_names = self.get_reference_attribute_names(entity_type_id)
+        return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
+
     def remove_rows(self, entity, ids):
         if len(ids) > 0:
             try:
@@ -22,57 +77,80 @@ class BbmriSession(Session):
             except MolgenisRequestError as exception:
                 raise ValueError(exception)
 
-    def get_all_rows(self, entity):
-        data = []
-        while True:
-            if len(data) == 0:
-                # api can handle 10.000 max per request
-                data = self.get(entity=entity, num=10000, start=len(data))
-                if len(data) == 0:
-                    break  # if the table is empty
-            else:
-                newdata = self.get(entity=entity, num=10000, start=len(data))
-                if len(newdata) > 0:
-                    data.extend(data)
-                else:
-                    break
+    def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
+        """
+        Gets the names of all reference attributes of an entity type
 
-        return data
+        Parameters:
+            id_ (str): the id of the entity type
+        """
+        attrs = self.get_entity_meta_data(id_)["attributes"]
 
-    def get_all_references_for_entity(self, entity):
-        """retrieves one_to_many and xref attributes"""
-        meta = self.get_entity_meta_data(entity)["attributes"]
-        one_to_many = [
-            attr for attr in meta if meta[attr]["fieldType"] == "ONE_TO_MANY"
-        ]
-        xref = [attr for attr in meta if meta[attr]["fieldType"] == "XREF"]
-        return {"xref": xref, "one_to_many": one_to_many}
-
-    def get_one_to_manys(self, entity):
-        """Retrieves one-to-many's in table"""
-        all_references = self.get_all_references_for_entity(entity=entity)
-        return all_references["one_to_many"]
-
-    def bulk_add_all(self, entity, data):
-        if len(data) == 0:
-            return
-
-        max_update_count = 1000
-
-        if len(data) <= max_update_count:
+        result = defaultdict(list)
+        for name, attr in attrs.items():
             try:
-                self.add_all(entity=entity, entities=data)
-                return
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
+                type_ = ReferenceType[attr["fieldType"]]
+                result[type_].append(name)
+            except KeyError:
+                pass
 
-        number_of_cycles = int(len(data) / max_update_count)
+        return ReferenceAttributeNames(
+            xrefs=result.get(ReferenceType.XREF, []),
+            mrefs=result.get(ReferenceType.MREF, []),
+            categoricals=result.get(ReferenceType.CATEGORICAL, []),
+            categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
+            one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
+        )
+
+    def upsert_batched(self, entity_type_id: str, entities: List[dict]):
+        """
+        Upserts entities in an entity type (in batches, if needed).
+        @param entity_type_id: the id of the entity type to upsert to
+        @param entities: the entities to upsert
+        """
+        meta = self.get_entity_meta_data(entity_type_id)
+        id_attr = meta["idAttribute"]
+        existing_entities = self.get(
+            entity_type_id, batch_size=10000, attributes=id_attr
+        )
+        existing_ids = {entity[id_attr] for entity in existing_entities}
+
+        add = list()
+        update = list()
+        for entity in entities:
+            if entity[id_attr] in existing_ids:
+                update.append(entity)
+            else:
+                add.append(entity)
+
+        self.add_batched(entity_type_id, add)
+        self.update_batched(entity_type_id, update)
+
+    def update(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities."""
+        response = self._session.put(
+            self._api_url + "v2/" + quote_plus(entity_type_id),
+            headers=self._get_token_header_with_content_type(),
+            data=json.dumps({"entities": entities}),
+        )
 
         try:
-            for cycle in range(number_of_cycles):
-                next_batch_start = int(cycle * max_update_count)
-                next_batch_stop = int(max_update_count + cycle * max_update_count)
-                items_to_add = data[next_batch_start:next_batch_stop]
-                self.add_all(entity=entity, entities=items_to_add)
-        except MolgenisRequestError as exception:
-            raise ValueError(exception)
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
+
+        return response
+
+    def update_batched(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities in batches of 1000."""
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.update(entity_type_id, batch)
+
+    def add_batched(self, entity_type_id: str, entities: List[dict]):
+        """Adds multiple entities in batches of 1000."""
+        # TODO adding things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed.
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.add_all(entity_type_id, batch)

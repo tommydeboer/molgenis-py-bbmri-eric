@@ -1,16 +1,6 @@
-from dataclasses import dataclass
 from typing import List
 
-
-@dataclass(frozen=True)
-class Node:
-    code: str
-
-
-@dataclass(frozen=True)
-class ExternalNode(Node):
-    url: str
-
+from molgenis.bbmri_eric._model import ExternalNode, Node
 
 _external_nodes = {
     "BE": ExternalNode("BE", "https://directory.bbmri.be"),
@@ -43,11 +33,11 @@ _nodes.update(_external_nodes)
 
 
 def get_node(code: str) -> Node:
-    return _nodes[code]
+    return _nodes[code.upper()]
 
 
 def get_nodes(codes: List[str]) -> List[Node]:
-    return [_nodes[code] for code in codes]
+    return [_nodes[code.upper()] for code in codes]
 
 
 def get_all_nodes() -> List[Node]:
@@ -55,11 +45,11 @@ def get_all_nodes() -> List[Node]:
 
 
 def get_external_node(code: str) -> ExternalNode:
-    return _external_nodes[code]
+    return _external_nodes[code.upper()]
 
 
 def get_external_nodes(codes: List[str]) -> List[ExternalNode]:
-    return [_external_nodes[code] for code in codes]
+    return [_external_nodes[code.upper()] for code in codes]
 
 
 def get_all_external_nodes() -> List[ExternalNode]:
