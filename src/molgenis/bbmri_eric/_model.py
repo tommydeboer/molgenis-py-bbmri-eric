@@ -40,8 +40,7 @@ class Node:
 
 
 @dataclass(frozen=True)
-class ExternalNode(Node):
-    # TODO rename to IndependentNode
+class ExternalServerNode(Node):
     url: str
 
 

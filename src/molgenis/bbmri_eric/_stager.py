@@ -1,6 +1,6 @@
 from typing import List
 
-from molgenis.bbmri_eric._model import ExternalNode, TableType
+from molgenis.bbmri_eric._model import ExternalServerNode, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
 
@@ -9,7 +9,7 @@ class Stager:
     def __init__(self, session: BbmriSession):
         self.session = session
 
-    def stage(self, external_nodes: List[ExternalNode]):
+    def stage(self, external_nodes: List[ExternalServerNode]):
         """
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
@@ -23,7 +23,7 @@ class Stager:
                 # TODO print error and continue to next node
                 raise exception
 
-    def _clear_staging_area(self, node: ExternalNode):
+    def _clear_staging_area(self, node: ExternalServerNode):
         """
         Deletes all data in the staging area of an external node
         """
@@ -32,7 +32,7 @@ class Stager:
         for table_type in reversed(TableType.get_import_order()):
             self.session.delete(node.get_staging_id(table_type))
 
-    def _stage_node(self, node: ExternalNode):
+    def _stage_node(self, node: ExternalServerNode):
         """
         Get data from staging area to their own entity on 'self'
         """

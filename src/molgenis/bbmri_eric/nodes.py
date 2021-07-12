@@ -1,12 +1,12 @@
 from typing import List
 
-from molgenis.bbmri_eric._model import ExternalNode, Node
+from molgenis.bbmri_eric._model import ExternalServerNode, Node
 
 _external_nodes = {
-    "BE": ExternalNode("BE", "https://directory.bbmri.be"),
-    "BG": ExternalNode("BG", "https://directory.bbmri.bg"),
-    "DE": ExternalNode("DE", "https://directory.bbmri.de"),
-    "NL": ExternalNode("NL", "https://catalogue.bbmri.nl"),
+    "BE": ExternalServerNode("BE", "https://directory.bbmri.be"),
+    "BG": ExternalServerNode("BG", "https://directory.bbmri.bg"),
+    "DE": ExternalServerNode("DE", "https://directory.bbmri.de"),
+    "NL": ExternalServerNode("NL", "https://catalogue.bbmri.nl"),
 }
 
 _nodes = {
@@ -44,13 +44,13 @@ def get_all_nodes() -> List[Node]:
     return list(_nodes.values())
 
 
-def get_external_node(code: str) -> ExternalNode:
+def get_external_node(code: str) -> ExternalServerNode:
     return _external_nodes[code.upper()]
 
 
-def get_external_nodes(codes: List[str]) -> List[ExternalNode]:
+def get_external_nodes(codes: List[str]) -> List[ExternalServerNode]:
     return [_external_nodes[code.upper()] for code in codes]
 
 
-def get_all_external_nodes() -> List[ExternalNode]:
+def get_all_external_nodes() -> List[ExternalServerNode]:
     return list(_external_nodes.values())
