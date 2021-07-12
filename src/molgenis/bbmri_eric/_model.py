@@ -47,7 +47,6 @@ class ExternalNode(Node):
 
 @dataclass(frozen=True)
 class NodeData:
-    # TODO rename because this might be confusing: is it external or staging data?
     node: Node
     is_staging: bool
     persons: Table
