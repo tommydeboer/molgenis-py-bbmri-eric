@@ -23,6 +23,8 @@ pipeline {
                 container('python') {
                     script {
                         sh "pip install tox"
+                        sh "pip install pre-commit"
+                        sh "pre-commit install"
                     }
                 }
             }
@@ -34,6 +36,7 @@ pipeline {
             steps {
                 container('python') {
                     sh "tox"
+                    sh "pre-commit run --all-files"
                 }
                 container('sonar') {
                     sh "sonar-scanner -Dsonar.github.oauth=${env.GITHUB_TOKEN} -Dsonar.pullrequest.base=${CHANGE_TARGET} -Dsonar.pullrequest.branch=${BRANCH_NAME} -Dsonar.pullrequest.key=${env.CHANGE_ID} -Dsonar.pullrequest.provider=GitHub -Dsonar.pullrequest.github.repository=molgenis/molgenis-py-bbmri-eric"
@@ -48,6 +51,7 @@ pipeline {
                 milestone 1
                 container('python') {
                     sh "tox"
+                    sh "pre-commit run --all-files"
                 }
                 container('sonar') {
                     sh "sonar-scanner"

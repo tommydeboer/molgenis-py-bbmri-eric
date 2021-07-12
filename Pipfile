@@ -14,6 +14,7 @@ setuptools = "*"
 pytest-cov = "*"
 tox = "*"
 python-dotenv = "*"
+flake8 = "*"
 
 [requires]
 python_version = "3.9"
