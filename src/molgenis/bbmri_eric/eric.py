@@ -1,7 +1,7 @@
 from typing import List
 
 from molgenis.bbmri_eric import nodes as nnodes
-from molgenis.bbmri_eric._model import ExternalNode, Node
+from molgenis.bbmri_eric._model import ExternalServerNode, Node
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
@@ -30,12 +30,12 @@ class Eric:
         """
         self._stager.stage(nnodes.get_all_external_nodes())
 
-    def stage_external_nodes(self, nodes: List[ExternalNode]):
+    def stage_external_nodes(self, nodes: List[ExternalServerNode]):
         """
         Stages all data from the provided external nodes in the ERIC directory.
 
         Parameters:
-            nodes (List[ExternalNode]): The list of external nodes to stage
+            nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
         self._stager.stage(nodes)
 

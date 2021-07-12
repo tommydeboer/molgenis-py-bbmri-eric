@@ -6,11 +6,12 @@ from typing import DefaultDict, List, Optional
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 
 
-class ValidationException(Exception):
-    pass
+@dataclass(frozen=True)
+class ConstraintViolation:
+    message: str
 
 
-id_spec_by_entity = {
+_classifiers = {
     TableType.PERSONS: "contactID",
     TableType.NETWORKS: "networkID",
     TableType.BIOBANKS: "ID",
@@ -21,10 +22,10 @@ id_spec_by_entity = {
 @dataclass()
 class ValidationState:
 
-    invalid_ids: DefaultDict[str, List[ValidationException]] = field(
+    invalid_ids: DefaultDict[str, List[ConstraintViolation]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    invalid_references: DefaultDict[str, List[ValidationException]] = field(
+    invalid_references: DefaultDict[str, List[ConstraintViolation]] = field(
         default_factory=lambda: defaultdict(list)
     )
 
@@ -94,56 +95,30 @@ def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
 def _validate_ref(row: dict, ref_id: str, state):
     if ref_id in state.invalid_ids:
         state.invalid_references[ref_id].append(
-            ValidationException(f"""{row["id"]} references invalid id: {ref_id}""")
+            ConstraintViolation(f"{row['id']} references invalid id: {ref_id}")
         )
 
 
 def validate_bbmri_id(
-    table: Table, node: Node, bbmri_id: str
-) -> Optional[List[ValidationException]]:
+    table: Table, node: Node, id_: str
+) -> Optional[List[ConstraintViolation]]:
     errors = []
-    # TODO refactor: split id on ':' and validate each piece separately
+    classifier = _classifiers[table.type]
+    prefix = f"bbmri-eric:{classifier}:{node.code}_"
 
-    id_spec = id_spec_by_entity[table.type]
-
-    id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
-    global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs
-
-    id_regex = f"^{id_constraint}"
-    global_id_regex = f"^{global_id_constraint}"
-
-    if not re.search(id_regex, bbmri_id) and not re.search(
-        global_id_regex, bbmri_id
-    ):  # they can ref to a global 'EU' entity.
+    if not id_.startswith(prefix):
         errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} does not start with "
-                f"{id_constraint} (or {global_id_constraint} if it's a xref/mref)"
+            ConstraintViolation(
+                f"{id_} in entity: {table.full_name} does not start with {prefix}"
             )
         )
 
-    if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
+    id_value = id_.lstrip(prefix)
+    if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
         errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} contains characters other "
-                f"than: A-Z a-z 0-9 : _ -"
-            )
-        )
-
-    if re.search("::", bbmri_id):
-        errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} contains :: indicating an "
-                f"empty component in ID hierarchy"
-            )
-        )
-
-    if not re.search("[A-Z]{2}_[A-Za-z0-9-_:@.]+$", bbmri_id):
-        errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} does not comply with a "
-                f"two letter national node code, an _ and alphanumeric characters ( : @"
-                f" . are allowed) afterwards \ne.g: NL_myid1234 "
+            ConstraintViolation(
+                f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
+                f"invalid characters. Only alphanumerics and -_:@. are allowed."
             )
         )
 
