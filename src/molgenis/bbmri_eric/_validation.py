@@ -10,7 +10,7 @@ class ValidationException(Exception):
     pass
 
 
-id_spec_by_entity = {
+_classifiers = {
     TableType.PERSONS: "contactID",
     TableType.NETWORKS: "networkID",
     TableType.BIOBANKS: "ID",
@@ -99,51 +99,25 @@ def _validate_ref(row: dict, ref_id: str, state):
 
 
 def validate_bbmri_id(
-    table: Table, node: Node, bbmri_id: str
+    table: Table, node: Node, id_: str
 ) -> Optional[List[ValidationException]]:
     errors = []
-    # TODO refactor: split id on ':' and validate each piece separately
+    classifier = _classifiers[table.type]
+    prefix = f"bbmri-eric:{classifier}:{node.code}_"
 
-    id_spec = id_spec_by_entity[table.type]
-
-    id_constraint = f"bbmri-eric:{id_spec}:{node.code}_"  # for error messages
-    global_id_constraint = f"bbmri-eric:{id_spec}:EU_"  # for global refs
-
-    id_regex = f"^{id_constraint}"
-    global_id_regex = f"^{global_id_constraint}"
-
-    if not re.search(id_regex, bbmri_id) and not re.search(
-        global_id_regex, bbmri_id
-    ):  # they can ref to a global 'EU' entity.
+    if not id_.startswith(prefix):
         errors.append(
             ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} does not start with "
-                f"{id_constraint} (or {global_id_constraint} if it's a xref/mref)"
+                f"{id_} in entity: {table.full_name} does not start with " f"{prefix}"
             )
         )
 
-    if re.search("[^A-Za-z0-9.@:_-]", bbmri_id):
+    id_value = id_.lstrip(prefix)
+    if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
         errors.append(
             ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} contains characters other "
-                f"than: A-Z a-z 0-9 : _ -"
-            )
-        )
-
-    if re.search("::", bbmri_id):
-        errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} contains :: indicating an "
-                f"empty component in ID hierarchy"
-            )
-        )
-
-    if not re.search("[A-Z]{2}_[A-Za-z0-9-_:@.]+$", bbmri_id):
-        errors.append(
-            ValidationException(
-                f"{bbmri_id} in entity: {table.full_name} does not comply with a "
-                f"two letter national node code, an _ and alphanumeric characters ( : @"
-                f" . are allowed) afterwards \ne.g: NL_myid1234 "
+                f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
+                f"invalid characters. Only alphanumerics and -_:@. are allowed."
             )
         )
 
