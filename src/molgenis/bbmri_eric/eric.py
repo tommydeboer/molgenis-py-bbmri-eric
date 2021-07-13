@@ -21,14 +21,13 @@ class Eric:
             session: an (authenticated) session with an ERIC directory
         """
         self.session = session
-        self._stager = Stager(session)
-        self._publisher = Publisher(session)
 
     def stage_all_external_nodes(self):
         """
         Stages all data from all external nodes in the ERIC directory.
         """
-        self._stager.stage(nnodes.get_all_external_nodes())
+
+        Stager(self.session).stage(nnodes.get_all_external_nodes())
 
     def stage_external_nodes(self, nodes: List[ExternalServerNode]):
         """
@@ -37,14 +36,14 @@ class Eric:
         Parameters:
             nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
-        self._stager.stage(nodes)
+        Stager(self.session).stage(nodes)
 
     def publish_all_nodes(self):
         """
         Publishes data from all nodes to the production tables in the ERIC
         directory.
         """
-        self._publisher.publish(nnodes.get_all_nodes())
+        Publisher(self.session).publish(nnodes.get_all_nodes())
 
     def publish_nodes(self, nodes: List[Node]):
         """
@@ -54,4 +53,4 @@ class Eric:
         Parameters:
             nodes (List[Node]): The list of nodes to publish
         """
-        self._publisher.publish(nodes)
+        Publisher(self.session).publish(nodes)
