@@ -56,3 +56,16 @@ class NodeData:
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+
+_classifiers = {
+    TableType.PERSONS: "contactID",
+    TableType.NETWORKS: "networkID",
+    TableType.BIOBANKS: "ID",
+    TableType.COLLECTIONS: "ID",
+}
+
+
+def get_id_prefix(table_type: TableType, node: Node):
+    classifier = _classifiers[table_type]
+    return f"bbmri-eric:{classifier}:{node.code}_"
