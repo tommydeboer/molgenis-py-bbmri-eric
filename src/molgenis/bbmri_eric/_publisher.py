@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Set
 
 from molgenis.bbmri_eric import _validation
-from molgenis.bbmri_eric._model import Node, NodeData, Table
-from molgenis.bbmri_eric._validation import ValidationException
+from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
+from molgenis.bbmri_eric._validation import ConstraintViolation
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
 
@@ -15,12 +15,12 @@ class PublishingException(Exception):
 @dataclass
 class PublishingReport:
     errors: List[PublishingException] = field(default_factory=lambda: [])
-    validation_errors: List[ValidationException] = field(default_factory=lambda: [])
+    validation_errors: List[ConstraintViolation] = field(default_factory=lambda: [])
 
     def add_error(self, error: PublishingException):
         self.errors.append(error)
 
-    def add_validation_errors(self, errors: List[ValidationException]):
+    def add_validation_errors(self, errors: List[ConstraintViolation]):
         self.validation_errors += errors
 
     def has_errors(self) -> bool:
@@ -74,39 +74,30 @@ class Publisher:
     def _publish(self, node_data: NodeData):
         try:
             for table in node_data.import_order:
-                self._publish_table(table)
+                print(f"  Upserting rows in {table.full_name}")
+                self.session.upsert_batched(table.type.base_id, table.rows)
+            for table in reversed(node_data.import_order):
+                print(f"  Deleting rows in {table.full_name}")
+                self._delete_rows(table, node_data.node)
         except MolgenisRequestError as e:
             raise PublishingException(e.message)
 
-    def _publish_table(self, table: Table):
-        print(f"  Publishing table {table.type.value}")
-        self.session.upsert_batched(table.type.base_id, table.rows)
-        # self._delete_rows(table, production_id)
-
-    def _delete_rows(self, table: Table, production_id: str):
-        production_rows = self.session.get(
-            production_id, batch_size=10000, attributes="id"
-        )
-        production_ids = {row["id"] for row in production_rows}
+    def _delete_rows(self, table: Table, node: Node):
         staging_ids = {row["id"] for row in table.rows}
-
-        deleted_ids = staging_ids.difference(production_ids)
-
-        self.session.delete_list(production_ids, list(deleted_ids))
+        production_ids = self._get_production_ids(table, node)
+        deleted_ids = production_ids.difference(staging_ids)
+        if deleted_ids:
+            self.session.delete_list(table.type.base_id, list(deleted_ids))
 
         # TODO
         #  1. Deletes rows from the production table that are not present in staging
         #  2. Don't delete the row if it is referred to from the quality tables, raise
         #     a warning instead
-        pass
 
-    @staticmethod
-    def filter_national_node_data(data: List[dict], node: Node) -> List[dict]:
-        """
-        Filters data from an entity based on national node code in an Id
-        """
-        national_node_signature = f":{node.code}_"
-        data_from_national_node = [
-            row for row in data if national_node_signature in row["id"]
-        ]
-        return data_from_national_node
+    def _get_production_ids(self, table: Table, node: Node) -> Set[str]:
+        rows = self.session.get(table.type.base_id, batch_size=10000, attributes="id")
+        return {
+            row["id"]
+            for row in rows
+            if row["id"].startswith(get_id_prefix(table.type, node))
+        }
