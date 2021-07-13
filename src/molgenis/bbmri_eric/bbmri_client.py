@@ -10,7 +10,7 @@ import requests
 from molgenis.bbmri_eric import _utils
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric._utils import batched
-from molgenis.client import MolgenisRequestError, Session
+from molgenis.client import Session
 
 
 @dataclass(frozen=True)
@@ -69,13 +69,6 @@ class BbmriSession(Session):
         rows = self.get(entity_type_id, batch_size=10000)
         ref_names = self.get_reference_attribute_names(entity_type_id)
         return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
-
-    def remove_rows(self, entity, ids):
-        if len(ids) > 0:
-            try:
-                self.delete_list(entity, ids)
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
 
     def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
         """
