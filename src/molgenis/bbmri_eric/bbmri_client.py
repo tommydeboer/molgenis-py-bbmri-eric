@@ -136,6 +136,8 @@ class BbmriSession(Session):
 
     def update_batched(self, entity_type_id: str, entities: List[dict]):
         """Updates multiple entities in batches of 1000."""
+        # TODO updating things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed.
         batches = list(batched(entities, 1000))
         for batch in batches:
             self.update(entity_type_id, batch)
