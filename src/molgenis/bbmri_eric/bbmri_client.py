@@ -47,8 +47,8 @@ class BbmriSession(Session):
             else:
                 id_ = table_type.base_id
 
-            tables[table_type] = Table(
-                type=table_type,
+            tables[table_type] = Table.of(
+                table_type=table_type,
                 full_name=id_,
                 rows=self.get_uploadable_data(id_),
             )
