@@ -6,7 +6,7 @@ from getpass import getpass
 from typing import List, Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
-from molgenis.bbmri_eric import nodes as nnodes
+from molgenis.bbmri_eric import nodes as national_nodes
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.client import MolgenisRequestError
@@ -73,12 +73,12 @@ def execute_command(args, eric):
         if all_nodes:
             eric.stage_all_external_nodes()
         else:
-            eric.stage_external_nodes(nnodes.get_external_nodes(args.nodes))
+            eric.stage_external_nodes(national_nodes.get_external_nodes(args.nodes))
     elif args.action == "publish":
         if all_nodes:
             eric.publish_all_nodes()
         else:
-            eric.publish_nodes(nnodes.get_nodes(args.nodes))
+            eric.publish_nodes(national_nodes.get_nodes(args.nodes))
 
 
 def setup_logging(loglevel):
