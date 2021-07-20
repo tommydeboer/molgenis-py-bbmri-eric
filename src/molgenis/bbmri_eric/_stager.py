@@ -36,7 +36,7 @@ class Stager:
         """
         for node in external_nodes:
             try:
-                self._import_node(node)
+                self._stage_node(node)
             except MolgenisRequestError as e:
                 error = EricError(f"Staging of node {node.code} failed: {e.message}")
                 print(error.message)
@@ -67,5 +67,5 @@ class Stager:
         for table in source_data.import_order:
             target_name = node.get_staging_id(table.type)
 
-            print(f"  Importing data to {table.full_name}")
+            print(f"  Importing data to {target_name}")
             self.session.add_batched(target_name, table.rows)
