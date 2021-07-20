@@ -3,7 +3,15 @@ from dataclasses import dataclass, field
 from typing import DefaultDict, Dict, List, Set
 
 from molgenis.bbmri_eric import _enrichment, _validation
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType, get_id_prefix
+from molgenis.bbmri_eric._model import (
+    ExternalServerNode,
+    Node,
+    NodeData,
+    Table,
+    TableType,
+    get_id_prefix,
+)
+from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric._validation import ValidationState
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
@@ -60,6 +68,12 @@ class Publisher:
         return self.report
 
     def _publish_node(self, node: Node):
+        if isinstance(node, ExternalServerNode):
+            report = Stager(self.session).stage([node])
+            if report.has_errors():
+                print(f"Skipping publishing of node {node.code}")
+                return
+
         print(f"Getting staging data of node {node.code}")
         node_data = self.session.get_node_data(node, staging=True)
 

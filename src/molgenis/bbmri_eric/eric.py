@@ -3,7 +3,7 @@ from typing import List
 from molgenis.bbmri_eric import nodes as national_nodes
 from molgenis.bbmri_eric._model import ExternalServerNode, Node
 from molgenis.bbmri_eric._publisher import Publisher, PublishReport
-from molgenis.bbmri_eric._stager import Stager
+from molgenis.bbmri_eric._stager import Stager, StagingReport
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 
 
@@ -22,21 +22,21 @@ class Eric:
         """
         self.session = session
 
-    def stage_all_external_nodes(self):
+    def stage_all_external_nodes(self) -> StagingReport:
         """
         Stages all data from all external nodes in the ERIC directory.
         """
 
-        Stager(self.session).stage(national_nodes.get_all_external_nodes())
+        return Stager(self.session).stage(national_nodes.get_all_external_nodes())
 
-    def stage_external_nodes(self, nodes: List[ExternalServerNode]):
+    def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> StagingReport:
         """
         Stages all data from the provided external nodes in the ERIC directory.
 
         Parameters:
             nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
-        Stager(self.session).stage(nodes)
+        return Stager(self.session).stage(nodes)
 
     def publish_all_nodes(self) -> PublishReport:
         """

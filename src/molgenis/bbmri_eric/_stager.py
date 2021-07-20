@@ -1,24 +1,47 @@
-from typing import List
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import DefaultDict, List
 
-from molgenis.bbmri_eric._model import ExternalServerNode, TableType
+from molgenis.bbmri_eric._model import ExternalServerNode, Node, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
+
+
+@dataclass
+class EricError:
+    message: str
+
+
+@dataclass
+class StagingReport:
+    errors: DefaultDict[Node, EricError] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    def add_error(self, node: Node, error: EricError):
+        self.errors[node] = error
+
+    def has_errors(self):
+        return len(self.errors) > 0
 
 
 class Stager:
     def __init__(self, session: BbmriSession):
         self.session = session
+        self.report = StagingReport()
 
-    def stage(self, external_nodes: List[ExternalServerNode]):
+    def stage(self, external_nodes: List[ExternalServerNode]) -> StagingReport:
         """
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
         for node in external_nodes:
             try:
                 self._import_node(node)
-            except MolgenisRequestError as exception:  # rollback?
-                # TODO print error and continue to next node
-                raise exception
+            except MolgenisRequestError as e:
+                error = EricError(f"Staging of node {node.code} failed: {e.message}")
+                print(error.message)
+                self.report.add_error(node, error)
+        return self.report
 
     def _stage_node(self, node: ExternalServerNode):
         print(f"Clearing staging area of {node.code}")
