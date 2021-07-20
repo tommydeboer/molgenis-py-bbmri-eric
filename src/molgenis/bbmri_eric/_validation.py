@@ -3,20 +3,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, List, Optional
 
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
 
 
 @dataclass(frozen=True)
 class ConstraintViolation:
     message: str
-
-
-_classifiers = {
-    TableType.PERSONS: "contactID",
-    TableType.NETWORKS: "networkID",
-    TableType.BIOBANKS: "ID",
-    TableType.COLLECTIONS: "ID",
-}
 
 
 @dataclass()
@@ -103,9 +95,8 @@ def validate_bbmri_id(
     table: Table, node: Node, id_: str
 ) -> Optional[List[ConstraintViolation]]:
     errors = []
-    classifier = _classifiers[table.type]
-    prefix = f"bbmri-eric:{classifier}:{node.code}_"
 
+    prefix = get_id_prefix(table.type, node)
     if not id_.startswith(prefix):
         errors.append(
             ConstraintViolation(

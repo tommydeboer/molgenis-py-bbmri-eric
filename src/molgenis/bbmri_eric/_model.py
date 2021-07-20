@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import Dict, List
 
 
 class TableType(Enum):
@@ -27,7 +27,19 @@ class Table:
 
     type: TableType
     full_name: str
-    rows: List[dict]
+    rows_by_id: Dict[str, dict]
+
+    @property
+    def rows(self) -> List[dict]:
+        return list(self.rows_by_id.values())
+
+    @staticmethod
+    def of(table_type: TableType, full_name: str, rows: List[dict]):
+        return Table(
+            type=table_type,
+            full_name=full_name,
+            rows_by_id={row["id"]: row for row in rows},
+        )
 
 
 @dataclass(frozen=True)
@@ -56,3 +68,16 @@ class NodeData:
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+
+_classifiers = {
+    TableType.PERSONS: "contactID",
+    TableType.NETWORKS: "networkID",
+    TableType.BIOBANKS: "ID",
+    TableType.COLLECTIONS: "ID",
+}
+
+
+def get_id_prefix(table_type: TableType, node: Node):
+    classifier = _classifiers[table_type]
+    return f"bbmri-eric:{classifier}:{node.code}_"
