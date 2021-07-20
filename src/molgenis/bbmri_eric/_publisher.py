@@ -1,101 +1,87 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Set
+from typing import DefaultDict, Dict, List, Set
 
-from molgenis.bbmri_eric import _validation
+from molgenis.bbmri_eric import _enrichment, _validation
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType, get_id_prefix
-from molgenis.bbmri_eric._validation import ConstraintViolation
+from molgenis.bbmri_eric._validation import ValidationState
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.client import MolgenisRequestError
 
 
-class PublishingException(Exception):
-    pass
+@dataclass
+class PublishError:
+    message: str
 
 
 @dataclass
-class PublishingReport:
-    errors: List[PublishingException] = field(default_factory=lambda: [])
-    validation_errors: List[ConstraintViolation] = field(default_factory=lambda: [])
+class PublishWarning:
+    message: str
 
-    def add_error(self, error: PublishingException):
-        self.errors.append(error)
 
-    def add_validation_errors(self, errors: List[ConstraintViolation]):
-        self.validation_errors += errors
+@dataclass
+class PublishReport:
+    validation: ValidationState = None
+    errors: DefaultDict[Node, PublishError] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    warnings: DefaultDict[Node, List[PublishWarning]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
 
-    def has_errors(self) -> bool:
-        return len(self.errors) > 0 or len(self.validation_errors) > 0
+    def add_error(self, node: Node, error: PublishError):
+        self.errors[node] = error
+
+    def add_warning(self, node: Node, warning: PublishWarning):
+        self.warnings[node].append(warning)
 
 
 class Publisher:
     def __init__(self, session: BbmriSession):
         self.session = session
+        self.report = PublishReport()
         self.quality_info: Dict[TableType, Set[str]] = self._get_quality_info()
 
-    def publish(self, nodes: List[Node]):
+    def publish(self, nodes: List[Node]) -> PublishReport:
         """
         Publishes data from the provided nodes to the production tables.
         """
-        report = PublishingReport()
         for node in nodes:
             try:
-                print(f"Getting staging data of node {node.code}")
-                node_data = self.session.get_node_data(node, staging=True)
-            except MolgenisRequestError:
-                # TODO add warning
-                continue
-            else:
-                print(f"Validating staging data of node {node.code}")
-                result = _validation.validate_node(node_data)
-                report.add_validation_errors(result.errors)
+                print(f"Publishing node {node.code}")
+                self._publish_node(node)
+            except MolgenisRequestError as e:
+                error = PublishError(
+                    f"Publishing of node {node.code} failed: {e.message}"
+                )
+                print(error.message)
+                self.report.add_error(node, error)
 
-                print(f"Enriching data of node {node.code}")
-                self._enrich(node_data)
+        return self.report
 
-                for error in result.errors:
-                    print(error)
+    def _publish_node(self, node: Node):
+        print(f"Getting staging data of node {node.code}")
+        node_data = self.session.get_node_data(node, staging=True)
 
-                try:
-                    print()
-                    print(f"Publishing staging data of node {node.code}")
-                    self._publish(node_data)
-                except PublishingException as e:
-                    report.add_error(e)
+        print(f"Validating staging data of node {node.code}")
+        validation = _validation.validate_node(node_data)
+        validation.print_warnings()
+        self.report.validation = validation
 
-        if report.has_errors():
-            for error in report.errors:
-                print(error)
-            pass
+        print(f"Enriching data of node {node.code}")
+        _enrichment.enrich_node(node_data)
 
-    @staticmethod
-    def _enrich(node_data: NodeData):
-        for collection in node_data.collections.rows:
+        print(f"Publishing data of node {node.code}")
+        self._publish_node_data(node_data)
 
-            def is_true(row: dict, attr: str):
-                return attr in row and row[attr] is True
+    def _publish_node_data(self, node_data: NodeData):
+        for table in node_data.import_order:
+            print(f"  Upserting rows in {table.full_name}")
+            self.session.upsert_batched(table.type.base_id, table.rows)
 
-            biobank_id = collection["biobank"]
-            biobank = node_data.biobanks.rows_by_id[biobank_id]
-
-            collection["commercial_use"] = (
-                is_true(biobank, "collaboration_commercial")
-                and is_true(collection, "collaboration_commercial")
-                and is_true(collection, "sample_access_fee")
-                and is_true(collection, "image_access_fee")
-                and is_true(collection, "data_access_fee")
-            )
-
-    def _publish(self, node_data: NodeData):
-        try:
-            for table in node_data.import_order:
-                print(f"  Upserting rows in {table.full_name}")
-                self.session.upsert_batched(table.type.base_id, table.rows)
-
-            for table in reversed(node_data.import_order):
-                print(f"  Deleting rows in {table.full_name}")
-                self._delete_rows(table, node_data.node)
-        except MolgenisRequestError as e:
-            raise PublishingException(e.message)
+        for table in reversed(node_data.import_order):
+            print(f"  Deleting rows in {table.full_name}")
+            self._delete_rows(table, node_data.node)
 
     def _delete_rows(self, table: Table, node: Node):
         # Compare the ids from staging and production to see what was deleted
@@ -107,18 +93,20 @@ class Publisher:
         undeletable_ids = self.quality_info.get(table.type, {})
         deletable_ids = deleted_ids.difference(undeletable_ids)
 
+        # Actually delete the rows in the combined tables
         if deletable_ids:
             self.session.delete_list(table.type.base_id, list(deletable_ids))
 
+        # Show warning for every id that we prevented deletion of
         if deleted_ids != deletable_ids:
             for id_ in undeletable_ids:
                 if id_ in deleted_ids:
-                    print(
-                        ConstraintViolation(
-                            f"Prevented the deletion of a row that is referenced from "
-                            f"the quality info: {table.type.value} {id_}."
-                        )
+                    warning = PublishWarning(
+                        f"Prevented the deletion of a row that is referenced from "
+                        f"the quality info: {table.type.value} {id_}."
                     )
+                    print(warning.message)
+                    self.report.add_warning(node, warning)
 
     def _get_production_ids(self, table: Table, node: Node) -> Set[str]:
         rows = self.session.get(table.type.base_id, batch_size=10000, attributes="id")

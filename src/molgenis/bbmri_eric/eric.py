@@ -2,7 +2,7 @@ from typing import List
 
 from molgenis.bbmri_eric import nodes as nnodes
 from molgenis.bbmri_eric._model import ExternalServerNode, Node
-from molgenis.bbmri_eric._publisher import Publisher
+from molgenis.bbmri_eric._publisher import Publisher, PublishReport
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 
@@ -38,14 +38,14 @@ class Eric:
         """
         Stager(self.session).stage(nodes)
 
-    def publish_all_nodes(self):
+    def publish_all_nodes(self) -> PublishReport:
         """
         Publishes data from all nodes to the production tables in the ERIC
         directory.
         """
-        Publisher(self.session).publish(nnodes.get_all_nodes())
+        return Publisher(self.session).publish(nnodes.get_all_nodes())
 
-    def publish_nodes(self, nodes: List[Node]):
+    def publish_nodes(self, nodes: List[Node]) -> PublishReport:
         """
         Publishes data from the provided nodes to the production tables in the ERIC
         directory.
@@ -53,4 +53,4 @@ class Eric:
         Parameters:
             nodes (List[Node]): The list of nodes to publish
         """
-        Publisher(self.session).publish(nodes)
+        return Publisher(self.session).publish(nodes)
