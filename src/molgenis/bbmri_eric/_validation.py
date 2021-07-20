@@ -1,7 +1,6 @@
 import re
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import DefaultDict, List, Optional
+from typing import List, Optional, Set
 
 from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
 
@@ -14,18 +13,16 @@ class ConstraintViolation:
 @dataclass()
 class ValidationState:
 
-    invalid_ids: DefaultDict[str, List[ConstraintViolation]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
-    invalid_references: DefaultDict[str, List[ConstraintViolation]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    invalid_ids: Set[str] = field(default_factory=lambda: set())
+    violations: List[ConstraintViolation] = field(default_factory=lambda: list())
 
-    @property
-    def errors(self):
-        return sum(self.invalid_ids.values(), []) + sum(
-            self.invalid_references.values(), []
-        )
+    def add_invalid_id(self, id_: str, violations: List[ConstraintViolation]):
+        self.invalid_ids.add(id_)
+        self.violations.extend(violations)
+
+    def print_warnings(self):
+        for violation in self.violations:
+            print(f"{violation.message}")
 
 
 def validate_node(node_data: NodeData) -> ValidationState:
@@ -50,7 +47,7 @@ def _validate_ids(table: Table, node: Node, state: ValidationState):
         id_ = row["id"]
         errors = validate_bbmri_id(table, node, row["id"])
         if errors:
-            state.invalid_ids[id_] += errors
+            state.add_invalid_id(id_, errors)
 
 
 def _validate_networks(node_data: NodeData, state: ValidationState):
@@ -84,9 +81,9 @@ def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
             _validate_ref(row, ref_id, state)
 
 
-def _validate_ref(row: dict, ref_id: str, state):
+def _validate_ref(row: dict, ref_id: str, state: ValidationState):
     if ref_id in state.invalid_ids:
-        state.invalid_references[ref_id].append(
+        state.violations.append(
             ConstraintViolation(f"{row['id']} references invalid id: {ref_id}")
         )
 
