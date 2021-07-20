@@ -1,89 +1,56 @@
-import argparse
-import logging
-import sys
+from typing import List
 
-from molgenis.bbmri_eric import __version__, bbmri_client
+from molgenis.bbmri_eric import nodes as nnodes
+from molgenis.bbmri_eric._model import ExternalServerNode, Node
+from molgenis.bbmri_eric._publisher import Publisher
+from molgenis.bbmri_eric._stager import Stager
+from molgenis.bbmri_eric.bbmri_client import BbmriSession
 
-_logger = logging.getLogger(__name__)
 
-
-def parse_args(args):
-    """Parse command line parameters
-
-    Args:
-      args (List[str]): command line parameters as list of strings
-          (for example  ``["--help"]``).
-
-    Returns:
-      :obj:`argparse.Namespace`: command line parameters namespace
+class Eric:
     """
-    parser = argparse.ArgumentParser(description="MOLGENIS BBMRI-ERIC CLI")
-    parser.add_argument(
-        "--version",
-        action="version",
-        version="molgenis-py-bbmri-eric {ver}".format(ver=__version__),
-    )
-    parser.add_argument(
-        dest="nodes",
-        help="the national nodes to import",
-        type=str,
-        nargs="+",
-        metavar="NODES",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        help="set loglevel to INFO",
-        action="store_const",
-        const=logging.INFO,
-    )
-    parser.add_argument(
-        "-vv",
-        "--very-verbose",
-        dest="loglevel",
-        help="set loglevel to DEBUG",
-        action="store_const",
-        const=logging.DEBUG,
-    )
-    return parser.parse_args(args)
+    Main class for doing operations on the ERIC directory.
 
-
-def setup_logging(loglevel):
-    """Setup basic logging
-
-    Args:
-      loglevel (int): minimum loglevel for emitting messages
+    Attributes:
+        session (BbmriSession): The session with an ERIC directory
     """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-    logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
-    )
 
+    def __init__(self, session: BbmriSession):
+        """
+        Parameters:
+            session: an (authenticated) session with an ERIC directory
+        """
+        self.session = session
 
-def main(args):
-    """Wrapper allowing functions to be called with string arguments in a CLI fashion
+    def stage_all_external_nodes(self):
+        """
+        Stages all data from all external nodes in the ERIC directory.
+        """
 
-    Args:
-      args (List[str]): command line parameters as list of strings
-          (for example  ``["--verbose", "42"]``).
-    """
-    args = parse_args(args)
-    setup_logging(args.loglevel)
-    bbmriSession = bbmri_client.BBMRI_Session(
-        url=args.target,
-        national_nodes=args.external_national_nodes,
-        username=args.username,
-        password=args.password,
-    )
-    bbmriSession.update_external_entities()
-    bbmriSession.update_eric_entities()
+        Stager(self.session).stage(nnodes.get_all_external_nodes())
 
+    def stage_external_nodes(self, nodes: List[ExternalServerNode]):
+        """
+        Stages all data from the provided external nodes in the ERIC directory.
 
-def run():
-    """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`"""
-    main(sys.argv[1:])
+        Parameters:
+            nodes (List[ExternalServerNode]): The list of external nodes to stage
+        """
+        Stager(self.session).stage(nodes)
 
+    def publish_all_nodes(self):
+        """
+        Publishes data from all nodes to the production tables in the ERIC
+        directory.
+        """
+        Publisher(self.session).publish(nnodes.get_all_nodes())
 
-if __name__ == "__main__":
-    run()
+    def publish_nodes(self, nodes: List[Node]):
+        """
+        Publishes data from the provided nodes to the production tables in the ERIC
+        directory.
+
+        Parameters:
+            nodes (List[Node]): The list of nodes to publish
+        """
+        Publisher(self.session).publish(nodes)

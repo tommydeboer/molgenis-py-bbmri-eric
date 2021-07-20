@@ -11,7 +11,7 @@ TODO
 This project uses [pre-commit](https://pre-commit.com/) and [pipenv](https://pypi.org/project/pipenv/) for the development workflow.
 
 ```
-# install pre-commit and pipenv if you haven't already 
+# install pre-commit and pipenv if you haven't already
 pip install pre-commit
 pip install pipenv
 

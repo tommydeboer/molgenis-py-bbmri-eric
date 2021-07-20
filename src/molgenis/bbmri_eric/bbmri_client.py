@@ -1,48 +1,33 @@
-"""
-BBMRI interface for Molgenis
-"""
+import json
+from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Optional
+from urllib.parse import quote_plus
 
-from typing import Union
+import requests
 
-import molgenis.bbmri_eric.bbmri_validations as bbmri_validations
-import molgenis.bbmri_eric.molgenis_utilities as molgenis_utilities
-from molgenis.client import MolgenisRequestError, Session
-
-# Utility methods, maybe move elsewhere?
-
-
-def filter_national_node_data(data: list[dict], national_node_code: str) -> list[dict]:
-    """
-    Filters data from an entity based on national node code in an Id
-    """
-    national_node_signature = f":{national_node_code}_"
-    data_from_national_node = [
-        row for row in data if national_node_signature in row["id"]
-    ]
-    return data_from_national_node
+from molgenis.bbmri_eric import _utils
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._utils import batched
+from molgenis.client import Session
 
 
-def validate_national_node(node: str) -> Union[bool, ValueError]:
-    """
-    Validation for supplied national node
-    """
-    if "national_node" not in node:
-        raise ValueError(
-            """Argument
-            should have key: 'national_node',
-            which is the prefix of the national
-            node example: 'NL'"""
-        )
-    if "source" not in node:
-        raise ValueError(
-            """Argument
-            should have key:
-            'source',
-            which is the
-            complete url to
-            the source directory"""
-        )
-    return True
+@dataclass(frozen=True)
+class ReferenceAttributeNames:
+    xrefs: List[str]
+    mrefs: List[str]
+    categoricals: List[str]
+    categorical_mrefs: List[str]
+    one_to_manys: List[str]
+
+
+class ReferenceType(Enum):
+    XREF = "XREF"
+    MREF = "MREF"
+    CATEGORICAL = "CATEGORICAL"
+    CATEGORICAL_MREF = "CATEGORICAL_MREF"
+    ONE_TO_MANY = "ONE_TO_MANY"
 
 
 class BbmriSession(Session):
@@ -50,444 +35,117 @@ class BbmriSession(Session):
     BBMRI Session Class, which extends the molgenis py client Session class
     """
 
-    package = "eu_bbmri_eric_"
-    import_table_sequence = ["persons", "networks", "biobanks", "collections"]
-    combined_entity_cache = {}
-    tables_to_cache_for_import = [
-        "eu_bbmri_eric_bio_qual_info",
-        "eu_bbmri_eric_col_qual_info",
-    ]
-
-    imported_row_ids_cache = []
-
-    def __init__(self, url, national_nodes, **kwargs):
-
-        token = kwargs["token"] if " token" in kwargs else None
-        username = kwargs["username"] if "username" in kwargs else None
-        password = kwargs["password"] if "password" in kwargs else None
-
+    def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
-        self.national_nodes = national_nodes
-        self.target = url
+        self.url = url
 
-        if username and password:
-            self.login(username=username, password=password)
-
-    @property
-    def get_national_node_codes(self) -> list[str]:
-        """
-        Getter for the national node codes
-        """
-        return [node["national_node"] for node in self._national_nodes]
-
-    @property
-    def national_nodes(self) -> list[dict]:
-        """
-        Getter for national_nodes
-        """
-        return self._national_nodes
-
-    @national_nodes.setter
-    def national_nodes(self, value: Union[dict, list]) -> None:
-        """
-        Setter for a single node of a list of nodes, with validation
-        """
-        nodes = []
-
-        if value is dict:
-            nodes.append(value)
-        else:
-            nodes = value
-
-        for node in nodes:
-            validate_national_node(node)
-
-        self._national_nodes = nodes
-
-    def get_qualified_entity_name(
-        self, entity_name: str, national_node_code: str = None
-    ) -> str:
-        """
-        Method to create a correct name for an entity.
-        """
-        if national_node_code:
-            return f"{self.package}{national_node_code}_{entity_name}"
-
-        return f"{self.package}{entity_name}"
-
-    def get_data_for_entity(self, entity_name: str, national_node_code=None) -> dict:
-        """
-        Get's data for entity,
-        if national node code is provided,
-        it will fetch data from it's own entity
-        """
-        entity_name = self.get_qualified_entity_name(
-            entity_name=entity_name, national_node_code=national_node_code
-        )
-
-        entity_data = molgenis_utilities.get_all_rows(session=self, entity=entity_name)
-
-        entity_ids = molgenis_utilities.get_all_ids(entity_data)
-
-        return {"data": entity_data, "name": entity_name, "ids": entity_ids}
-
-    def validate_refs(
-        self, entity: str, entries: list[dict], national_node_code: str
-    ) -> list[dict]:
-        """
-        Checks if any id in an xref or mref is invalid,
-        if so then it omits that row
-        """
-        references = molgenis_utilities.get_all_references_for_entity(
-            session=self, entity=entity
-        )
-        all_references = references["xref"]
-        all_references.extend(references["one_to_many"])
-
-        return [
-            valid_entry
-            for valid_entry in entries
-            if bbmri_validations.validate_refs_in_entry(
-                nn=national_node_code,
-                entry=valid_entry,
-                parent_entity=entity,
-                possible_entity_references=all_references,
-            )
-        ]
-
-    def cache_combined_entity_data(self) -> None:
-        """
-        Caches data
-        for all bbmri entities,
-        in case of rollback
-        """
-        for entity in self.import_table_sequence:
-            source_entity = self.get_qualified_entity_name(entity_name=entity)
-            source_data = molgenis_utilities.get_all_rows(
-                session=self, entity=source_entity
-            )
-            source_one_to_manys = molgenis_utilities.get_one_to_manys(
-                session=self, entity=source_entity
-            )
-            uploadable_source = molgenis_utilities.transform_to_molgenis_upload_format(
-                data=source_data, one_to_manys=source_one_to_manys
-            )
-
-            self.combined_entity_cache[entity] = uploadable_source
-
-        for global_entity in self.tables_to_cache_for_import:
-            source_data = molgenis_utilities.get_all_rows(
-                session=self, entity=global_entity
-            )
-            source_one_to_manys = molgenis_utilities.get_one_to_manys(
-                session=self, entity=global_entity
-            )
-            uploadable_source = molgenis_utilities.transform_to_molgenis_upload_format(
-                data=source_data, one_to_manys=source_one_to_manys
-            )
-
-            self.combined_entity_cache[global_entity] = uploadable_source
-
-    def import_national_node_to_own_entity(self, national_node):
-        """
-        Get data from staging area
-        to their own entity on 'self'
-        """
-        if national_node not in self.national_nodes:
-            self.national_nodes.append(national_node)
-
-        source_session = Session(url=national_node["source"])
-
-        nnc = national_node["national_node"]
-
-        # imports
-        for entity_name in self.import_table_sequence:
-            target_entity = self.get_qualified_entity_name(
-                entity_name=entity_name, national_node_code=nnc
-            )
-            source_entity = self.get_qualified_entity_name(entity_name=entity_name)
-            source_data = molgenis_utilities.get_all_rows(
-                session=source_session, entity=source_entity
-            )
-            source_one_to_manys = molgenis_utilities.get_one_to_manys(
-                session=source_session, entity=source_entity
-            )
-
-            # import all the data
-            if len(source_data) > 0:
-                print("Importing data to staging area of", target_entity)
-                prepped_source_data = (
-                    molgenis_utilities.transform_to_molgenis_upload_format(
-                        data=source_data, one_to_manys=source_one_to_manys
-                    )
-                )
-            try:
-                molgenis_utilities.bulk_add_all(
-                    session=self, entity=target_entity, data=prepped_source_data
-                )
-            except MolgenisRequestError as exception:
-                raise ValueError(exception)
-
-    # import contents from a national node entity to the eric entity (combined table)
-    def import_national_node_to_eric_entity(self, national_node_code, entity_name):
-        """
-        Import all national node
-        data into the combined eric
-        entities
-        """
-
-        print(
-            "Importing data for",
-            national_node_code,
-            "on",
-            self.target,
-            "\n",
-        )
-
-        source = self.get_data_for_entity(
-            entity_name=entity_name, national_node_code=national_node_code
-        )
-
-        target = self.get_data_for_entity(entity_name=entity_name)
-
-        valid_ids = [
-            source_id
-            for source_id in source["ids"]
-            if bbmri_validations.validate_bbmri_id(
-                entity=entity_name, nn=national_node_code, bbmriId=source_id
-            )
-        ]
-
-        self.imported_row_ids_cache.extend(valid_ids)
-
-        # check for target ids because there could be eric
-        # leftovers from the national node in the table.
-        valid_entries = [
-            valid_data
-            for valid_data in source["data"]
-            if valid_data["id"] in valid_ids and valid_data["id"] not in target["ids"]
-        ]
-
-        # validate the references
-        valid_source = self.validate_refs(
-            entity=source["name"],
-            entries=valid_entries,
-            national_node_code=national_node_code,
-        )
-
-        if len(valid_source) > 0:
-
-            source_references = molgenis_utilities.get_all_references_for_entity(
-                session=self, entity=source["name"]
-            )
-
-            print("Importing data to", target["name"])
-            prepped_source_data = (
-                molgenis_utilities.transform_to_molgenis_upload_format(
-                    data=valid_source, one_to_manys=source_references["one_to_many"]
-                )
-            )
-
-            try:
-                molgenis_utilities.bulk_add_all(
-                    session=self, entity=target["name"], data=prepped_source_data
-                )
-                print(
-                    "Imported:",
-                    len(prepped_source_data),
-                    "rows",
-                    "to",
-                    target["name"],
-                    "out of",
-                    len(source["ids"]),
-                )
-            except ValueError as exception:  # rollback
-                print("\n")
-                print("---" * 10)
-                print("Failed to import, following error occurred:", exception)
-                print("---" * 10, end="\n")
-
-                cached_data = self.combined_entity_cache[entity_name]
-                original_data = filter_national_node_data(
-                    data=cached_data, national_node_code=national_node_code
-                )
-                ids_to_revert = molgenis_utilities.get_all_ids(data=prepped_source_data)
-
-                if len(ids_to_revert) > 0:
-                    molgenis_utilities.remove_rows(
-                        session=self, entity=target["name"], ids=ids_to_revert
-                    )
-
-                if len(original_data) > 0:
-                    molgenis_utilities.bulk_add_all(
-                        session=self, entity=target["name"], data=original_data
-                    )
-                    print(
-                        "Rolled back",
-                        target["name"],
-                        "with previous data for",
-                        national_node_code,
-                        end="\n",
-                    )
-
-    def delete_national_node_own_entity_data(self, national_node):
-        """
-        Delete data before import
-        from national node entity
-        """
-        if national_node not in self.national_nodes:
-            self.national_nodes.append(national_node)
-
-        nnc = national_node["national_node"]
-
-        print("Deleting data for staging area", nnc, "on", self.target, "\n")
-
-        previous_ids_per_entity = {}
-
-        for entity_name in reversed(self.import_table_sequence):
-            target_entity = self.get_qualified_entity_name(
-                entity_name=entity_name, national_node_code=nnc
-            )
-            target_data = molgenis_utilities.get_all_rows(
-                session=self, entity=target_entity
-            )
-            ids = molgenis_utilities.get_all_ids(target_data)
-            previous_ids_per_entity[entity_name] = ids
-
-            if len(ids) > 0:
-                # delete from node specific
-                print("Deleting data in", target_entity)
-                try:
-                    molgenis_utilities.remove_rows(
-                        session=self, entity=target_entity, ids=ids
-                    )
-                except ValueError as exception:
-                    raise exception
-
-        return previous_ids_per_entity
-
-    def prepare_deletion_of_node_data(self):
-        """
-        Checks the cache and makes one
-        if not found
-        """
-        # varify we have it cached, if not start caching
-        if not all(
-            entity_name in self.combined_entity_cache
-            for entity_name in self.import_table_sequence
-        ):
-            self.cache_combined_entity_data()
-
-        for global_entity in self.tables_to_cache_for_import:
-            source_data = self.combined_entity_cache[global_entity]
-            source_ids = molgenis_utilities.get_all_ids(source_data)
-            molgenis_utilities.remove_rows(
-                session=self, entity=global_entity, ids=source_ids
-            )
-
-    def finish_importing_of_node_data(self):
-        """
-        Places back entities
-        that are marked global
-        """
-        self.replace_global_entities()
-
-    def delete_national_node_data_from_eric_entity(
-        self, national_node_code, entity_name
-    ):
-        """
-        Surgically delete all national node
-        data from combined entities
-        """
-        # sanity check
-        if entity_name not in self.combined_entity_cache:
-            self.cache_combined_entity_data()
-
-        print(
-            "\nRemoving data from the entity:",
-            entity_name,
-            "for:",
-            national_node_code,
-            end="\n",
-        )
-        entity_cached_data = self.combined_entity_cache[entity_name]
-        target_entity = self.get_qualified_entity_name(entity_name=entity_name)
-        national_node_data_for_entity = filter_national_node_data(
-            data=entity_cached_data, national_node_code=national_node_code
-        )
-        ids_for_national_node_data = molgenis_utilities.get_all_ids(
-            data=national_node_data_for_entity
-        )
-
-        if len(ids_for_national_node_data) > 0:
-            try:
-                molgenis_utilities.remove_rows(
-                    session=self,
-                    entity=target_entity,
-                    ids=ids_for_national_node_data,
-                )
-                print("Removed:", len(ids_for_national_node_data), "rows", end="\n")
-            except ValueError as exception:
-                raise exception
-        else:
-            print("Nothing to remove for", target_entity, end="\n\n")
-
-    def replace_global_entities(self):
-        """
-        Function to loop over global entities
-        and place back the data
-        """
-        print("Placing back the global entities")
-        for global_entity in self.tables_to_cache_for_import:
-            source_data = self.combined_entity_cache[global_entity]
-            if len(source_data) > 0:
-                molgenis_utilities.bulk_add_all(
-                    session=self, entity=global_entity, data=source_data
-                )
-                print("Placed back:", len(source_data), "rows", "to", global_entity)
+    def get_node_data(self, node: Node, staging: bool) -> NodeData:
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            if staging:
+                id_ = node.get_staging_id(table_type)
             else:
-                print("No rows found to place back")
+                id_ = table_type.base_id
 
-    def update_external_entities(self):
+            tables[table_type] = Table.of(
+                table_type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(id_),
+            )
+
+        return NodeData(
+            node=node,
+            is_staging=staging,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
+        )
+
+    def get_uploadable_data(self, entity_type_id: str) -> List[dict]:
         """
-        Fetch data from staging area
+        Returns all the rows of an entity type, transformed to the uploadable format.
         """
-        if not self.national_nodes:
-            raise ValueError("No national nodes found to update")
+        rows = self.get(entity_type_id, batch_size=10000)
+        ref_names = self.get_reference_attribute_names(entity_type_id)
+        return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
 
-        for national_node in self.national_nodes:
-            self.delete_national_node_own_entity_data(national_node=national_node)
-            print("\n")
+    def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
+        """
+        Gets the names of all reference attributes of an entity type
 
+        Parameters:
+            id_ (str): the id of the entity type
+        """
+        attrs = self.get_entity_meta_data(id_)["attributes"]
+
+        result = defaultdict(list)
+        for name, attr in attrs.items():
             try:
-                self.import_national_node_to_own_entity(national_node=national_node)
-                print("\n")
-            except ValueError as exception:  # rollback?
-                raise exception
+                type_ = ReferenceType[attr["fieldType"]]
+                result[type_].append(name)
+            except KeyError:
+                pass
 
-    def update_eric_entities(self):
-        """
-        Combine all national node data
-        into the Eric equivalent
-        """
-        if not self.national_nodes:
-            raise ValueError("No national nodes found to update")
+        return ReferenceAttributeNames(
+            xrefs=result.get(ReferenceType.XREF, []),
+            mrefs=result.get(ReferenceType.MREF, []),
+            categoricals=result.get(ReferenceType.CATEGORICAL, []),
+            categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
+            one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
+        )
 
-        self.prepare_deletion_of_node_data()
+    def upsert_batched(self, entity_type_id: str, entities: List[dict]):
+        """
+        Upserts entities in an entity type (in batches, if needed).
+        @param entity_type_id: the id of the entity type to upsert to
+        @param entities: the entities to upsert
+        """
+        meta = self.get_entity_meta_data(entity_type_id)
+        id_attr = meta["idAttribute"]
+        existing_entities = self.get(
+            entity_type_id, batch_size=10000, attributes=id_attr
+        )
+        existing_ids = {entity[id_attr] for entity in existing_entities}
+
+        add = list()
+        update = list()
+        for entity in entities:
+            if entity[id_attr] in existing_ids:
+                update.append(entity)
+            else:
+                add.append(entity)
+
+        self.add_batched(entity_type_id, add)
+        self.update_batched(entity_type_id, update)
+
+    def update(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities."""
+        response = self._session.put(
+            self._api_url + "v2/" + quote_plus(entity_type_id),
+            headers=self._get_token_header_with_content_type(),
+            data=json.dumps({"entities": entities}),
+        )
 
         try:
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
 
-            for entity_name in reversed(self.import_table_sequence):
-                for national_node_code in bbmri_validations.registered_national_nodes:
-                    self.delete_national_node_data_from_eric_entity(
-                        national_node_code=national_node_code, entity_name=entity_name
-                    )
+        return response
 
-            for entity_name in self.import_table_sequence:
-                print("\n")
-                self.import_national_node_to_eric_entity(
-                    national_node_code=national_node_code, entity_name=entity_name
-                )
-                print("\n")
-        finally:
-            self.finish_importing_of_node_data()
+    def update_batched(self, entity_type_id: str, entities: List[dict]):
+        """Updates multiple entities in batches of 1000."""
+        # TODO updating things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed.
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.update(entity_type_id, batch)
+
+    def add_batched(self, entity_type_id: str, entities: List[dict]):
+        """Adds multiple entities in batches of 1000."""
+        # TODO adding things in bulk will fail if there are self-references across
+        #  batches. Dependency resolving is needed.
+        batches = list(batched(entities, 1000))
+        for batch in batches:
+            self.add_all(entity_type_id, batch)

@@ -54,3 +54,4 @@ MANIFEST
 
 # env variables
 *.env
+*.env.local
