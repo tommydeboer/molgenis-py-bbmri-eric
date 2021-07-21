@@ -1,5 +1,7 @@
+from typing import List
+
 from molgenis.bbmri_eric._model import Node
-from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.errors import EricError, EricWarning
 
 
 class Printer:
@@ -29,10 +31,20 @@ class Printer:
         self.print(title)
         self.print(border)
 
-    def error(self, message: str):
+    def print_error(self, message: str):
         self.print(f"❌  {message}")
+
+    def error(self, error: EricError):
+        message = str(error)
+        if error.__cause__:
+            message += f" - Cause: {str(error.__cause__)}"
+        self.print_error(message)
 
     def warning(self, warning: EricWarning):
         self.print(f"⚠️  {warning.message}")
+
+    def print_warnings(self, warnings: List[EricWarning]):
+        for warning in warnings:
+            self.warning(warning)
 
     # TODO PublishReport summary
