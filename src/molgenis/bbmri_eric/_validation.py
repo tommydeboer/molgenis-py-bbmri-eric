@@ -3,11 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Set
 
 from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
-
-
-@dataclass(frozen=True)
-class ConstraintViolation:
-    message: str
+from molgenis.bbmri_eric.errors import ConstraintViolation
 
 
 @dataclass()
