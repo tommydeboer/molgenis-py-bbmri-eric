@@ -67,18 +67,20 @@ def _get_username_password(args) -> Tuple[str, str]:
     return username, password
 
 
-def execute_command(args, eric):
+def execute_command(args, eric: Eric):
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "all"
     if args.action == "stage":
         if all_nodes:
-            eric.stage_all_external_nodes()
+            nodes = national_nodes.get_all_external_nodes()
         else:
-            eric.stage_external_nodes(national_nodes.get_external_nodes(args.nodes))
+            nodes = national_nodes.get_external_nodes(args.nodes)
+        eric.stage_external_nodes(nodes)
     elif args.action == "publish":
         if all_nodes:
-            eric.publish_all_nodes()
+            nodes = national_nodes.get_all_nodes()
         else:
-            eric.publish_nodes(national_nodes.get_nodes(args.nodes))
+            nodes = national_nodes.get_nodes(args.nodes)
+        eric.publish_nodes(nodes)
 
 
 def setup_logging(loglevel):

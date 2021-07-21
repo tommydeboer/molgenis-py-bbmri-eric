@@ -1,7 +1,6 @@
 from typing import List
 
 from molgenis.bbmri_eric import _validation
-from molgenis.bbmri_eric import nodes as national_nodes
 from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
@@ -27,13 +26,6 @@ class Eric:
         self.session = session
         self.printer = Printer()
 
-    def stage_all_external_nodes(self) -> ErrorReport:
-        """
-        Stages all data from all external nodes in the ERIC directory.
-        """
-        # TODO remove
-        return self.stage_external_nodes(national_nodes.get_all_external_nodes())
-
     def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> ErrorReport:
         """
         Stages all data from the provided external nodes in the ERIC directory.
@@ -54,14 +46,6 @@ class Eric:
                 report.add_error(node, e)
                 continue
         return report
-
-    def publish_all_nodes(self) -> ErrorReport:
-        """
-        Publishes data from all nodes to the production tables in the ERIC
-        directory.
-        """
-        # TODO remove
-        return self.publish_nodes(national_nodes.get_all_nodes())
 
     def publish_nodes(self, nodes: List[Node]) -> ErrorReport:
         """
