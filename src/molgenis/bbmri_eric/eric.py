@@ -34,17 +34,14 @@ class Eric:
             nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
         report = ErrorReport()
-        stager = Stager(self.session)
         for node in nodes:
             self.printer.reset()
             self.printer.print_node_title(node)
-
             try:
-                stager.stage(node)
+                Stager(self.session).stage(node)
             except EricError as e:
                 self.printer.error(e)
                 report.add_error(node, e)
-                continue
         return report
 
     def publish_nodes(self, nodes: List[Node]) -> ErrorReport:
@@ -58,26 +55,29 @@ class Eric:
         report = ErrorReport()
         publisher = Publisher(self.session, self.printer)
         for node in nodes:
-            self._publish_node(node, report, publisher)
+            self.printer.reset()
+            self.printer.print_node_title(node)
+            try:
+                self._publish_node(node, report, publisher)
+            except EricError as e:
+                self.printer.error(e)
+                report.add_error(node, e)
         return report
 
     def _publish_node(self, node: Node, report: ErrorReport, publisher: Publisher):
-        try:
-            self.printer.reset()
-            self.printer.print_node_title(node)
+        # Stage the data if this node has an external server
+        if isinstance(node, ExternalServerNode):
+            Stager(self.session).stage(node)
 
-            if isinstance(node, ExternalServerNode):
-                Stager(self.session).stage(node)
+        # Get the data from the staging area
+        node_data = self._get_node_data(node)
 
-            node_data = self._get_node_data(node)
-            self._validate_node(node_data, report)
+        # Validate all the rows in the staging area
+        self._validate_node(node_data, report)
 
-            warnings = publisher.publish(node_data)
-            report.add_warnings(node, warnings)
-
-        except EricError as e:
-            self.printer.error(e)
-            report.add_error(node, e)
+        # Copy the data from staging to the combined tables
+        warnings = publisher.publish(node_data)
+        report.add_warnings(node, warnings)
 
     def _validate_node(self, node_data: NodeData, report: ErrorReport):
         self.printer.print(f"🔎 Validating staging data of node {node_data.node.code}")

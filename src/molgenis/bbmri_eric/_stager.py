@@ -1,8 +1,6 @@
-from typing import List
-
 from molgenis.bbmri_eric._model import ExternalServerNode, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.errors import EricError, EricWarning
+from molgenis.bbmri_eric.errors import EricError
 from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
 
@@ -11,14 +9,11 @@ class Stager:
     def __init__(self, session: BbmriSession, printer: Printer = None):
         self.session = session
         self.printer: Printer = printer if printer else Printer()
-        self.warnings: List[EricWarning] = []
 
-    def stage(self, node: ExternalServerNode) -> List[EricWarning]:
+    def stage(self, node: ExternalServerNode):
         """
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
-        self.warnings = []
-
         self.printer.print(f"Clearing staging area of {node.code}")
         self._clear_staging_area(node)
 
@@ -26,8 +21,6 @@ class Stager:
             f"Importing data from {node.url} to staging area of {node.code}"
         )
         self._import_node(node)
-
-        return self.warnings
 
     def _clear_staging_area(self, node: ExternalServerNode):
         """
