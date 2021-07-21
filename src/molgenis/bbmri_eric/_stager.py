@@ -2,8 +2,9 @@ from typing import List
 
 from molgenis.bbmri_eric._model import ExternalServerNode, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.bbmri_eric.printer import Printer
+from molgenis.client import MolgenisRequestError
 
 
 class Stager:
@@ -32,8 +33,11 @@ class Stager:
         """
         Deletes all data in the staging area of an external node
         """
-        for table_type in reversed(TableType.get_import_order()):
-            self.session.delete(node.get_staging_id(table_type))
+        try:
+            for table_type in reversed(TableType.get_import_order()):
+                self.session.delete(node.get_staging_id(table_type))
+        except MolgenisRequestError as e:
+            raise EricError(f"Error clearing staging area of node {node.code}") from e
 
     def _import_node(self, node: ExternalServerNode):
         """
@@ -41,11 +45,19 @@ class Stager:
         """
         self.printer.indent()
         source_session = BbmriSession(url=node.url)
-        source_data = source_session.get_node_data(node, staging=False)
 
-        for table in source_data.import_order:
-            target_name = node.get_staging_id(table.type)
+        try:
+            source_data = source_session.get_node_data(node, staging=False)
+        except MolgenisRequestError as e:
+            raise EricError(f"Error getting data from {node.url}") from e
 
-            self.printer.print(f"Importing data to {target_name}")
-            self.session.add_batched(target_name, table.rows)
+        try:
+            for table in source_data.import_order:
+                target_name = node.get_staging_id(table.type)
+
+                self.printer.print(f"Importing data to {target_name}")
+                self.session.add_batched(target_name, table.rows)
+        except MolgenisRequestError as e:
+            raise EricError(f"Error copying from {node.url} to staging area") from e
+
         self.printer.dedent()

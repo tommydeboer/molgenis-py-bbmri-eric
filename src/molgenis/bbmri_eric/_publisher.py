@@ -3,8 +3,9 @@ from typing import Dict, List, Set
 from molgenis.bbmri_eric import _enrichment
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType, get_id_prefix
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
-from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.bbmri_eric.printer import Printer
+from molgenis.client import MolgenisRequestError
 
 
 class Publisher:
@@ -29,12 +30,18 @@ class Publisher:
     def _publish_node_data(self, node_data: NodeData):
         self.printer.indent()
         for table in node_data.import_order:
-            self.printer.print(f"  Upserting rows in {table.full_name}")
-            self.session.upsert_batched(table.type.base_id, table.rows)
+            self.printer.print(f"Upserting rows in {table.type.base_id}")
+            try:
+                self.session.upsert_batched(table.type.base_id, table.rows)
+            except MolgenisRequestError as e:
+                raise EricError(f"Error upserting rows to {table.type.base_id}") from e
 
         for table in reversed(node_data.import_order):
-            self.printer.print(f"  Deleting rows in {table.full_name}")
-            self._delete_rows(table, node_data.node)
+            self.printer.print(f"Deleting rows in {table.type.base_id}")
+            try:
+                self._delete_rows(table, node_data.node)
+            except MolgenisRequestError as e:
+                raise EricError(f"Error deleting rows from {table.type.base_id}") from e
         self.printer.dedent()
 
     def _delete_rows(self, table: Table, node: Node):
