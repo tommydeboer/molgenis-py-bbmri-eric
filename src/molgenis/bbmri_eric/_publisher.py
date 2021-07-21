@@ -56,14 +56,19 @@ class Publisher:
         """
         for node in nodes:
             try:
+                print()
+                print("==================")
                 print(f"Publishing node {node.code}")
+                print("==================")
                 self._publish_node(node)
             except MolgenisRequestError as e:
                 error = PublishError(
-                    f"Publishing of node {node.code} failed: {e.message}"
+                    f"❌ Publishing of node {node.code} failed: {e.message}"
                 )
                 print(error.message)
                 self.report.add_error(node, error)
+            else:
+                print(f"✅ Publishing of node {node.code} succeeded!")
 
         return self.report
 
@@ -71,21 +76,23 @@ class Publisher:
         if isinstance(node, ExternalServerNode):
             report = Stager(self.session).stage([node])
             if report.has_errors():
-                print(f"Skipping publishing of node {node.code}")
+                print(
+                    f"⚠️ Skipping publishing of node {node.code} because staging failed"
+                )
                 return
 
-        print(f"Getting staging data of node {node.code}")
+        print(f"📦 Retrieving staging data of node {node.code}")
         node_data = self.session.get_node_data(node, staging=True)
 
-        print(f"Validating staging data of node {node.code}")
+        print(f"🔎 Validating staging data of node {node.code}")
         validation = _validation.validate_node(node_data)
         validation.print_warnings()
         self.report.validation = validation
 
-        print(f"Enriching data of node {node.code}")
+        print(f"✏️  Enriching data of node {node.code}")
         _enrichment.enrich_node(node_data)
 
-        print(f"Publishing data of node {node.code}")
+        print(f"✉️  Publishing data of node {node.code}")
         self._publish_node_data(node_data)
 
     def _publish_node_data(self, node_data: NodeData):

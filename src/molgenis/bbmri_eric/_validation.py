@@ -22,7 +22,7 @@ class ValidationState:
 
     def print_warnings(self):
         for violation in self.violations:
-            print(f"{violation.message}")
+            print(f"⚠️  {violation.message}")
 
 
 def validate_node(node_data: NodeData) -> ValidationState:
