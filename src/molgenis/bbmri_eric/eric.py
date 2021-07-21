@@ -1,10 +1,14 @@
 from typing import List
 
+from molgenis.bbmri_eric import _validation
 from molgenis.bbmri_eric import nodes as national_nodes
-from molgenis.bbmri_eric._model import ExternalServerNode, Node
-from molgenis.bbmri_eric._publisher import Publisher, PublishReport
-from molgenis.bbmri_eric._stager import Stager, StagingReport
+from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData
+from molgenis.bbmri_eric._publisher import Publisher
+from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.errors import EricError, ErrorReport
+from molgenis.bbmri_eric.printer import Printer
+from molgenis.client import MolgenisRequestError
 
 
 class Eric:
@@ -21,31 +25,45 @@ class Eric:
             session: an (authenticated) session with an ERIC directory
         """
         self.session = session
+        self.printer = Printer()
 
-    def stage_all_external_nodes(self) -> StagingReport:
+    def stage_all_external_nodes(self) -> ErrorReport:
         """
         Stages all data from all external nodes in the ERIC directory.
         """
+        # TODO remove
+        return self.stage_external_nodes(national_nodes.get_all_external_nodes())
 
-        return Stager(self.session).stage(national_nodes.get_all_external_nodes())
-
-    def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> StagingReport:
+    def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> ErrorReport:
         """
         Stages all data from the provided external nodes in the ERIC directory.
 
         Parameters:
             nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
-        return Stager(self.session).stage(nodes)
+        report = ErrorReport()
+        stager = Stager(self.session)
+        for node in nodes:
+            self.printer.reset()
+            self.printer.print_node_title(node)
 
-    def publish_all_nodes(self) -> PublishReport:
+            try:
+                stager.stage(node)
+            except EricError as e:
+                self.printer.error(e)
+                report.add_error(node, e)
+                continue
+        return report
+
+    def publish_all_nodes(self) -> ErrorReport:
         """
         Publishes data from all nodes to the production tables in the ERIC
         directory.
         """
-        return Publisher(self.session).publish(national_nodes.get_all_nodes())
+        # TODO remove
+        return self.publish_nodes(national_nodes.get_all_nodes())
 
-    def publish_nodes(self, nodes: List[Node]) -> PublishReport:
+    def publish_nodes(self, nodes: List[Node]) -> ErrorReport:
         """
         Publishes data from the provided nodes to the production tables in the ERIC
         directory.
@@ -53,4 +71,40 @@ class Eric:
         Parameters:
             nodes (List[Node]): The list of nodes to publish
         """
-        return Publisher(self.session).publish(nodes)
+        report = ErrorReport()
+        publisher = Publisher(self.session, self.printer)
+        for node in nodes:
+            self._publish_node(node, report, publisher)
+        return report
+
+    def _publish_node(self, node: Node, report: ErrorReport, publisher: Publisher):
+        try:
+            self.printer.reset()
+            self.printer.print_node_title(node)
+
+            if isinstance(node, ExternalServerNode):
+                Stager(self.session).stage(node)
+
+            node_data = self._get_node_data(node)
+            self._validate_node(node_data, report)
+
+            warnings = publisher.publish(node_data)
+            report.add_warnings(node, warnings)
+
+        except EricError as e:
+            self.printer.error(e)
+            report.add_error(node, e)
+
+    def _validate_node(self, node_data: NodeData, report: ErrorReport):
+        self.printer.print(f"🔎 Validating staging data of node {node_data.node.code}")
+        warnings = _validation.validate_node(node_data)
+        if warnings:
+            report.add_warnings(node_data.node, warnings)
+            self.printer.print_warnings(warnings)
+
+    def _get_node_data(self, node: Node) -> NodeData:
+        try:
+            self.printer.print(f"📦 Retrieving staging data of node {node.code}")
+            return self.session.get_node_data(node, staging=True)
+        except MolgenisRequestError as e:
+            raise EricError(f"Error retrieving data of node {node.code}") from e
