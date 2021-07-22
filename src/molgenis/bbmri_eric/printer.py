@@ -37,9 +37,9 @@ class Printer:
             message += f" - Cause: {str(error.__cause__)}"
         self.print(f"❌ {message}")
 
-    def warning(self, warning: EricWarning):
+    def print_warning(self, warning: EricWarning):
         self.print(f"⚠️ {warning.message}")
 
     def print_warnings(self, warnings: List[EricWarning]):
         for warning in warnings:
-            self.warning(warning)
+            self.print_warning(warning)

@@ -66,7 +66,7 @@ class Publisher:
                         f"Prevented the deletion of a row that is referenced from "
                         f"the quality info: {table.type.value} {id_}."
                     )
-                    self.printer.warning(warning)
+                    self.printer.print_warning(warning)
                     self.warnings.append(warning)
 
     def _get_production_ids(self, table: Table, node: Node) -> Set[str]:
