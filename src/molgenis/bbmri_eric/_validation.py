@@ -1,34 +1,23 @@
 import re
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import DefaultDict, List, Optional
+from typing import List, Set
 
 from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
-
-
-@dataclass(frozen=True)
-class ConstraintViolation:
-    message: str
+from molgenis.bbmri_eric.errors import EricWarning
 
 
 @dataclass()
 class ValidationState:
 
-    invalid_ids: DefaultDict[str, List[ConstraintViolation]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
-    invalid_references: DefaultDict[str, List[ConstraintViolation]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    invalid_ids: Set[str] = field(default_factory=lambda: set())
+    violations: List[EricWarning] = field(default_factory=lambda: list())
 
-    @property
-    def errors(self):
-        return sum(self.invalid_ids.values(), []) + sum(
-            self.invalid_references.values(), []
-        )
+    def add_invalid_id(self, id_: str, violations: List[EricWarning]):
+        self.invalid_ids.add(id_)
+        self.violations.extend(violations)
 
 
-def validate_node(node_data: NodeData) -> ValidationState:
+def validate_node(node_data: NodeData) -> List[EricWarning]:
     """
     Validates the staging tables of a single node. Keeps track of any invalid rows in a
     ValidationState object.
@@ -42,7 +31,7 @@ def validate_node(node_data: NodeData) -> ValidationState:
     _validate_biobanks(node_data, state)
     _validate_collections(node_data, state)
 
-    return state
+    return state.violations
 
 
 def _validate_ids(table: Table, node: Node, state: ValidationState):
@@ -50,7 +39,7 @@ def _validate_ids(table: Table, node: Node, state: ValidationState):
         id_ = row["id"]
         errors = validate_bbmri_id(table, node, row["id"])
         if errors:
-            state.invalid_ids[id_] += errors
+            state.add_invalid_id(id_, errors)
 
 
 def _validate_networks(node_data: NodeData, state: ValidationState):
@@ -84,22 +73,20 @@ def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
             _validate_ref(row, ref_id, state)
 
 
-def _validate_ref(row: dict, ref_id: str, state):
+def _validate_ref(row: dict, ref_id: str, state: ValidationState):
     if ref_id in state.invalid_ids:
-        state.invalid_references[ref_id].append(
-            ConstraintViolation(f"{row['id']} references invalid id: {ref_id}")
+        state.violations.append(
+            EricWarning(f"{row['id']} references invalid id: {ref_id}")
         )
 
 
-def validate_bbmri_id(
-    table: Table, node: Node, id_: str
-) -> Optional[List[ConstraintViolation]]:
+def validate_bbmri_id(table: Table, node: Node, id_: str) -> List[EricWarning]:
     errors = []
 
     prefix = get_id_prefix(table.type, node)
     if not id_.startswith(prefix):
         errors.append(
-            ConstraintViolation(
+            EricWarning(
                 f"{id_} in entity: {table.full_name} does not start with {prefix}"
             )
         )
@@ -107,7 +94,7 @@ def validate_bbmri_id(
     id_value = id_.lstrip(prefix)
     if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
         errors.append(
-            ConstraintViolation(
+            EricWarning(
                 f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
                 f"invalid characters. Only alphanumerics and -_:@. are allowed."
             )
