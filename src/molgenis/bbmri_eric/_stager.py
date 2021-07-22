@@ -14,11 +14,11 @@ class Stager:
         """
         Stages all data from the provided external nodes in the BBMRI-ERIC directory.
         """
-        self.printer.print(f"Clearing staging area of {node.code}")
+        self.printer.print(f"🗑 Clearing staging area of {node.code}")
         self._clear_staging_area(node)
 
         self.printer.print(
-            f"Importing data from {node.url} to staging area of {node.code}"
+            f"📩 Importing data from {node.url} to staging area of {node.code}"
         )
         self._import_node(node)
 

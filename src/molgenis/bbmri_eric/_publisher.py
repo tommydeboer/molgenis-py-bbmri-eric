@@ -20,10 +20,10 @@ class Publisher:
         Publishes data from the provided node to the production tables.
         """
         self.warnings = []
-        self.printer.print(f"✏️  Enriching data of node {node_data.node.code}")
+        self.printer.print(f"✏️ Enriching data of node {node_data.node.code}")
         _enrichment.enrich_node(node_data)
 
-        self.printer.print(f"✉️  Publishing data of node {node_data.node.code}")
+        self.printer.print(f"✉️ Publishing data of node {node_data.node.code}")
         self._publish_node_data(node_data)
         return self.warnings
 
