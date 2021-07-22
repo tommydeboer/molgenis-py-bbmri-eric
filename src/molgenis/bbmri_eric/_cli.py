@@ -81,6 +81,8 @@ def execute_command(args, eric: Eric):
         else:
             nodes = national_nodes.get_nodes(args.nodes)
         eric.publish_nodes(nodes)
+    else:
+        raise ValueError("Unknown command")
 
 
 def setup_logging(loglevel):

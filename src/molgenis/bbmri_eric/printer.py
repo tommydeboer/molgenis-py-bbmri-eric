@@ -14,7 +14,7 @@ class Printer:
     def dedent(self):
         self.indents = max(0, self.indents - 1)
 
-    def reset(self):
+    def reset_indent(self):
         self.indents = 0
 
     def print(self, value: str = None):
@@ -26,6 +26,7 @@ class Printer:
     def print_node_title(self, node: Node):
         title = f"🌍 Node {node.code}"
         border = "=" * (len(title) + 1)
+        self.reset_indent()
         self.print()
         self.print(border)
         self.print(title)
@@ -45,10 +46,11 @@ class Printer:
             self.print_warning(warning)
 
     def print_summary(self, report: ErrorReport):
+        self.reset_indent()
         self.print()
-        self.print("=======")
-        self.print("Summary")
-        self.print("=======")
+        self.print("==========")
+        self.print("📋 Summary")
+        self.print("==========")
 
         for node in report.nodes:
             if node in report.errors:
@@ -57,7 +59,7 @@ class Printer:
                     message += f" with {len(report.warnings[node])} warnings"
             elif node in report.warnings:
                 message = (
-                    f"⚠️ Node {node.code} succeeded but with "
+                    f"⚠️ Node {node.code} finished successfully but with "
                     f"{len(report.warnings[node])} warnings "
                 )
             else:

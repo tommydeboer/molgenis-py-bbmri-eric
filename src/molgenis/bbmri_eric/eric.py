@@ -35,7 +35,6 @@ class Eric:
         """
         report = ErrorReport(nodes)
         for node in nodes:
-            self.printer.reset()
             self.printer.print_node_title(node)
             try:
                 self._stage_node(node)
@@ -59,7 +58,6 @@ class Eric:
         report = ErrorReport(nodes)
         publisher = Publisher(self.session, self.printer)
         for node in nodes:
-            self.printer.reset()
             self.printer.print_node_title(node)
             try:
                 self._publish_node(node, report, publisher)

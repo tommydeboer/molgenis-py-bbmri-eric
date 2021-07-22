@@ -4,6 +4,8 @@ from molgenis.bbmri_eric import nodes
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.eric import Eric
 
+# TODO remove this file or move it to /tests
+
 config = dotenv_values(".env.local")
 
 target = config["TARGET"]

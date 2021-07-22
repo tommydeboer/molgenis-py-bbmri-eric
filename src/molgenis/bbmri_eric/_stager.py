@@ -6,9 +6,9 @@ from molgenis.client import MolgenisRequestError
 
 
 class Stager:
-    def __init__(self, session: BbmriSession, printer: Printer = None):
+    def __init__(self, session: BbmriSession, printer: Printer):
         self.session = session
-        self.printer: Printer = printer if printer else Printer()
+        self.printer = printer
 
     def stage(self, node: ExternalServerNode):
         """

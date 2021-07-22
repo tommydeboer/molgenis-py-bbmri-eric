@@ -9,11 +9,11 @@ from molgenis.client import MolgenisRequestError
 
 
 class Publisher:
-    def __init__(self, session: BbmriSession, printer: Printer = None):
+    def __init__(self, session: BbmriSession, printer: Printer):
         self.session = session
-        self.quality_info: Dict[TableType, Set[str]] = self._get_quality_info()
-        self.printer = printer if printer else Printer()
+        self.printer = printer
         self.warnings: List[EricWarning] = []
+        self.quality_info: Dict[TableType, Set[str]] = self._get_quality_info()
 
     def publish(self, node_data: NodeData) -> List[EricWarning]:
         """
