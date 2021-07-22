@@ -33,7 +33,7 @@ class Eric:
         Parameters:
             nodes (List[ExternalServerNode]): The list of external nodes to stage
         """
-        report = ErrorReport()
+        report = ErrorReport(nodes)
         for node in nodes:
             self.printer.reset()
             self.printer.print_node_title(node)
@@ -42,6 +42,10 @@ class Eric:
             except EricError as e:
                 self.printer.print_error(e)
                 report.add_error(node, e)
+
+        if len(nodes) > 1:
+            self.printer.print_summary(report)
+
         return report
 
     def publish_nodes(self, nodes: List[Node]) -> ErrorReport:
@@ -52,7 +56,7 @@ class Eric:
         Parameters:
             nodes (List[Node]): The list of nodes to publish
         """
-        report = ErrorReport()
+        report = ErrorReport(nodes)
         publisher = Publisher(self.session, self.printer)
         for node in nodes:
             self.printer.reset()
@@ -62,6 +66,10 @@ class Eric:
             except EricError as e:
                 self.printer.print_error(e)
                 report.add_error(node, e)
+
+        if len(nodes) > 1:
+            self.printer.print_summary(report)
+
         return report
 
     def _publish_node(self, node: Node, report: ErrorReport, publisher: Publisher):

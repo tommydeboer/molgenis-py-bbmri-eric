@@ -16,6 +16,7 @@ class EricError(Exception):
 
 @dataclass
 class ErrorReport:
+    nodes: List[Node]
     errors: DefaultDict[Node, EricError] = field(
         default_factory=lambda: defaultdict(list)
     )
