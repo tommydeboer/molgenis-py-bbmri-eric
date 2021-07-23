@@ -2,6 +2,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, List
 
+import requests
+
 from molgenis.bbmri_eric._model import Node
 
 
@@ -36,3 +38,13 @@ class ErrorReport:
 
     def has_warnings(self) -> bool:
         return len(self.warnings) > 0
+
+
+def requests_error_handler(func):
+    def inner_function(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.RequestException as e:
+            raise EricError("Request failed") from e
+
+    return inner_function
