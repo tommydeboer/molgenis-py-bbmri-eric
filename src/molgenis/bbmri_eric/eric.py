@@ -1,12 +1,12 @@
 from typing import List
 
 from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData
+from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric._validation import Validator
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
-from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
 
 

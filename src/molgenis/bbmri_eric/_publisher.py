@@ -2,9 +2,9 @@ from typing import Dict, List, Set
 
 from molgenis.bbmri_eric import _enrichment
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
-from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
 
 

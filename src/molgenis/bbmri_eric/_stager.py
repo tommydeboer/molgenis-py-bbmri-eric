@@ -1,7 +1,7 @@
 from molgenis.bbmri_eric._model import ExternalServerNode, TableType
+from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError
-from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
 
 

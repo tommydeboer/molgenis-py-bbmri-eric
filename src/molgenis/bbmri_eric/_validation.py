@@ -2,8 +2,8 @@ import re
 from typing import List, Set
 
 from molgenis.bbmri_eric._model import NodeData, Table
+from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric.errors import EricWarning
-from molgenis.bbmri_eric.printer import Printer
 
 
 class Validator:
