@@ -1,9 +1,7 @@
 from typing import List
 
 
-def transform_to_molgenis_upload_format(
-    rows: List[dict], one_to_manys: List[str]
-) -> List[dict]:
+def to_upload_format(rows: List[dict], one_to_manys: List[str]) -> List[dict]:
     """
     Changes the output of the REST Client such that it can be uploaded again:
     1. One to manys are removed.

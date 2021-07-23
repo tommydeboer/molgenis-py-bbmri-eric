@@ -5,6 +5,11 @@ from molgenis.bbmri_eric.errors import EricError, EricWarning, ErrorReport
 
 
 class Printer:
+    """
+    Simple printer that keeps track of indentation levels. Also has utility methods
+    for printing some Eric objects.
+    """
+
     def __init__(self):
         self.indents = 0
 
@@ -19,7 +24,7 @@ class Printer:
 
     def print(self, value: str = None):
         if value:
-            print(f"{'  ' * self.indents}{value}")
+            print(f"{'    ' * self.indents}{value}")
         else:
             print()
 
@@ -59,7 +64,7 @@ class Printer:
                     message += f" with {len(report.warnings[node])} warnings"
             elif node in report.warnings:
                 message = (
-                    f"⚠️ Node {node.code} finished successfully but with "
+                    f"⚠️ Node {node.code} finished successfully with "
                     f"{len(report.warnings[node])} warnings "
                 )
             else:

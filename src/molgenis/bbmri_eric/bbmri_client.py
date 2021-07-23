@@ -68,7 +68,7 @@ class BbmriSession(Session):
         """
         rows = self.get(entity_type_id, batch_size=10000)
         ref_names = self.get_reference_attribute_names(entity_type_id)
-        return _utils.transform_to_molgenis_upload_format(rows, ref_names.one_to_manys)
+        return _utils.to_upload_format(rows, ref_names.one_to_manys)
 
     def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
         """

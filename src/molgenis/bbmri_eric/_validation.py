@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Set
 
-from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
+from molgenis.bbmri_eric._model import Node, NodeData, Table
 from molgenis.bbmri_eric.errors import EricWarning
 
 
@@ -83,7 +83,7 @@ def _validate_ref(row: dict, ref_id: str, state: ValidationState):
 def validate_bbmri_id(table: Table, node: Node, id_: str) -> List[EricWarning]:
     errors = []
 
-    prefix = get_id_prefix(table.type, node)
+    prefix = node.get_id_prefix(table.type)
     if not id_.startswith(prefix):
         errors.append(
             EricWarning(

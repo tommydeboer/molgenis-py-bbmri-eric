@@ -6,13 +6,18 @@ from molgenis.client import MolgenisRequestError
 
 
 class Stager:
+    """
+    This class is responsible for copying data from a node with an external server to
+    its staging area in the BBMRI ERIC directory.
+    """
+
     def __init__(self, session: BbmriSession, printer: Printer):
         self.session = session
         self.printer = printer
 
     def stage(self, node: ExternalServerNode):
         """
-        Stages all data from the provided external nodes in the BBMRI-ERIC directory.
+        Stages all data from the provided external node in the BBMRI-ERIC directory.
         """
         self.printer.print(f"🗑 Clearing staging area of {node.code}")
         self._clear_staging_area(node)
@@ -24,7 +29,7 @@ class Stager:
 
     def _clear_staging_area(self, node: ExternalServerNode):
         """
-        Deletes all data in the staging area of an external node
+        Deletes all data in the staging area of an external node.
         """
         try:
             for table_type in reversed(TableType.get_import_order()):
@@ -34,7 +39,7 @@ class Stager:
 
     def _import_node(self, node: ExternalServerNode):
         """
-        Get data from staging area to their own entity on 'self'
+        Copies the data from the external server to the staging area.
         """
         self.printer.indent()
         source_session = BbmriSession(url=node.url)

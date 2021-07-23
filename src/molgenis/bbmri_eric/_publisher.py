@@ -1,7 +1,7 @@
 from typing import Dict, List, Set
 
 from molgenis.bbmri_eric import _enrichment
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType, get_id_prefix
+from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.bbmri_eric.printer import Printer
@@ -9,6 +9,11 @@ from molgenis.client import MolgenisRequestError
 
 
 class Publisher:
+    """
+    This class is responsible for copying data from the staging areas to the combined
+    public tables.
+    """
+
     def __init__(self, session: BbmriSession, printer: Printer):
         self.session = session
         self.printer = printer
@@ -17,17 +22,24 @@ class Publisher:
 
     def publish(self, node_data: NodeData) -> List[EricWarning]:
         """
-        Publishes data from the provided node to the production tables.
+        Publishes data from the provided node to the production tables. Before being
+        copied over, the data is enriched with additional information.
         """
         self.warnings = []
         self.printer.print(f"✏️ Enriching data of node {node_data.node.code}")
         _enrichment.enrich_node(node_data)
 
-        self.printer.print(f"✉️ Publishing data of node {node_data.node.code}")
-        self._publish_node_data(node_data)
+        self.printer.print(f"✉️ Copying data of node {node_data.node.code}")
+        self._copy_node_data(node_data)
         return self.warnings
 
-    def _publish_node_data(self, node_data: NodeData):
+    def _copy_node_data(self, node_data: NodeData):
+        """
+        Copies the data of a staging area to the combined tables. This happens in two
+        phases:
+        1. New/existing rows are upserted in the combined tables
+        2. Removed rows are deleted from the combined tables
+        """
         self.printer.indent()
         for table in node_data.import_order:
             self.printer.print(f"Upserting rows in {table.type.base_id}")
@@ -45,6 +57,14 @@ class Publisher:
         self.printer.dedent()
 
     def _delete_rows(self, table: Table, node: Node):
+        """
+        Deletes rows from a combined table that are not present in the staging area's
+        table. If a row is referenced from the quality info tables, it is not deleted
+        but a warning will be raised.
+
+        :param Table table: the staging area's table
+        :node Node node: the Node that is being published
+        """
         # Compare the ids from staging and production to see what was deleted
         staging_ids = {row["id"] for row in table.rows}
         production_ids = self._get_production_ids(table, node)
@@ -74,7 +94,7 @@ class Publisher:
         return {
             row["id"]
             for row in rows
-            if row["id"].startswith(get_id_prefix(table.type, node))
+            if row["id"].startswith(node.get_id_prefix(table.type))
         }
 
     def _get_quality_info(self) -> Dict[TableType, Set[str]]:
