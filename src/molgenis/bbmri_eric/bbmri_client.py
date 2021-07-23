@@ -15,6 +15,10 @@ from molgenis.client import Session
 
 @dataclass(frozen=True)
 class ReferenceAttributeNames:
+    """
+    Object containing names of all reference attributes of an entity type.
+    """
+
     xrefs: List[str]
     mrefs: List[str]
     categoricals: List[str]
@@ -40,6 +44,17 @@ class BbmriSession(Session):
         self.url = url
 
     def get_node_data(self, node: Node, staging: bool) -> NodeData:
+        """
+        Gets the four tables that belong to a single node. If staging=True, this
+        method will fetch the tables from the node's staging area, else it will use the
+        base table identifiers.
+
+        :param Node node: the node to get the data for
+        :param bool staging: true if the staging data should be retrieved, false if the
+                             default tables should be retrieved
+        :return: a NodeData object
+        """
+
         tables = dict()
         for table_type in TableType.get_import_order():
             if staging:

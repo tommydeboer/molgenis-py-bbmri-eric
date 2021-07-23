@@ -13,15 +13,11 @@ from molgenis.client import MolgenisRequestError
 class Eric:
     """
     Main class for doing operations on the ERIC directory.
-
-    Attributes:
-        session (BbmriSession): The session with an ERIC directory
     """
 
     def __init__(self, session: BbmriSession):
         """
-        Parameters:
-            session: an (authenticated) session with an ERIC directory
+        :param BbmriSession session: an authenticated session with an ERIC directory
         """
         self.session = session
         self.printer = Printer()
