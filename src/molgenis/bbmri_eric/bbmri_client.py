@@ -101,6 +101,7 @@ class BbmriSession(Session):
         @param entity_type_id: the id of the entity type to upsert to
         @param entities: the entities to upsert
         """
+        # Get the existing identifiers
         meta = self.get_entity_meta_data(entity_type_id)
         id_attr = meta["idAttribute"]
         existing_entities = self.get(
@@ -108,6 +109,7 @@ class BbmriSession(Session):
         )
         existing_ids = {entity[id_attr] for entity in existing_entities}
 
+        # Based on the existing identifiers, decide which rows should be added/updated
         add = list()
         update = list()
         for entity in entities:
@@ -116,6 +118,7 @@ class BbmriSession(Session):
             else:
                 add.append(entity)
 
+        # Do the adds and updates in batches
         self.add_batched(entity_type_id, add)
         self.update_batched(entity_type_id, update)
 
