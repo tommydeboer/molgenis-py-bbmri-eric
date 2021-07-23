@@ -1,9 +1,9 @@
 from typing import List
 
-from molgenis.bbmri_eric import _validation
 from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
+from molgenis.bbmri_eric._validation import Validator
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.bbmri_eric.printer import Printer
@@ -42,9 +42,7 @@ class Eric:
                 self.printer.print_error(e)
                 report.add_error(node, e)
 
-        if len(nodes) > 1:
-            self.printer.print_summary(report)
-
+        self.printer.print_summary(report)
         return report
 
     def publish_nodes(self, nodes: List[Node]) -> ErrorReport:
@@ -65,9 +63,7 @@ class Eric:
                 self.printer.print_error(e)
                 report.add_error(node, e)
 
-        if len(nodes) > 1:
-            self.printer.print_summary(report)
-
+        self.printer.print_summary(report)
         return report
 
     @requests_error_handler
@@ -109,10 +105,9 @@ class Eric:
         self.printer.print(f"🔎 Validating staging data of node {node_data.node.code}")
         self.printer.indent()
 
-        warnings = _validation.validate_node(node_data)
+        warnings = Validator(node_data, self.printer).validate()
         if warnings:
             report.add_warnings(node_data.node, warnings)
-            self.printer.print_warnings(warnings)
 
         self.printer.dedent()
 

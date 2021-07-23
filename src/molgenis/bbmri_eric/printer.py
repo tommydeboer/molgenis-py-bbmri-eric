@@ -1,5 +1,3 @@
-from typing import List
-
 from molgenis.bbmri_eric._model import Node
 from molgenis.bbmri_eric.errors import EricError, EricWarning, ErrorReport
 
@@ -45,10 +43,6 @@ class Printer:
 
     def print_warning(self, warning: EricWarning):
         self.print(f"⚠️ {warning.message}")
-
-    def print_warnings(self, warnings: List[EricWarning]):
-        for warning in warnings:
-            self.print_warning(warning)
 
     def print_summary(self, report: ErrorReport):
         self.reset_indent()
