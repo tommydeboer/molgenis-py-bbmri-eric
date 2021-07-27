@@ -4,7 +4,7 @@ from molgenis.bbmri_eric._model import ExternalServerNode, Node
 
 _external_nodes = {
     "BE": ExternalServerNode("BE", "https://directory.bbmri.be"),
-    "BG": ExternalServerNode("BG", "https://directory.bbmri.bg"),
+    "BG": ExternalServerNode("BG", "https://bbmri-bg.molgeniscloud.org"),
     "DE": ExternalServerNode("DE", "https://directory.bbmri.de"),
     "NL": ExternalServerNode("NL", "https://catalogue.bbmri.nl"),
 }

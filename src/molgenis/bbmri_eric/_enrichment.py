@@ -2,6 +2,13 @@ from molgenis.bbmri_eric._model import NodeData
 
 
 def enrich_node(node_data: NodeData):
+    """
+    Takes the data of a Node and sets the commercial_use boolean of all collections
+    based on a set of criteria.
+
+    :param NodeData node_data: data of a node to enrich
+    """
+
     for collection in node_data.collections.rows:
 
         def is_true(row: dict, attr: str):
