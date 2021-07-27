@@ -1,6 +1,6 @@
 from typing import Dict, List, Set
 
-from molgenis.bbmri_eric._enrichment import Enricher
+from molgenis.bbmri_eric._enricher import Enricher
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
