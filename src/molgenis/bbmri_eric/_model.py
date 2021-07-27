@@ -1,6 +1,8 @@
+import typing
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List
+from typing import List
 
 
 class TableType(Enum):
@@ -29,7 +31,7 @@ class Table:
 
     type: TableType
     full_name: str
-    rows_by_id: Dict[str, dict]
+    rows_by_id: typing.OrderedDict[str, dict]
 
     @property
     def rows(self) -> List[dict]:
@@ -37,11 +39,15 @@ class Table:
 
     @staticmethod
     def of(table_type: TableType, full_name: str, rows: List[dict]) -> "Table":
-        """Factory method that takes a list of rows instead of a dict of ids/rows."""
+        """Factory method that takes a list of rows instead of an OrderedDict of
+        ids/rows."""
+        rows_by_id = OrderedDict()
+        for row in rows:
+            rows_by_id[row["id"]] = row
         return Table(
             type=table_type,
             full_name=full_name,
-            rows_by_id={row["id"]: row for row in rows},
+            rows_by_id=rows_by_id,
         )
 
 
