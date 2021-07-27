@@ -57,24 +57,34 @@ if report.has_errors():
 ## For developers
 This project uses [pre-commit](https://pre-commit.com/) and [pipenv](https://pypi.org/project/pipenv/) for the development workflow.
 
+Install pre-commit and pipenv if you haven't already:
 ```
-# install pre-commit and pipenv if you haven't already
 pip install pre-commit
 pip install pipenv
+```
 
-# install the git commit hooks
+Install the git commit hooks:
+```
 pre-commit install
+```
 
-# create an environment and install the package including all (dev) dependencies
+Create an environment and install the package including all (dev) dependencies:
+```
 pipenv install
+```
 
-# enter the environment
+Enter the environment:
+```
 pipenv shell
+```
 
-# build and run the tests
+Build and run the tests:
+```
 tox
+```
 
-# the package's command-line entry point is already installed
+The package's command-line entry point is already installed
+```
 eric -h
 ```
 
