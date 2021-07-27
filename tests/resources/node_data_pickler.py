@@ -1,3 +1,8 @@
+"""
+Use this script to update the node_data.pkl file that contains test data (the staging
+data of node NO).
+"""
+
 import pickle
 
 from dotenv import dotenv_values
