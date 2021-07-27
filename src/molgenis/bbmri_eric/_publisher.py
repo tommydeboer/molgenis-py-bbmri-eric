@@ -1,6 +1,6 @@
 from typing import Dict, List, Set
 
-from molgenis.bbmri_eric import _enrichment
+from molgenis.bbmri_eric._enricher import Enricher
 from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
@@ -27,7 +27,9 @@ class Publisher:
         """
         self.warnings = []
         self.printer.print(f"✏️ Enriching data of node {node_data.node.code}")
-        _enrichment.enrich_node(node_data)
+        self.printer.indent()
+        Enricher(node_data, self.printer).enrich()
+        self.printer.dedent()
 
         self.printer.print(f"✉️ Copying data of node {node_data.node.code}")
         self._copy_node_data(node_data)

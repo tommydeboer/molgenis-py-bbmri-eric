@@ -8,7 +8,13 @@ from urllib.parse import quote_plus
 import requests
 
 from molgenis.bbmri_eric import _utils
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._model import (
+    ExternalServerNode,
+    Node,
+    NodeData,
+    Table,
+    TableType,
+)
 from molgenis.bbmri_eric._utils import batched
 from molgenis.client import Session
 
@@ -39,9 +45,68 @@ class BbmriSession(Session):
     BBMRI Session Class, which extends the molgenis py client Session class
     """
 
+    NODES_TABLE = "eu_bbmri_eric_national_nodes"
+
     def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
         self.url = url
+
+    def get_nodes(self, codes: List[str] = None) -> List[Node]:
+        """
+        Retrieves a list of Node objects from the national nodes table. Will return
+        all nodes or some nodes if 'codes' is specified.
+        :param codes: nodes to get by code
+        :return: list of Node objects
+        """
+        if codes:
+            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)})")
+        else:
+            nodes = self.get(self.NODES_TABLE)
+
+        if codes:
+            self._validate_codes(codes, nodes)
+        return self._to_nodes(nodes)
+
+    def get_external_nodes(self, codes: List[str] = None) -> List[ExternalServerNode]:
+        """
+        Retrieves a list of ExternalServerNode objects from the national nodes table.
+        Will return all nodes or some nodes if 'codes' is specified.
+        :param codes: nodes to get by code
+        :return: list of ExternalServerNode objects
+        """
+        if codes:
+            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)});dns!=''")
+        else:
+            nodes = self.get(self.NODES_TABLE, q="dns!=''")
+
+        if codes:
+            self._validate_codes(codes, nodes)
+        return self._to_nodes(nodes)
+
+    @staticmethod
+    def _validate_codes(codes: List[str], nodes: List[dict]):
+        """Raises a KeyError if a requested node code was not found."""
+        retrieved_codes = {node["id"] for node in nodes}
+        for code in codes:
+            if code not in retrieved_codes:
+                raise KeyError(f"Unknown code: {code}")
+
+    @staticmethod
+    def _to_nodes(nodes: List[dict]):
+        """Maps rows to Node or ExternalServerNode objects."""
+        result = list()
+        for node in nodes:
+            if "dns" not in node:
+                result.append(Node(code=node["id"], description=node["description"]))
+            else:
+                result.append(
+                    ExternalServerNode(
+                        code=node["id"],
+                        description=node["description"],
+                        url=node["dns"],
+                    )
+                )
+        return result
 
     def get_node_data(self, node: Node, staging: bool) -> NodeData:
         """

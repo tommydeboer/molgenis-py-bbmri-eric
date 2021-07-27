@@ -27,7 +27,7 @@ class Printer:
             print()
 
     def print_node_title(self, node: Node):
-        title = f"🌍 Node {node.code}"
+        title = f"🌍 Node {node.code} ({node.description})"
         border = "=" * (len(title) + 1)
         self.reset_indent()
         self.print()

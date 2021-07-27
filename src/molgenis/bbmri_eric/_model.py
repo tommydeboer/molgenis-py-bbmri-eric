@@ -50,6 +50,7 @@ class Node:
     """Represents a single national node in the BBMRI ERIC directory."""
 
     code: str
+    description: str
 
     _classifiers = {
         TableType.PERSONS: "contactID",
