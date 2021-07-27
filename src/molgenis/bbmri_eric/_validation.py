@@ -1,103 +1,96 @@
 import re
-from dataclasses import dataclass, field
 from typing import List, Set
 
-from molgenis.bbmri_eric._model import Node, NodeData, Table, get_id_prefix
+from molgenis.bbmri_eric._model import NodeData, Table
 from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.printer import Printer
 
 
-@dataclass()
-class ValidationState:
-
-    invalid_ids: Set[str] = field(default_factory=lambda: set())
-    violations: List[EricWarning] = field(default_factory=lambda: list())
-
-    def add_invalid_id(self, id_: str, violations: List[EricWarning]):
-        self.invalid_ids.add(id_)
-        self.violations.extend(violations)
-
-
-def validate_node(node_data: NodeData) -> List[EricWarning]:
+class Validator:
     """
-    Validates the staging tables of a single node. Keeps track of any invalid rows in a
-    ValidationState object.
+    This class is responsible for validating the data in a single node. Validation
+    consists of:
+    1. Checking the validity of all identifiers
+    2. Checking if there are rows that reference rows with invalid identifiers
     """
-    state = ValidationState()
 
-    for table in node_data.import_order:
-        _validate_ids(table, node_data.node, state)
+    def __init__(self, node_data: NodeData, printer: Printer):
+        self.printer = printer
+        self.node_data = node_data
+        self.invalid_ids: Set[str] = set()
+        self.warnings: List[EricWarning] = list()
 
-    _validate_networks(node_data, state)
-    _validate_biobanks(node_data, state)
-    _validate_collections(node_data, state)
+    def validate(self) -> List[EricWarning]:
+        for table in self.node_data.import_order:
+            self._validate_ids(table)
 
-    return state.violations
+        self._validate_networks()
+        self._validate_biobanks()
+        self._validate_collections()
 
+        return self.warnings
 
-def _validate_ids(table: Table, node: Node, state: ValidationState):
-    for row in table.rows:
-        id_ = row["id"]
-        errors = validate_bbmri_id(table, node, row["id"])
-        if errors:
-            state.add_invalid_id(id_, errors)
+    def _validate_ids(self, table: Table):
+        for row in table.rows:
+            id_ = row["id"]
+            errors = self._validate_id(table, row["id"])
+            if errors:
+                self._add_invalid_id(id_, errors)
 
+    def _validate_networks(self):
+        for network in self.node_data.networks.rows:
+            self._validate_xref(network, "contact")
+            self._validate_mref(network, "parent_network")
 
-def _validate_networks(node_data: NodeData, state: ValidationState):
-    for network in node_data.networks.rows:
-        _validate_xref(network, "contact", state)
-        _validate_mref(network, "parent_network", state)
+    def _validate_biobanks(self):
+        for biobank in self.node_data.biobanks.rows:
+            self._validate_xref(biobank, "contact")
+            self._validate_mref(biobank, "network")
 
+    def _validate_collections(self):
+        for collection in self.node_data.collections.rows:
+            self._validate_xref(collection, "contact")
+            self._validate_xref(collection, "biobank")
+            self._validate_mref(collection, "parent_collection")
+            self._validate_mref(collection, "networks")
 
-def _validate_biobanks(node_data: NodeData, state: ValidationState):
-    for biobank in node_data.biobanks.rows:
-        _validate_xref(biobank, "contact", state)
-        _validate_mref(biobank, "network", state)
+    def _validate_xref(self, row: dict, ref_attr: str):
+        if ref_attr in row:
+            self._validate_ref(row, row[ref_attr])
 
+    def _validate_mref(self, row: dict, mref_attr: str):
+        if mref_attr in row:
+            for ref_id in row[mref_attr]:
+                self._validate_ref(row, ref_id)
 
-def _validate_collections(node_data: NodeData, state: ValidationState):
-    for collection in node_data.collections.rows:
-        _validate_xref(collection, "contact", state)
-        _validate_xref(collection, "biobank", state)
-        _validate_mref(collection, "parent_collection", state)
-        _validate_mref(collection, "networks", state)
+    def _validate_ref(self, row: dict, ref_id: str):
+        if ref_id in self.invalid_ids:
+            warning = EricWarning(f"{row['id']} references invalid id: {ref_id}")
+            self.printer.print_warning(warning)
+            self.warnings.append(warning)
 
+    def _validate_id(self, table: Table, id_: str) -> List[EricWarning]:
+        errors = []
 
-def _validate_xref(row: dict, ref_attr: str, state: ValidationState):
-    if ref_attr in row:
-        _validate_ref(row, row[ref_attr], state)
-
-
-def _validate_mref(row: dict, mref_attr: str, state: ValidationState):
-    if mref_attr in row:
-        for ref_id in row[mref_attr]:
-            _validate_ref(row, ref_id, state)
-
-
-def _validate_ref(row: dict, ref_id: str, state: ValidationState):
-    if ref_id in state.invalid_ids:
-        state.violations.append(
-            EricWarning(f"{row['id']} references invalid id: {ref_id}")
-        )
-
-
-def validate_bbmri_id(table: Table, node: Node, id_: str) -> List[EricWarning]:
-    errors = []
-
-    prefix = get_id_prefix(table.type, node)
-    if not id_.startswith(prefix):
-        errors.append(
-            EricWarning(
+        prefix = self.node_data.node.get_id_prefix(table.type)
+        if not id_.startswith(prefix):
+            warning = EricWarning(
                 f"{id_} in entity: {table.full_name} does not start with {prefix}"
             )
-        )
+            self.printer.print_warning(warning)
+            errors.append(warning)
 
-    id_value = id_.lstrip(prefix)
-    if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
-        errors.append(
-            EricWarning(
+        id_value = id_.lstrip(prefix)
+        if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
+            warning = EricWarning(
                 f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
                 f"invalid characters. Only alphanumerics and -_:@. are allowed."
             )
-        )
+            self.printer.print_warning(warning)
+            errors.append(warning)
 
-    return errors
+        return errors
+
+    def _add_invalid_id(self, id_: str, warnings: List[EricWarning]):
+        self.invalid_ids.add(id_)
+        self.warnings.extend(warnings)

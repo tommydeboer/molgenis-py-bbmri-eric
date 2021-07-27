@@ -2,20 +2,35 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import DefaultDict, List
 
+import requests
+
 from molgenis.bbmri_eric._model import Node
 
 
 @dataclass(frozen=True)
 class EricWarning:
+    """
+    Class that contains a warning message. Use this when a problem occurs that
+    shouldn't cancel the current action (for example staging or publishing).
+    """
+
     message: str
 
 
 class EricError(Exception):
+    """
+    Raise this exception when an error occurs that we can not recover from.
+    """
+
     pass
 
 
 @dataclass
 class ErrorReport:
+    """
+    Summary object. Stores errors and warnings that occurred for each node.
+    """
+
     nodes: List[Node]
     errors: DefaultDict[Node, EricError] = field(
         default_factory=lambda: defaultdict(list)
@@ -36,3 +51,17 @@ class ErrorReport:
 
     def has_warnings(self) -> bool:
         return len(self.warnings) > 0
+
+
+def requests_error_handler(func):
+    """
+    Decorator that catches RequestExceptions and wraps them in an EricError.
+    """
+
+    def inner_function(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except requests.exceptions.RequestException as e:
+            raise EricError("Request failed") from e
+
+    return inner_function

@@ -4,6 +4,8 @@ from typing import Dict, List
 
 
 class TableType(Enum):
+    """Enum representing the four tables each national node has."""
+
     PERSONS = "persons"
     NETWORKS = "networks"
     BIOBANKS = "biobanks"
@@ -34,7 +36,8 @@ class Table:
         return list(self.rows_by_id.values())
 
     @staticmethod
-    def of(table_type: TableType, full_name: str, rows: List[dict]):
+    def of(table_type: TableType, full_name: str, rows: List[dict]) -> "Table":
+        """Factory method that takes a list of rows instead of a dict of ids/rows."""
         return Table(
             type=table_type,
             full_name=full_name,
@@ -44,20 +47,49 @@ class Table:
 
 @dataclass(frozen=True)
 class Node:
+    """Represents a single national node in the BBMRI ERIC directory."""
+
     code: str
-    package = "eu_bbmri_eric"
+
+    _classifiers = {
+        TableType.PERSONS: "contactID",
+        TableType.NETWORKS: "networkID",
+        TableType.BIOBANKS: "ID",
+        TableType.COLLECTIONS: "ID",
+    }
 
     def get_staging_id(self, table_type: TableType) -> str:
-        return f"{self.package}_{self.code}_{table_type.value}"
+        """
+        Returns the identifier of a node's staging table.
+
+        :param TableType table_type: the table to get the staging id of
+        :return: the id of the staging table
+        """
+        return f"eu_bbmri_eric_{self.code}_{table_type.value}"
+
+    def get_id_prefix(self, table_type: TableType) -> str:
+        """
+        Each table has a specific prefix for the identifiers of its rows. This prefix is
+        based on the node's code and the classifier of the table.
+
+        :param TableType table_type: the table to get the id prefix for
+        :return: the id prefix
+        """
+        classifier = self._classifiers[table_type]
+        return f"bbmri-eric:{classifier}:{self.code}_"
 
 
 @dataclass(frozen=True)
 class ExternalServerNode(Node):
+    """Represents a node that has an external server on which its data is hosted."""
+
     url: str
 
 
 @dataclass(frozen=True)
 class NodeData:
+    """Container object storing the four tables of a single node."""
+
     node: Node
     is_staging: bool
     persons: Table
@@ -68,16 +100,3 @@ class NodeData:
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
-
-
-_classifiers = {
-    TableType.PERSONS: "contactID",
-    TableType.NETWORKS: "networkID",
-    TableType.BIOBANKS: "ID",
-    TableType.COLLECTIONS: "ID",
-}
-
-
-def get_id_prefix(table_type: TableType, node: Node):
-    classifier = _classifiers[table_type]
-    return f"bbmri-eric:{classifier}:{node.code}_"
