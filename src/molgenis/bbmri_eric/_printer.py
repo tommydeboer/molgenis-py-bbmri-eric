@@ -55,11 +55,11 @@ class Printer:
             if node in report.errors:
                 message = f"❌ Node {node.code} failed"
                 if node in report.warnings:
-                    message += f" with {len(report.warnings[node])} warnings"
+                    message += f" with {len(report.warnings[node])} warning(s)"
             elif node in report.warnings:
                 message = (
                     f"⚠️ Node {node.code} finished successfully with "
-                    f"{len(report.warnings[node])} warnings "
+                    f"{len(report.warnings[node])} warning(s)"
                 )
             else:
                 message = f"✅ Node {node.code} finished successfully"
