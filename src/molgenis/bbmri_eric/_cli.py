@@ -6,7 +6,6 @@ from getpass import getpass
 from typing import List, Tuple
 
 from molgenis.bbmri_eric import __version__, bbmri_client
-from molgenis.bbmri_eric import nodes as national_nodes
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.client import MolgenisRequestError
@@ -69,17 +68,27 @@ def _get_username_password(args) -> Tuple[str, str]:
 def execute_command(args, eric: Eric):
     all_nodes = len(args.nodes) == 1 and args.nodes[0] == "all"
     if args.action == "stage":
-        if all_nodes:
-            nodes = national_nodes.get_all_external_nodes()
+        try:
+            if all_nodes:
+                nodes = eric.session.get_external_nodes()
+            else:
+                codes = [code.upper() for code in args.nodes]
+                nodes = eric.session.get_external_nodes(codes)
+        except KeyError as e:
+            eric.printer.print(str(e))
         else:
-            nodes = national_nodes.get_external_nodes(args.nodes)
-        eric.stage_external_nodes(nodes)
+            eric.stage_external_nodes(nodes)
     elif args.action == "publish":
-        if all_nodes:
-            nodes = national_nodes.get_all_nodes()
+        try:
+            if all_nodes:
+                nodes = eric.session.get_nodes()
+            else:
+                codes = [code.upper() for code in args.nodes]
+                nodes = eric.session.get_nodes(codes)
+        except KeyError as e:
+            eric.printer.print(str(e))
         else:
-            nodes = national_nodes.get_nodes(args.nodes)
-        eric.publish_nodes(nodes)
+            eric.publish_nodes(nodes)
     else:
         raise ValueError("Unknown command")
 
