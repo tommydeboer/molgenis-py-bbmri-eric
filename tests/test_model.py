@@ -37,7 +37,7 @@ def test_table_factory_method():
 
 
 def test_node_staging_id():
-    node = Node("NL")
+    node = Node("NL", "NL")
 
     assert node.get_staging_id(TableType.PERSONS) == "eu_bbmri_eric_NL_persons"
     assert node.get_staging_id(TableType.NETWORKS) == "eu_bbmri_eric_NL_networks"
@@ -46,7 +46,7 @@ def test_node_staging_id():
 
 
 def test_node_id_prefix():
-    node = Node("BE")
+    node = Node("BE", "BE")
 
     assert node.get_id_prefix(TableType.PERSONS) == "bbmri-eric:contactID:BE_"
     assert node.get_id_prefix(TableType.NETWORKS) == "bbmri-eric:networkID:BE_"
@@ -55,7 +55,7 @@ def test_node_id_prefix():
 
 
 def test_external_server_node():
-    node = ExternalServerNode("NL", url="test.nl")
+    node = ExternalServerNode("NL", description="NL", url="test.nl")
 
     assert node.get_staging_id(TableType.PERSONS) == "eu_bbmri_eric_NL_persons"
     assert node.url == "test.nl"
@@ -66,7 +66,7 @@ def test_node_data_order():
     networks = Table.of(TableType.NETWORKS, "NL_persons", [{"id": "1"}])
     biobanks = Table.of(TableType.BIOBANKS, "NL_persons", [{"id": "1"}])
     collections = Table.of(TableType.COLLECTIONS, "NL_persons", [{"id": "1"}])
-    node = Node("NL")
+    node = Node("NL", "NL")
 
     node_data = NodeData(
         node,
