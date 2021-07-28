@@ -42,9 +42,9 @@ class Stager:
         Copies the data from the external server to the staging area.
         """
         self.printer.indent()
-        source_session = BbmriSession(url=node.url)
 
         try:
+            source_session = BbmriSession(url=node.url)
             source_data = source_session.get_node_data(node, staging=False)
         except MolgenisRequestError as e:
             raise EricError(f"Error getting data from {node.url}") from e
