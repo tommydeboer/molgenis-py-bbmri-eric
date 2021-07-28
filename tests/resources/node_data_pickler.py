@@ -20,7 +20,7 @@ password = config["PASSWORD"]
 # get staging data of node NL
 session = BbmriSession(url=target)
 session.login(username, password)
-node_data = session.get_node_data(Node("NO"), staging=True)
+node_data = session.get_node_data(Node("NO", "Norway"), staging=True)
 
 # pickle and write the NodeData object to file
 file = open("node_data.pkl", "wb")
