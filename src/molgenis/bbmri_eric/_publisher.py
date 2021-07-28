@@ -92,12 +92,14 @@ class Publisher:
                     self.warnings.append(warning)
 
     def _get_production_ids(self, table: Table, node: Node) -> Set[str]:
-        rows = self.session.get(table.type.base_id, batch_size=10000, attributes="id")
-        return {
-            row["id"]
-            for row in rows
-            if row["id"].startswith(node.get_id_prefix(table.type))
-        }
+        try:
+            rows = self.session.get(
+                table.type.base_id, batch_size=10000, attributes="id,national_node"
+            )
+        except MolgenisRequestError as e:
+            raise EricError(f"Error getting rows from {table.type.base_id}") from e
+
+        return {row["id"] for row in rows if row.get("national_node", "") == node.code}
 
     def _get_quality_info(self) -> Dict[TableType, Set[str]]:
         biobanks = self.session.get(
