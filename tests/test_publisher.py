@@ -7,18 +7,21 @@ from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 
 
-@patch("molgenis.bbmri_eric._enricher.Enricher.enrich")
+@patch("molgenis.bbmri_eric._publisher.Enricher")
 @patch("molgenis.bbmri_eric._publisher.Publisher._get_quality_info")
-def test_publish(enrich_func, get_quality_info_func, node_data: NodeData):
+def test_publish(get_quality_info_func, enricher_mock, node_data: NodeData):
+    enricher_instance = enricher_mock.return_value
     get_quality_info_func.return_value = {}
     session = BbmriSession("url")
     session.upsert_batched = MagicMock()
-    publisher = Publisher(session, Printer())
+    printer = Printer()
+    publisher = Publisher(session, printer)
     publisher._delete_rows = MagicMock()
 
     publisher.publish(node_data)
 
-    enrich_func.assert_called()
+    assert enricher_mock.called_with(node_data, printer)
+    enricher_instance.enrich.assert_called_once()
     assert session.upsert_batched.mock_calls == [
         mock.call("eu_bbmri_eric_persons", node_data.persons.rows),
         mock.call("eu_bbmri_eric_networks", node_data.networks.rows),
@@ -34,7 +37,7 @@ def test_publish(enrich_func, get_quality_info_func, node_data: NodeData):
 
 
 @patch("molgenis.bbmri_eric._publisher.Publisher._get_quality_info")
-def test_delete_rows(get_quality_info_func, node_data):
+def test_delete_rows(get_quality_info_func, node_data: NodeData):
     get_quality_info_func.return_value = {TableType.BIOBANKS: {"undeletable_id"}}
     session = BbmriSession("url")
     session.delete_list = MagicMock()
