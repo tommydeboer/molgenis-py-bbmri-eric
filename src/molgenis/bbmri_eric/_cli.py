@@ -40,7 +40,6 @@ def main(args: List[str]):
       args (List[str]): command line parameters as list of strings
     """
     args = parse_args(args)
-    setup_logging(args.loglevel)
     session = _create_session(args)
     eric = Eric(session)
     execute_command(args, eric)
@@ -94,18 +93,6 @@ def execute_command(args, eric: Eric):
         raise ValueError("Unknown command")
 
 
-def setup_logging(loglevel):
-    """Setup basic logging
-
-    Args:
-      loglevel (int): minimum loglevel for emitting messages
-    """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
-    logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-
 def run():
     """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`"""
     main(sys.argv[1:])
@@ -154,22 +141,6 @@ def parse_args(args):
         "--version",
         action="version",
         version="molgenis-py-bbmri-eric {ver}".format(ver=__version__),
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        help="set loglevel to INFO",
-        action="store_const",
-        const=logging.INFO,
-    )
-    parser.add_argument(
-        "-vv",
-        "--very-verbose",
-        dest="loglevel",
-        help="set loglevel to DEBUG",
-        action="store_const",
-        const=logging.DEBUG,
     )
     return parser.parse_args(args)
 

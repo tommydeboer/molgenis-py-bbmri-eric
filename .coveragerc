@@ -2,6 +2,7 @@
 [run]
 branch = True
 source = bbmri_eric
+data_file = reports/.coverage
 # omit = bad_file.py
 
 [paths]

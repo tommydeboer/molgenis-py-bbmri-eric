@@ -1,7 +1,7 @@
 from molgenis.bbmri_eric._model import ExternalServerNode, TableType
+from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric.bbmri_client import BbmriSession
 from molgenis.bbmri_eric.errors import EricError
-from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
 
 
@@ -42,9 +42,9 @@ class Stager:
         Copies the data from the external server to the staging area.
         """
         self.printer.indent()
-        source_session = BbmriSession(url=node.url)
 
         try:
+            source_session = BbmriSession(url=node.url)
             source_data = source_session.get_node_data(node, staging=False)
         except MolgenisRequestError as e:
             raise EricError(f"Error getting data from {node.url}") from e

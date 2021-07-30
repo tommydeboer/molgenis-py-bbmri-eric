@@ -20,11 +20,10 @@ def to_upload_format(rows: List[dict], one_to_manys: List[str]) -> List[dict]:
                 # Change xref dicts to id
                 ref = row[attr]["id"]
                 row[attr] = ref
-            elif type(row[attr]) is list:
-                if len(row[attr]) > 0:
-                    # Change mref list of dicts to list of ids
-                    mref = [ref["id"] for ref in row[attr]]
-                    row[attr] = mref
+            elif type(row[attr]) is list and len(row[attr]) > 0:
+                # Change mref list of dicts to list of ids
+                mref = [ref["id"] for ref in row[attr]]
+                row[attr] = mref
 
         upload_format.append(row)
     return upload_format
