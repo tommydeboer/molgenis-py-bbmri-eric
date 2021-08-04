@@ -9,6 +9,7 @@ from molgenis.bbmri_eric._model import (
     ExternalServerNode,
     Node,
     NodeData,
+    QualityInfo,
     Table,
     TableType,
 )
@@ -26,6 +27,23 @@ class BbmriSession(Session):
     def __init__(self, url: str, token: Optional[str] = None):
         super().__init__(url, token)
         self.url = url
+
+    def get_quality_info(self) -> QualityInfo:
+        """
+        Retrieves the quality information for biobanks and collections.
+        :return: a QualityInfo object
+        """
+
+        biobanks = self.get(
+            "eu_bbmri_eric_bio_qual_info", batch_size=10000, attributes="id,biobank"
+        )
+        collections = self.get(
+            "eu_bbmri_eric_col_qual_info", batch_size=10000, attributes="id,collection"
+        )
+        return QualityInfo(
+            biobanks={row["biobank"]["id"]: row["id"] for row in biobanks},
+            collections={row["collection"]["id"]: row["id"] for row in collections},
+        )
 
     def get_nodes(self, codes: List[str] = None) -> List[Node]:
         """

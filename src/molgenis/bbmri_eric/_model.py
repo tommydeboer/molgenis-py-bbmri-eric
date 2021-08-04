@@ -107,3 +107,24 @@ class NodeData:
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+
+@dataclass(frozen=True)
+class QualityInfo:
+    """
+    Stores the quality information for biobanks and collections.
+    """
+
+    biobanks: dict[str, str]
+    """Dictionary of biobank ids and their quality ids"""
+
+    collections: dict[str, str]
+    """Dictionary of collection ids and their quality ids"""
+
+    def get_qualities(self, table_type: TableType) -> dict:
+        if table_type == TableType.BIOBANKS:
+            return self.biobanks
+        elif table_type == TableType.COLLECTIONS:
+            return self.collections
+        else:
+            return dict()
