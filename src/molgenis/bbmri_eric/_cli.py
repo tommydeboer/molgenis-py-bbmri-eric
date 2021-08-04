@@ -1,5 +1,6 @@
 import argparse
 import logging
+import signal
 import sys
 import textwrap
 from getpass import getpass
@@ -39,6 +40,7 @@ def main(args: List[str]):
     Args:
       args (List[str]): command line parameters as list of strings
     """
+    signal.signal(signal.SIGINT, interrupt_handler)
     args = parse_args(args)
     session = _create_session(args)
     eric = Eric(session)
@@ -96,6 +98,16 @@ def execute_command(args, eric: Eric):
 def run():
     """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`"""
     main(sys.argv[1:])
+
+
+# noinspection PyUnusedLocal
+def interrupt_handler(sig, frame):
+    """
+    Prints a friendly message instead of a traceback if the program is
+    interrupted/stopped by a user.
+    """
+    print("Interrupted by user")
+    sys.exit(0)
 
 
 def parse_args(args):
