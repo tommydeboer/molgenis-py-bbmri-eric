@@ -1,7 +1,4 @@
 import json
-from collections import defaultdict
-from dataclasses import dataclass
-from enum import Enum
 from typing import List, Optional
 from urllib.parse import quote_plus
 
@@ -17,27 +14,6 @@ from molgenis.bbmri_eric._model import (
 )
 from molgenis.bbmri_eric._utils import batched
 from molgenis.client import Session
-
-
-@dataclass(frozen=True)
-class ReferenceAttributeNames:
-    """
-    Object containing names of all reference attributes of an entity type.
-    """
-
-    xrefs: List[str]
-    mrefs: List[str]
-    categoricals: List[str]
-    categorical_mrefs: List[str]
-    one_to_manys: List[str]
-
-
-class ReferenceType(Enum):
-    XREF = "XREF"
-    MREF = "MREF"
-    CATEGORICAL = "CATEGORICAL"
-    CATEGORICAL_MREF = "CATEGORICAL_MREF"
-    ONE_TO_MANY = "ONE_TO_MANY"
 
 
 class BbmriSession(Session):
@@ -147,33 +123,7 @@ class BbmriSession(Session):
         Returns all the rows of an entity type, transformed to the uploadable format.
         """
         rows = self.get(entity_type_id, batch_size=10000)
-        ref_names = self.get_reference_attribute_names(entity_type_id)
-        return _utils.to_upload_format(rows, ref_names.one_to_manys)
-
-    def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
-        """
-        Gets the names of all reference attributes of an entity type
-
-        Parameters:
-            id_ (str): the id of the entity type
-        """
-        attrs = self.get_entity_meta_data(id_)["attributes"]
-
-        result = defaultdict(list)
-        for name, attr in attrs.items():
-            try:
-                type_ = ReferenceType[attr["fieldType"]]
-                result[type_].append(name)
-            except KeyError:
-                pass
-
-        return ReferenceAttributeNames(
-            xrefs=result.get(ReferenceType.XREF, []),
-            mrefs=result.get(ReferenceType.MREF, []),
-            categoricals=result.get(ReferenceType.CATEGORICAL, []),
-            categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
-            one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
-        )
+        return _utils.to_upload_format(rows)
 
     def upsert_batched(self, entity_type_id: str, entities: List[dict]):
         """

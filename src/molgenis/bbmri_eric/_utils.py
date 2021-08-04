@@ -1,19 +1,16 @@
 from typing import List
 
 
-def to_upload_format(rows: List[dict], one_to_manys: List[str]) -> List[dict]:
+def to_upload_format(rows: List[dict]) -> List[dict]:
     """
     Changes the output of the REST Client such that it can be uploaded again:
-    1. One to manys are removed.
+    1. Non-data fields are removed (_href and _meta).
     2. Reference objects are removed and replaced with their identifiers.
     """
     upload_format = []
     for row in rows:
-        del row["_href"]
-
-        # Remove one to manys
-        for one_to_many in one_to_manys:
-            del row[one_to_many]
+        row.pop("_href", None)
+        row.pop("_meta", None)
 
         for attr in row:
             if type(row[attr]) is dict:
