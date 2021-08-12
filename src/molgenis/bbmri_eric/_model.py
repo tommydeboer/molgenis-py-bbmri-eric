@@ -140,13 +140,13 @@ class QualityInfo:
     Stores the quality information for biobanks and collections.
     """
 
-    biobanks: dict[str, str]
+    biobanks: dict[str, List[str]]
     """Dictionary of biobank ids and their quality ids"""
 
-    collections: dict[str, str]
+    collections: dict[str, List[str]]
     """Dictionary of collection ids and their quality ids"""
 
-    def get_qualities(self, table_type: TableType) -> dict:
+    def get_qualities(self, table_type: TableType) -> Dict[str, List[str]]:
         if table_type == TableType.BIOBANKS:
             return self.biobanks
         elif table_type == TableType.COLLECTIONS:

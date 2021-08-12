@@ -62,6 +62,6 @@ class Enricher:
     def _set_quality_for_table(self, table: Table):
         for row in table.rows:
             qualities = self.quality.get_qualities(table.type)
-            quality_id = qualities.get(row["id"], None)
-            if quality_id:
-                row["quality"] = quality_id
+            quality_ids = qualities.get(row["id"], [])
+            if quality_ids:
+                row["quality"] = quality_ids

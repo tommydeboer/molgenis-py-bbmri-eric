@@ -157,19 +157,23 @@ class EricSession(ExtendedSession):
 
     def get_quality_info(self) -> QualityInfo:
         """
-        Retrieves the quality information for biobanks and collections.
+        Retrieves the quality information identifiers for biobanks and collections.
         :return: a QualityInfo object
         """
 
-        biobanks = self.get(
-            "eu_bbmri_eric_bio_qual_info", batch_size=10000, attributes="id,biobank"
+        biobank_qualities = self.get(
+            "eu_bbmri_eric_biobanks", batch_size=10000, attributes="id,quality"
         )
-        collections = self.get(
-            "eu_bbmri_eric_col_qual_info", batch_size=10000, attributes="id,collection"
+        collection_qualities = self.get(
+            "eu_bbmri_eric_collections", batch_size=10000, attributes="id,quality"
         )
+
+        biobanks = _utils.to_upload_format(biobank_qualities)
+        collections = _utils.to_upload_format(collection_qualities)
+
         return QualityInfo(
-            biobanks={row["biobank"]["id"]: row["id"] for row in biobanks},
-            collections={row["collection"]["id"]: row["id"] for row in collections},
+            biobanks={row["id"]: row["quality"] for row in biobanks},
+            collections={row["id"]: row["quality"] for row in collections},
         )
 
     def get_nodes(self, codes: List[str] = None) -> List[Node]:
