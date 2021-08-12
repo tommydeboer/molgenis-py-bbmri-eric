@@ -248,7 +248,6 @@ class EricSession(ExtendedSession):
                 table_type=table_type,
                 full_name=id_,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
-                metadata=self.get_entity_meta_data(id_),
             )
 
         return NodeData.from_dict(node=node, source=Source.STAGING, tables=tables)
@@ -272,7 +271,6 @@ class EricSession(ExtendedSession):
                 rows=self.get_uploadable_data(
                     id_, batch_size=10000, q=f"national_node=={node.code}"
                 ),
-                metadata=self.get_entity_meta_data(id_),
             )
 
         return NodeData.from_dict(node=node, source=Source.PUBLISHED, tables=tables)
@@ -302,7 +300,6 @@ class ExternalServerSession(ExtendedSession):
                 table_type=table_type,
                 full_name=id_,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
-                metadata=self.get_entity_meta_data(id_),
             )
 
         return NodeData.from_dict(

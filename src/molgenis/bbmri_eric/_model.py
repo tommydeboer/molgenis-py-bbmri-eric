@@ -32,16 +32,13 @@ class Table:
     type: TableType
     full_name: str
     rows_by_id: typing.OrderedDict[str, dict]
-    metadata: dict
 
     @property
     def rows(self) -> List[dict]:
         return list(self.rows_by_id.values())
 
     @staticmethod
-    def of(
-        table_type: TableType, full_name: str, rows: List[dict], metadata: dict
-    ) -> "Table":
+    def of(table_type: TableType, full_name: str, rows: List[dict]) -> "Table":
         """Factory method that takes a list of rows instead of an OrderedDict of
         ids/rows."""
         rows_by_id = OrderedDict()
@@ -51,7 +48,6 @@ class Table:
             type=table_type,
             full_name=full_name,
             rows_by_id=rows_by_id,
-            metadata=metadata,
         )
 
 

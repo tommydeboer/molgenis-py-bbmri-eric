@@ -31,16 +31,12 @@ def test_table_factory_method():
     row1 = {"id": "1"}
     row2 = {"id": "2"}
     rows = [row1, row2]
-    metadata = MagicMock()
 
-    table = Table.of(
-        TableType.PERSONS, "eu_bbmri_eric_NL_persons", rows, metadata=metadata
-    )
+    table = Table.of(TableType.PERSONS, "eu_bbmri_eric_NL_persons", rows)
 
     assert table.rows_by_id["2"] == row2
     assert table.rows[0] == row1
     assert table.rows[1] == row2
-    assert table.metadata == metadata
 
 
 def test_node_staging_id():
@@ -69,18 +65,10 @@ def test_external_server_node():
 
 
 def test_node_data_order():
-    persons = Table.of(
-        TableType.PERSONS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
-    )
-    networks = Table.of(
-        TableType.NETWORKS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
-    )
-    biobanks = Table.of(
-        TableType.BIOBANKS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
-    )
-    collections = Table.of(
-        TableType.COLLECTIONS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
-    )
+    persons = Table.of(TableType.PERSONS, "NL_persons", [{"id": "1"}])
+    networks = Table.of(TableType.NETWORKS, "NL_persons", [{"id": "1"}])
+    biobanks = Table.of(TableType.BIOBANKS, "NL_persons", [{"id": "1"}])
+    collections = Table.of(TableType.COLLECTIONS, "NL_persons", [{"id": "1"}])
     node = Node("NL", "NL")
 
     node_data = NodeData(
