@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 from molgenis.bbmri_eric._model import NodeData, QualityInfo
 from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric._publisher import Publisher
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 
 
 @patch("molgenis.bbmri_eric._publisher.Enricher")
 def test_publish(enricher_mock, node_data: NodeData):
     enricher_instance = enricher_mock.return_value
-    session = BbmriSession("url")
+    session = EricSession("url")
     session.upsert_batched = MagicMock()
     session.get_quality_info = MagicMock()
     session.get_quality_info.return_value = MagicMock()
@@ -38,7 +38,7 @@ def test_publish(enricher_mock, node_data: NodeData):
 
 def test_delete_rows(node_data: NodeData):
     q_info = QualityInfo(biobanks={"undeletable_id": "quality"}, collections={})
-    session = BbmriSession("url")
+    session = EricSession("url")
     session.delete_list = MagicMock()
     session.get = MagicMock()
     session.get.return_value = [

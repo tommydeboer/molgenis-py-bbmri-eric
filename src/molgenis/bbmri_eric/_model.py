@@ -2,7 +2,7 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import Dict, List
 
 
 class TableType(Enum):
@@ -32,13 +32,16 @@ class Table:
     type: TableType
     full_name: str
     rows_by_id: typing.OrderedDict[str, dict]
+    metadata: dict
 
     @property
     def rows(self) -> List[dict]:
         return list(self.rows_by_id.values())
 
     @staticmethod
-    def of(table_type: TableType, full_name: str, rows: List[dict]) -> "Table":
+    def of(
+        table_type: TableType, full_name: str, rows: List[dict], metadata: dict
+    ) -> "Table":
         """Factory method that takes a list of rows instead of an OrderedDict of
         ids/rows."""
         rows_by_id = OrderedDict()
@@ -48,6 +51,7 @@ class Table:
             type=table_type,
             full_name=full_name,
             rows_by_id=rows_by_id,
+            metadata=metadata,
         )
 
 
@@ -93,20 +97,41 @@ class ExternalServerNode(Node):
     url: str
 
 
-@dataclass(frozen=True)
+class Source(Enum):
+    EXTERNAL_SERVER = "external_server"
+    STAGING = "staging"
+    PUBLISHED = "published"
+
+
+@dataclass()
 class NodeData:
     """Container object storing the four tables of a single node."""
 
     node: Node
-    is_staging: bool
+    source: Source
     persons: Table
     networks: Table
     biobanks: Table
     collections: Table
+    table_by_type: Dict[TableType, Table]
 
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+    @staticmethod
+    def from_dict(
+        node: Node, source: Source, tables: Dict[TableType, Table]
+    ) -> "NodeData":
+        return NodeData(
+            node=node,
+            source=source,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
+            table_by_type=tables,
+        )
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,8 @@
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData, Source
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 
@@ -12,7 +12,7 @@ def test_stage_external_nodes(stager_mock):
     stager_instance = stager_mock.return_value
     error = EricError("error")
     stager_instance.stage.side_effect = [None, error]
-    eric = Eric(BbmriSession("url"))
+    eric = Eric(EricSession("url"))
     nl = ExternalServerNode("NL", "will succeed", "url.nl")
     be = ExternalServerNode("BE", "wil fail", "url.be")
     eric.printer = MagicMock()
@@ -36,8 +36,8 @@ def test_stage_external_nodes(stager_mock):
 @patch("molgenis.bbmri_eric.eric.Publisher")
 def test_publish_node_staging_fails(publisher_mock, validator_mock, stager_mock):
     nl = ExternalServerNode("NL", "Netherlands", "url")
-    session = BbmriSession("url")
-    session.get_node_data = MagicMock()
+    session = EricSession("url")
+    session.get_published_node_data = MagicMock()
     eric = Eric(session)
     eric.printer = MagicMock()
     error = EricError("error")
@@ -51,7 +51,7 @@ def test_publish_node_staging_fails(publisher_mock, validator_mock, stager_mock)
         mock.call(session, eric.printer),
         mock.call().stage(nl),
     ]
-    assert not session.get_node_data.called
+    assert not session.get_published_node_data.called
     assert not validator_mock.called
     assert not publisher_mock.publish.called
     assert report.errors[nl] == error
@@ -63,12 +63,12 @@ def test_publish_node_staging_fails(publisher_mock, validator_mock, stager_mock)
 @patch("molgenis.bbmri_eric.eric.Publisher")
 def test_publish_node_get_data_fails(publisher_mock, validator_mock, stager_mock):
     nl = ExternalServerNode("NL", "Netherlands", "url")
-    session = BbmriSession("url")
-    session.get_node_data = MagicMock()
+    session = EricSession("url")
+    session.get_staging_node_data = MagicMock()
     eric = Eric(session)
     eric.printer = MagicMock()
     error = EricError("error")
-    session.get_node_data.side_effect = error
+    session.get_staging_node_data.side_effect = error
 
     report = eric.publish_nodes([nl])
 
@@ -78,7 +78,7 @@ def test_publish_node_get_data_fails(publisher_mock, validator_mock, stager_mock
         mock.call(session, eric.printer),
         mock.call().stage(nl),
     ]
-    session.get_node_data.assert_called_with(nl, staging=True)
+    session.get_staging_node_data.assert_called_with(nl)
     assert not validator_mock.called
     assert not publisher_mock.publish.called
     assert report.errors[nl] == error
@@ -93,9 +93,9 @@ def test_publish_nodes(publisher_mock, validator_mock, stager_mock):
     nl = ExternalServerNode("NL", "fails during publishing", "url")
     no_data = _mock_node_data(no)
     nl_data = _mock_node_data(nl)
-    session = BbmriSession("url")
-    session.get_node_data = MagicMock()
-    session.get_node_data.side_effect = [no_data, nl_data]
+    session = EricSession("url")
+    session.get_staging_node_data = MagicMock()
+    session.get_staging_node_data.side_effect = [no_data, nl_data]
     warning = EricWarning("warning")
     validator_mock.return_value.validate.side_effect = [[warning], []]
     error = EricError("error")
@@ -131,9 +131,10 @@ def test_publish_nodes(publisher_mock, validator_mock, stager_mock):
 def _mock_node_data(node: Node):
     return NodeData(
         node=node,
-        is_staging=True,
+        source=Source.STAGING,
         persons=MagicMock(),
         biobanks=MagicMock(),
         networks=MagicMock(),
         collections=MagicMock(),
+        table_by_type=MagicMock(),
     )

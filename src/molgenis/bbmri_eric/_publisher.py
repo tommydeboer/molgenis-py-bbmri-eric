@@ -3,7 +3,7 @@ from typing import List, Set
 from molgenis.bbmri_eric._enricher import Enricher
 from molgenis.bbmri_eric._model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.client import MolgenisRequestError
 
@@ -14,7 +14,7 @@ class Publisher:
     public tables.
     """
 
-    def __init__(self, session: BbmriSession, printer: Printer):
+    def __init__(self, session: EricSession, printer: Printer):
         self.session = session
         self.printer = printer
         self.warnings: List[EricWarning] = []

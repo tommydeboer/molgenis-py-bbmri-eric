@@ -5,7 +5,7 @@ from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric._validation import Validator
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.client import MolgenisRequestError
 
@@ -15,7 +15,7 @@ class Eric:
     Main class for doing operations on the ERIC directory.
     """
 
-    def __init__(self, session: BbmriSession):
+    def __init__(self, session: EricSession):
         """
         :param BbmriSession session: an authenticated session with an ERIC directory
         """
@@ -114,6 +114,6 @@ class Eric:
             self.printer.print_sub_header(
                 f"📦 Retrieving staging data of node {node.code}"
             )
-            return self.session.get_node_data(node, staging=True)
+            return self.session.get_staging_node_data(node)
         except MolgenisRequestError as e:
             raise EricError(f"Error retrieving data of node {node.code}") from e

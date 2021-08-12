@@ -6,8 +6,10 @@ import textwrap
 from getpass import getpass
 from typing import List, Tuple
 
+import requests
+
 from molgenis.bbmri_eric import __version__, bbmri_client
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.client import MolgenisRequestError
 
@@ -47,13 +49,16 @@ def main(args: List[str]):
     execute_command(args, eric)
 
 
-def _create_session(args) -> BbmriSession:
+def _create_session(args) -> EricSession:
     username, password = _get_username_password(args)
-    session = bbmri_client.BbmriSession(url=args.target)
+    session = bbmri_client.EricSession(url=args.target)
     try:
         session.login(username, password)
     except MolgenisRequestError as e:
         print(e.message)
+        exit(1)
+    except requests.RequestException as e:
+        print(str(e))
         exit(1)
     return session
 

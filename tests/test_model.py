@@ -1,8 +1,11 @@
 # noinspection PyProtectedMember
+from unittest.mock import MagicMock
+
 from molgenis.bbmri_eric._model import (
     ExternalServerNode,
     Node,
     NodeData,
+    Source,
     Table,
     TableType,
 )
@@ -28,12 +31,16 @@ def test_table_factory_method():
     row1 = {"id": "1"}
     row2 = {"id": "2"}
     rows = [row1, row2]
+    metadata = MagicMock()
 
-    table = Table.of(TableType.PERSONS, "eu_bbmri_eric_NL_persons", rows)
+    table = Table.of(
+        TableType.PERSONS, "eu_bbmri_eric_NL_persons", rows, metadata=metadata
+    )
 
     assert table.rows_by_id["2"] == row2
     assert table.rows[0] == row1
     assert table.rows[1] == row2
+    assert table.metadata == metadata
 
 
 def test_node_staging_id():
@@ -62,19 +69,28 @@ def test_external_server_node():
 
 
 def test_node_data_order():
-    persons = Table.of(TableType.PERSONS, "NL_persons", [{"id": "1"}])
-    networks = Table.of(TableType.NETWORKS, "NL_persons", [{"id": "1"}])
-    biobanks = Table.of(TableType.BIOBANKS, "NL_persons", [{"id": "1"}])
-    collections = Table.of(TableType.COLLECTIONS, "NL_persons", [{"id": "1"}])
+    persons = Table.of(
+        TableType.PERSONS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
+    )
+    networks = Table.of(
+        TableType.NETWORKS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
+    )
+    biobanks = Table.of(
+        TableType.BIOBANKS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
+    )
+    collections = Table.of(
+        TableType.COLLECTIONS, "NL_persons", [{"id": "1"}], metadata=MagicMock()
+    )
     node = Node("NL", "NL")
 
     node_data = NodeData(
         node,
-        is_staging=True,
+        source=Source.STAGING,
         persons=persons,
         networks=networks,
         biobanks=biobanks,
         collections=collections,
+        table_by_type=MagicMock(),
     )
 
     assert node_data.import_order == [persons, networks, biobanks, collections]
