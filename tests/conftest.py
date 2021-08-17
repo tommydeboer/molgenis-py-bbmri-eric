@@ -3,7 +3,7 @@ import pickle
 import pkg_resources
 import pytest
 
-from molgenis.bbmri_eric._model import NodeData
+from molgenis.bbmri_eric.model import NodeData
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from typing import DefaultDict, List
 
 import requests
 
-from molgenis.bbmri_eric._model import Node
+from molgenis.bbmri_eric.model import Node
 
 
 @dataclass(frozen=True)

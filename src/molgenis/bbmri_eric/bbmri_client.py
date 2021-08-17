@@ -7,8 +7,8 @@ from urllib.parse import quote_plus
 
 import requests
 
-from molgenis.bbmri_eric import _utils
-from molgenis.bbmri_eric._model import (
+from molgenis.bbmri_eric import utils
+from molgenis.bbmri_eric.model import (
     ExternalServerNode,
     Node,
     NodeData,
@@ -17,7 +17,7 @@ from molgenis.bbmri_eric._model import (
     Table,
     TableType,
 )
-from molgenis.bbmri_eric._utils import batched
+from molgenis.bbmri_eric.utils import batched
 from molgenis.client import Session
 
 
@@ -83,7 +83,7 @@ class ExtendedSession(Session):
         """
         rows = self.get(entity_type_id, *args, **kwargs)
         ref_names = self.get_reference_attribute_names(entity_type_id)
-        return _utils.to_upload_format(rows, ref_names.one_to_manys)
+        return utils.to_upload_format(rows, ref_names.one_to_manys)
 
     def upsert_batched(self, entity_type_id: str, entities: List[dict]):
         """
@@ -168,8 +168,8 @@ class EricSession(ExtendedSession):
             "eu_bbmri_eric_collections", batch_size=10000, attributes="id,quality"
         )
 
-        biobanks = _utils.to_upload_format(biobank_qualities)
-        collections = _utils.to_upload_format(collection_qualities)
+        biobanks = utils.to_upload_format(biobank_qualities)
+        collections = utils.to_upload_format(collection_qualities)
 
         return QualityInfo(
             biobanks={row["id"]: row["quality"] for row in biobanks},
@@ -281,8 +281,8 @@ class ExternalServerSession(ExtendedSession):
     A session with a national node's external server (for example BBMRI-NL).
     """
 
-    def __init__(self, node: Node, *args, **kwargs):
-        super(ExternalServerSession, self).__init__(*args, **kwargs)
+    def __init__(self, node: ExternalServerNode, *args, **kwargs):
+        super(ExternalServerSession, self).__init__(url=node.url, *args, **kwargs)
         self.node = node
 
     def get_node_data(self) -> NodeData:

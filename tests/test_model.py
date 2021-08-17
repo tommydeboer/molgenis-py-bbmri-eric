@@ -1,7 +1,7 @@
 # noinspection PyProtectedMember
 from unittest.mock import MagicMock
 
-from molgenis.bbmri_eric._model import (
+from molgenis.bbmri_eric.model import (
     ExternalServerNode,
     Node,
     NodeData,

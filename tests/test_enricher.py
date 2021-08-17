@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock
 
-from molgenis.bbmri_eric._enricher import Enricher
-from molgenis.bbmri_eric._model import QualityInfo
-from molgenis.bbmri_eric._printer import Printer
+from molgenis.bbmri_eric.enricher import Enricher
+from molgenis.bbmri_eric.model import QualityInfo
+from molgenis.bbmri_eric.printer import Printer
 
 
 def test_enricher_node_codes(node_data):
@@ -61,8 +61,21 @@ def test_enricher_quality(node_data):
 
     Enricher(node_data, q_info, Printer())._set_quality_info()
 
-    assert node_data.biobanks.rows[0]["quality"] == ["quality1", "quality2"]
-    assert "quality" not in node_data.biobanks.rows[1]
-    assert node_data.biobanks.rows[2]["quality"] == ["quality3"]
-    assert node_data.collections.rows[0]["quality"] == ["quality1"]
-    assert "quality" not in node_data.collections.rows[1]
+    assert node_data.biobanks.rows_by_id["bbmri-eric:ID:NO_BIOBANK1"]["quality"] == [
+        "quality1",
+        "quality2",
+    ]
+    assert "quality" not in node_data.biobanks.rows_by_id["bbmri-eric:ID:NO_Janus"]
+    assert node_data.biobanks.rows_by_id["bbmri-eric:ID:NO_CoronaTrondelag"][
+        "quality"
+    ] == ["quality3"]
+    assert node_data.collections.rows_by_id[
+        "bbmri-eric:ID:NO_bbmri-eric:ID:NO_CancerBiobankOUH:collection"
+        ":all_samples_samples"
+    ]["quality"] == ["quality1"]
+    assert (
+        "quality"
+        not in node_data.collections.rows_by_id[
+            "bbmri-eric:ID:NO_moba:collection:all_samples"
+        ]
+    )

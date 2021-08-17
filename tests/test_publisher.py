@@ -1,13 +1,13 @@
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from molgenis.bbmri_eric._model import NodeData, QualityInfo
-from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric.bbmri_client import EricSession
+from molgenis.bbmri_eric.model import NodeData, QualityInfo
+from molgenis.bbmri_eric.printer import Printer
+from molgenis.bbmri_eric.publisher import Publisher
 
 
-@patch("molgenis.bbmri_eric._publisher.Enricher")
+@patch("molgenis.bbmri_eric.publisher.Enricher")
 def test_publish(enricher_mock, node_data: NodeData):
     enricher_instance = enricher_mock.return_value
     session = EricSession("url")

@@ -1,5 +1,5 @@
-from molgenis.bbmri_eric._model import NodeData, QualityInfo, Table
-from molgenis.bbmri_eric._printer import Printer
+from molgenis.bbmri_eric.model import NodeData, QualityInfo, Table
+from molgenis.bbmri_eric.printer import Printer
 
 
 class Enricher:

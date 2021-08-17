@@ -1,7 +1,7 @@
-from molgenis.bbmri_eric._model import NodeData
-from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric._validation import Validator
 from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.model import NodeData
+from molgenis.bbmri_eric.printer import Printer
+from molgenis.bbmri_eric.validation import Validator
 
 
 def test_validator(node_data: NodeData):
