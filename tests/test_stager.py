@@ -3,11 +3,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from molgenis.bbmri_eric._model import ExternalServerNode, NodeData
-from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError
+from molgenis.bbmri_eric.model import ExternalServerNode, NodeData
+from molgenis.bbmri_eric.printer import Printer
+from molgenis.bbmri_eric.stager import Stager
 from molgenis.client import MolgenisRequestError
 
 
@@ -50,7 +50,7 @@ def test_clear_staging_area_error():
     assert str(e.value) == "Error clearing staging area of node NL"
 
 
-@patch("molgenis.bbmri_eric._stager.ExternalServerSession")
+@patch("molgenis.bbmri_eric.stager.ExternalServerSession")
 def test_import_node(session_mock, node_data: NodeData):
     source_session_mock_instance = session_mock.return_value
     source_session_mock_instance.get_node_data.return_value = node_data
@@ -70,7 +70,7 @@ def test_import_node(session_mock, node_data: NodeData):
     ]
 
 
-@patch("molgenis.bbmri_eric._stager.ExternalServerSession")
+@patch("molgenis.bbmri_eric.stager.ExternalServerSession")
 def test_import_node_get_node_error(session_mock, node_data: NodeData):
     source_session_mock_instance = session_mock.return_value
     source_session_mock_instance.get_node_data.side_effect = MolgenisRequestError("")
@@ -83,7 +83,7 @@ def test_import_node_get_node_error(session_mock, node_data: NodeData):
     assert str(e.value) == "Error getting data from url"
 
 
-@patch("molgenis.bbmri_eric._stager.ExternalServerSession")
+@patch("molgenis.bbmri_eric.stager.ExternalServerSession")
 def test_import_node_copy_node_error(session_mock, node_data: NodeData):
     source_session_mock_instance = session_mock.return_value
     source_session_mock_instance.get_node_data.return_value = node_data

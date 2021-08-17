@@ -1,8 +1,8 @@
 import textwrap
 
-from molgenis.bbmri_eric._model import Node
-from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric.errors import EricError, EricWarning, ErrorReport
+from molgenis.bbmri_eric.model import Node
+from molgenis.bbmri_eric.printer import Printer
 
 
 def test_indentation(capsys):

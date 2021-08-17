@@ -1,13 +1,13 @@
 import pytest
 import requests.exceptions
 
-from molgenis.bbmri_eric._model import Node
 from molgenis.bbmri_eric.errors import (
     EricError,
     EricWarning,
     ErrorReport,
     requests_error_handler,
 )
+from molgenis.bbmri_eric.model import Node
 
 
 def test_warning():

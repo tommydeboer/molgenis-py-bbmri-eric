@@ -7,9 +7,10 @@ import pickle
 
 from dotenv import dotenv_values
 
-# noinspection PyProtectedMember
-from molgenis.bbmri_eric._model import Node
 from molgenis.bbmri_eric.bbmri_client import EricSession
+
+# noinspection PyProtectedMember
+from molgenis.bbmri_eric.model import Node
 
 # get credentials from .env.local (in this dir) - if this file doesn't exist: create it
 config = dotenv_values(".env.local")

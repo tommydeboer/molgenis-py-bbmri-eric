@@ -1,10 +1,10 @@
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from molgenis.bbmri_eric._model import ExternalServerNode, Node, NodeData, Source
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.bbmri_eric.errors import EricError, EricWarning
+from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData, Source
 
 
 @patch("molgenis.bbmri_eric.eric.Stager")
