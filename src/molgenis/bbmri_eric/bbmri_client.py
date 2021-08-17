@@ -281,8 +281,8 @@ class ExternalServerSession(ExtendedSession):
     A session with a national node's external server (for example BBMRI-NL).
     """
 
-    def __init__(self, node: Node, *args, **kwargs):
-        super(ExternalServerSession, self).__init__(*args, **kwargs)
+    def __init__(self, node: ExternalServerNode, *args, **kwargs):
+        super(ExternalServerSession, self).__init__(url=node.url, *args, **kwargs)
         self.node = node
 
     def get_node_data(self) -> NodeData:

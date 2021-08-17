@@ -44,7 +44,7 @@ class Stager:
         self.printer.indent()
 
         try:
-            source_session = ExternalServerSession(node=node, url=node.url)
+            source_session = ExternalServerSession(node=node)
             source_data = source_session.get_node_data()
         except MolgenisRequestError as e:
             raise EricError(f"Error getting data from {node.url}") from e

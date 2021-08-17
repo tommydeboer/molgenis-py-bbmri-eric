@@ -60,7 +60,7 @@ def test_import_node(session_mock, node_data: NodeData):
 
     Stager(session, Printer())._import_node(node)
 
-    session_mock.assert_called_with(url=node.url, node=node)
+    session_mock.assert_called_with(node=node)
     source_session_mock_instance.get_node_data.assert_called_once()
     assert session.add_batched.mock_calls == [
         mock.call("eu_bbmri_eric_NO_persons", node_data.persons.rows),
