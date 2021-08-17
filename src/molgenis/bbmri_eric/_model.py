@@ -2,7 +2,7 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import Dict, List
 
 
 class TableType(Enum):
@@ -93,17 +93,59 @@ class ExternalServerNode(Node):
     url: str
 
 
-@dataclass(frozen=True)
+class Source(Enum):
+    EXTERNAL_SERVER = "external_server"
+    STAGING = "staging"
+    PUBLISHED = "published"
+
+
+@dataclass()
 class NodeData:
     """Container object storing the four tables of a single node."""
 
     node: Node
-    is_staging: bool
+    source: Source
     persons: Table
     networks: Table
     biobanks: Table
     collections: Table
+    table_by_type: Dict[TableType, Table]
 
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+    @staticmethod
+    def from_dict(
+        node: Node, source: Source, tables: Dict[TableType, Table]
+    ) -> "NodeData":
+        return NodeData(
+            node=node,
+            source=source,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
+            table_by_type=tables,
+        )
+
+
+@dataclass(frozen=True)
+class QualityInfo:
+    """
+    Stores the quality information for biobanks and collections.
+    """
+
+    biobanks: Dict[str, List[str]]
+    """Dictionary of biobank ids and their quality ids"""
+
+    collections: Dict[str, List[str]]
+    """Dictionary of collection ids and their quality ids"""
+
+    def get_qualities(self, table_type: TableType) -> Dict[str, List[str]]:
+        if table_type == TableType.BIOBANKS:
+            return self.biobanks
+        elif table_type == TableType.COLLECTIONS:
+            return self.collections
+        else:
+            return dict()

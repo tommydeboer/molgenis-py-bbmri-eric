@@ -1,9 +1,9 @@
-from typing import Dict, List, Set
+from typing import List, Set
 
 from molgenis.bbmri_eric._enricher import Enricher
-from molgenis.bbmri_eric._model import Node, NodeData, Table, TableType
+from molgenis.bbmri_eric._model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.client import MolgenisRequestError
 
@@ -14,11 +14,11 @@ class Publisher:
     public tables.
     """
 
-    def __init__(self, session: BbmriSession, printer: Printer):
+    def __init__(self, session: EricSession, printer: Printer):
         self.session = session
         self.printer = printer
         self.warnings: List[EricWarning] = []
-        self.quality_info: Dict[TableType, Set[str]] = self._get_quality_info()
+        self.quality_info: QualityInfo = session.get_quality_info()
 
     def publish(self, node_data: NodeData) -> List[EricWarning]:
         """
@@ -28,7 +28,7 @@ class Publisher:
         self.warnings = []
         self.printer.print(f"✏️ Enriching data of node {node_data.node.code}")
         self.printer.indent()
-        Enricher(node_data, self.printer).enrich()
+        Enricher(node_data, self.quality_info, self.printer).enrich()
         self.printer.dedent()
 
         self.printer.print(f"✉️ Copying data of node {node_data.node.code}")
@@ -73,7 +73,7 @@ class Publisher:
         deleted_ids = production_ids.difference(staging_ids)
 
         # Remove ids that we are not allowed to delete
-        undeletable_ids = self.quality_info.get(table.type, {})
+        undeletable_ids = self.quality_info.get_qualities(table.type).keys()
         deletable_ids = deleted_ids.difference(undeletable_ids)
 
         # Actually delete the rows in the combined tables
@@ -100,15 +100,3 @@ class Publisher:
             raise EricError(f"Error getting rows from {table.type.base_id}") from e
 
         return {row["id"] for row in rows if row.get("national_node", "") == node.code}
-
-    def _get_quality_info(self) -> Dict[TableType, Set[str]]:
-        biobanks = self.session.get(
-            "eu_bbmri_eric_bio_qual_info", batch_size=10000, attributes="id,biobank"
-        )
-        collections = self.session.get(
-            "eu_bbmri_eric_col_qual_info", batch_size=10000, attributes="id,collection"
-        )
-        biobank_ids = {row["biobank"]["id"] for row in biobanks}
-        collection_ids = {row["collection"]["id"] for row in collections}
-
-        return {TableType.BIOBANKS: biobank_ids, TableType.COLLECTIONS: collection_ids}

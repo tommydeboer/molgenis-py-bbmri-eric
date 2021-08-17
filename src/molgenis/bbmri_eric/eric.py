@@ -5,7 +5,7 @@ from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric._publisher import Publisher
 from molgenis.bbmri_eric._stager import Stager
 from molgenis.bbmri_eric._validation import Validator
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.client import MolgenisRequestError
 
@@ -15,7 +15,7 @@ class Eric:
     Main class for doing operations on the ERIC directory.
     """
 
-    def __init__(self, session: BbmriSession):
+    def __init__(self, session: EricSession):
         """
         :param BbmriSession session: an authenticated session with an ERIC directory
         """
@@ -79,7 +79,7 @@ class Eric:
 
     @requests_error_handler
     def _stage_node(self, node: ExternalServerNode):
-        self.printer.print(f"📥 Staging data of node {node.code}")
+        self.printer.print_sub_header(f"📥 Staging data of node {node.code}")
         self.printer.indent()
 
         Stager(self.session, self.printer).stage(node)
@@ -89,7 +89,7 @@ class Eric:
     def _publish_node_data(
         self, node_data: NodeData, publisher: Publisher, report: ErrorReport
     ):
-        self.printer.print(f"📤 Publishing node {node_data.node.code}")
+        self.printer.print_sub_header(f"📤 Publishing node {node_data.node.code}")
         self.printer.indent()
 
         warnings = publisher.publish(node_data)
@@ -98,7 +98,9 @@ class Eric:
         self.printer.dedent()
 
     def _validate_node(self, node_data: NodeData, report: ErrorReport):
-        self.printer.print(f"🔎 Validating staging data of node {node_data.node.code}")
+        self.printer.print_sub_header(
+            f"🔎 Validating staging data of node {node_data.node.code}"
+        )
         self.printer.indent()
 
         warnings = Validator(node_data, self.printer).validate()
@@ -109,7 +111,9 @@ class Eric:
 
     def _get_node_data(self, node: Node) -> NodeData:
         try:
-            self.printer.print(f"📦 Retrieving staging data of node {node.code}")
-            return self.session.get_node_data(node, staging=True)
+            self.printer.print_sub_header(
+                f"📦 Retrieving staging data of node {node.code}"
+            )
+            return self.session.get_staging_node_data(node)
         except MolgenisRequestError as e:
             raise EricError(f"Error retrieving data of node {node.code}") from e

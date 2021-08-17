@@ -1,8 +1,11 @@
 # noinspection PyProtectedMember
+from unittest.mock import MagicMock
+
 from molgenis.bbmri_eric._model import (
     ExternalServerNode,
     Node,
     NodeData,
+    Source,
     Table,
     TableType,
 )
@@ -70,11 +73,12 @@ def test_node_data_order():
 
     node_data = NodeData(
         node,
-        is_staging=True,
+        source=Source.STAGING,
         persons=persons,
         networks=networks,
         biobanks=biobanks,
         collections=collections,
+        table_by_type=MagicMock(),
     )
 
     assert node_data.import_order == [persons, networks, biobanks, collections]

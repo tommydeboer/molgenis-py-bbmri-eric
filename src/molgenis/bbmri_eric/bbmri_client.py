@@ -12,6 +12,8 @@ from molgenis.bbmri_eric._model import (
     ExternalServerNode,
     Node,
     NodeData,
+    QualityInfo,
+    Source,
     Table,
     TableType,
 )
@@ -40,115 +42,15 @@ class ReferenceType(Enum):
     ONE_TO_MANY = "ONE_TO_MANY"
 
 
-class BbmriSession(Session):
+class ExtendedSession(Session):
     """
-    BBMRI Session Class, which extends the molgenis py client Session class
+    Class containing functionality that the base molgenis python client Session class
+    does not have. Methods in this class could be moved to molgenis-py-client someday.
     """
-
-    NODES_TABLE = "eu_bbmri_eric_national_nodes"
 
     def __init__(self, url: str, token: Optional[str] = None):
-        super().__init__(url, token)
+        super(ExtendedSession, self).__init__(url, token)
         self.url = url
-
-    def get_nodes(self, codes: List[str] = None) -> List[Node]:
-        """
-        Retrieves a list of Node objects from the national nodes table. Will return
-        all nodes or some nodes if 'codes' is specified.
-        :param codes: nodes to get by code
-        :return: list of Node objects
-        """
-        if codes:
-            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)})")
-        else:
-            nodes = self.get(self.NODES_TABLE)
-
-        if codes:
-            self._validate_codes(codes, nodes)
-        return self._to_nodes(nodes)
-
-    def get_external_nodes(self, codes: List[str] = None) -> List[ExternalServerNode]:
-        """
-        Retrieves a list of ExternalServerNode objects from the national nodes table.
-        Will return all nodes or some nodes if 'codes' is specified.
-        :param codes: nodes to get by code
-        :return: list of ExternalServerNode objects
-        """
-        if codes:
-            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)});dns!=''")
-        else:
-            nodes = self.get(self.NODES_TABLE, q="dns!=''")
-
-        if codes:
-            self._validate_codes(codes, nodes)
-        return self._to_nodes(nodes)
-
-    @staticmethod
-    def _validate_codes(codes: List[str], nodes: List[dict]):
-        """Raises a KeyError if a requested node code was not found."""
-        retrieved_codes = {node["id"] for node in nodes}
-        for code in codes:
-            if code not in retrieved_codes:
-                raise KeyError(f"Unknown code: {code}")
-
-    @staticmethod
-    def _to_nodes(nodes: List[dict]):
-        """Maps rows to Node or ExternalServerNode objects."""
-        result = list()
-        for node in nodes:
-            if "dns" not in node:
-                result.append(Node(code=node["id"], description=node["description"]))
-            else:
-                result.append(
-                    ExternalServerNode(
-                        code=node["id"],
-                        description=node["description"],
-                        url=node["dns"],
-                    )
-                )
-        return result
-
-    def get_node_data(self, node: Node, staging: bool) -> NodeData:
-        """
-        Gets the four tables that belong to a single node. If staging=True, this
-        method will fetch the tables from the node's staging area, else it will use the
-        base table identifiers.
-
-        :param Node node: the node to get the data for
-        :param bool staging: true if the staging data should be retrieved, false if the
-                             default tables should be retrieved
-        :return: a NodeData object
-        """
-
-        tables = dict()
-        for table_type in TableType.get_import_order():
-            if staging:
-                id_ = node.get_staging_id(table_type)
-            else:
-                id_ = table_type.base_id
-
-            tables[table_type] = Table.of(
-                table_type=table_type,
-                full_name=id_,
-                rows=self.get_uploadable_data(id_),
-            )
-
-        return NodeData(
-            node=node,
-            is_staging=staging,
-            persons=tables[TableType.PERSONS],
-            networks=tables[TableType.NETWORKS],
-            biobanks=tables[TableType.BIOBANKS],
-            collections=tables[TableType.COLLECTIONS],
-        )
-
-    def get_uploadable_data(self, entity_type_id: str) -> List[dict]:
-        """
-        Returns all the rows of an entity type, transformed to the uploadable format.
-        """
-        rows = self.get(entity_type_id, batch_size=10000)
-        ref_names = self.get_reference_attribute_names(entity_type_id)
-        return _utils.to_upload_format(rows, ref_names.one_to_manys)
 
     def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
         """
@@ -174,6 +76,14 @@ class BbmriSession(Session):
             categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
             one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
         )
+
+    def get_uploadable_data(self, entity_type_id: str, *args, **kwargs) -> List[dict]:
+        """
+        Returns all the rows of an entity type, transformed to the uploadable format.
+        """
+        rows = self.get(entity_type_id, *args, **kwargs)
+        ref_names = self.get_reference_attribute_names(entity_type_id)
+        return _utils.to_upload_format(rows, ref_names.one_to_manys)
 
     def upsert_batched(self, entity_type_id: str, entities: List[dict]):
         """
@@ -232,3 +142,166 @@ class BbmriSession(Session):
         batches = list(batched(entities, 1000))
         for batch in batches:
             self.add_all(entity_type_id, batch)
+
+
+class EricSession(ExtendedSession):
+    """
+    A session with a BBMRI ERIC directory. Contains methods to get national nodes,
+    their (staging) data and quality information.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(EricSession, self).__init__(*args, **kwargs)
+
+    NODES_TABLE = "eu_bbmri_eric_national_nodes"
+
+    def get_quality_info(self) -> QualityInfo:
+        """
+        Retrieves the quality information identifiers for biobanks and collections.
+        :return: a QualityInfo object
+        """
+
+        biobank_qualities = self.get(
+            "eu_bbmri_eric_biobanks", batch_size=10000, attributes="id,quality"
+        )
+        collection_qualities = self.get(
+            "eu_bbmri_eric_collections", batch_size=10000, attributes="id,quality"
+        )
+
+        biobanks = _utils.to_upload_format(biobank_qualities)
+        collections = _utils.to_upload_format(collection_qualities)
+
+        return QualityInfo(
+            biobanks={row["id"]: row["quality"] for row in biobanks},
+            collections={row["id"]: row["quality"] for row in collections},
+        )
+
+    def get_nodes(self, codes: List[str] = None) -> List[Node]:
+        """
+        Retrieves a list of Node objects from the national nodes table. Will return
+        all nodes or some nodes if 'codes' is specified.
+        :param codes: nodes to get by code
+        :return: list of Node objects
+        """
+        if codes:
+            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)})")
+        else:
+            nodes = self.get(self.NODES_TABLE)
+
+        if codes:
+            self._validate_codes(codes, nodes)
+        return self._to_nodes(nodes)
+
+    def get_external_nodes(self, codes: List[str] = None) -> List[ExternalServerNode]:
+        """
+        Retrieves a list of ExternalServerNode objects from the national nodes table.
+        Will return all nodes or some nodes if 'codes' is specified.
+        :param codes: nodes to get by code
+        :return: list of ExternalServerNode objects
+        """
+        if codes:
+            nodes = self.get(self.NODES_TABLE, q=f"id=in=({','.join(codes)});dns!=''")
+        else:
+            nodes = self.get(self.NODES_TABLE, q="dns!=''")
+
+        if codes:
+            self._validate_codes(codes, nodes)
+        return self._to_nodes(nodes)
+
+    @staticmethod
+    def _validate_codes(codes: List[str], nodes: List[dict]):
+        """Raises a KeyError if a requested node code was not found."""
+        retrieved_codes = {node["id"] for node in nodes}
+        for code in codes:
+            if code not in retrieved_codes:
+                raise KeyError(f"Unknown code: {code}")
+
+    @staticmethod
+    def _to_nodes(nodes: List[dict]):
+        """Maps rows to Node or ExternalServerNode objects."""
+        result = list()
+        for node in nodes:
+            if "dns" not in node:
+                result.append(Node(code=node["id"], description=node["description"]))
+            else:
+                result.append(
+                    ExternalServerNode(
+                        code=node["id"],
+                        description=node["description"],
+                        url=node["dns"],
+                    )
+                )
+        return result
+
+    def get_staging_node_data(self, node: Node) -> NodeData:
+        """
+        Gets the four tables that belong to a single node's staging area.
+
+        :param Node node: the node to get the staging data for
+        :return: a NodeData object
+        """
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = node.get_staging_id(table_type)
+
+            tables[table_type] = Table.of(
+                table_type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(id_, batch_size=10000),
+            )
+
+        return NodeData.from_dict(node=node, source=Source.STAGING, tables=tables)
+
+    def get_published_node_data(self, node: Node) -> NodeData:
+        """
+        Gets the four tables that belong to a single node from the published tables.
+        Filters the rows based on the national_node field.
+
+        :param Node node: the node to get the published data for
+        :return: a NodeData object
+        """
+
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = table_type.base_id
+
+            tables[table_type] = Table.of(
+                table_type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(
+                    id_, batch_size=10000, q=f"national_node=={node.code}"
+                ),
+            )
+
+        return NodeData.from_dict(node=node, source=Source.PUBLISHED, tables=tables)
+
+
+class ExternalServerSession(ExtendedSession):
+    """
+    A session with a national node's external server (for example BBMRI-NL).
+    """
+
+    def __init__(self, node: Node, *args, **kwargs):
+        super(ExternalServerSession, self).__init__(*args, **kwargs)
+        self.node = node
+
+    def get_node_data(self) -> NodeData:
+        """
+        Gets the four tables of this node's external server.
+
+        :return: a NodeData object
+        """
+
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = table_type.base_id
+
+            tables[table_type] = Table.of(
+                table_type=table_type,
+                full_name=id_,
+                rows=self.get_uploadable_data(id_, batch_size=10000),
+            )
+
+        return NodeData.from_dict(
+            node=self.node, source=Source.EXTERNAL_SERVER, tables=tables
+        )

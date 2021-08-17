@@ -1,19 +1,19 @@
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from molgenis.bbmri_eric._model import NodeData, TableType
+from molgenis.bbmri_eric._model import NodeData, QualityInfo
 from molgenis.bbmri_eric._printer import Printer
 from molgenis.bbmri_eric._publisher import Publisher
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 
 
 @patch("molgenis.bbmri_eric._publisher.Enricher")
-@patch("molgenis.bbmri_eric._publisher.Publisher._get_quality_info")
-def test_publish(get_quality_info_func, enricher_mock, node_data: NodeData):
+def test_publish(enricher_mock, node_data: NodeData):
     enricher_instance = enricher_mock.return_value
-    get_quality_info_func.return_value = {}
-    session = BbmriSession("url")
+    session = EricSession("url")
     session.upsert_batched = MagicMock()
+    session.get_quality_info = MagicMock()
+    session.get_quality_info.return_value = MagicMock()
     printer = Printer()
     publisher = Publisher(session, printer)
     publisher._delete_rows = MagicMock()
@@ -36,10 +36,9 @@ def test_publish(get_quality_info_func, enricher_mock, node_data: NodeData):
     ]
 
 
-@patch("molgenis.bbmri_eric._publisher.Publisher._get_quality_info")
-def test_delete_rows(get_quality_info_func, node_data: NodeData):
-    get_quality_info_func.return_value = {TableType.BIOBANKS: {"undeletable_id"}}
-    session = BbmriSession("url")
+def test_delete_rows(node_data: NodeData):
+    q_info = QualityInfo(biobanks={"undeletable_id": "quality"}, collections={})
+    session = EricSession("url")
     session.delete_list = MagicMock()
     session.get = MagicMock()
     session.get.return_value = [
@@ -48,6 +47,8 @@ def test_delete_rows(get_quality_info_func, node_data: NodeData):
         {"id": "delete_this_row", "national_node": "NO"},
         {"id": "undeletable_id", "national_node": "NO"},
     ]
+    session.get_quality_info = MagicMock()
+    session.get_quality_info.return_value = q_info
     publisher = Publisher(session, Printer())
 
     publisher._delete_rows(node_data.biobanks, node_data.node)
@@ -62,19 +63,3 @@ def test_delete_rows(get_quality_info_func, node_data: NodeData):
         "Prevented the deletion of a row that is referenced from "
         "the quality info: biobanks undeletable_id."
     ]
-
-
-def test_get_quality_info():
-    session = BbmriSession("url")
-    session.get = MagicMock()
-    session.get.side_effect = [
-        [{"biobank": {"id": "biobank1"}}, {"biobank": {"id": "biobank2"}}],
-        [{"collection": {"id": "collection1"}}],
-    ]
-
-    publisher = Publisher(session, Printer())
-
-    assert publisher.quality_info == {
-        TableType.BIOBANKS: {"biobank1", "biobank2"},
-        TableType.COLLECTIONS: {"collection1"},
-    }

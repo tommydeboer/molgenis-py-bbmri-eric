@@ -1,10 +1,11 @@
-from molgenis.bbmri_eric._model import NodeData
+from molgenis.bbmri_eric._model import NodeData, QualityInfo, Table
 from molgenis.bbmri_eric._printer import Printer
 
 
 class Enricher:
-    def __init__(self, node_data: NodeData, printer: Printer):
+    def __init__(self, node_data: NodeData, quality: QualityInfo, printer: Printer):
         self.node_data = node_data
+        self.quality = quality
         self.printer = printer
 
     def enrich(self):
@@ -15,6 +16,7 @@ class Enricher:
         """
         self._set_commercial_use_bool()
         self._set_national_node_code()
+        self._set_quality_info()
 
     def _set_commercial_use_bool(self):
         """
@@ -26,18 +28,15 @@ class Enricher:
         for collection in self.node_data.collections.rows:
 
             def is_true(row: dict, attr: str):
-                return attr in row and row[attr] is True
+                # if the value is not entered, it is also considered true
+                return attr not in row or row[attr] is True
 
             biobank_id = collection["biobank"]
             biobank = self.node_data.biobanks.rows_by_id[biobank_id]
 
-            collection["commercial_use"] = (
-                is_true(biobank, "collaboration_commercial")
-                and is_true(collection, "collaboration_commercial")
-                and is_true(collection, "sample_access_fee")
-                and is_true(collection, "image_access_fee")
-                and is_true(collection, "data_access_fee")
-            )
+            collection["commercial_use"] = is_true(
+                biobank, "collaboration_commercial"
+            ) and is_true(collection, "collaboration_commercial")
 
     def _set_national_node_code(self):
         """
@@ -47,3 +46,19 @@ class Enricher:
         for table in self.node_data.import_order:
             for row in table.rows:
                 row["national_node"] = self.node_data.node.code
+
+    def _set_quality_info(self):
+        """
+        Adds the one_to_many "quality" field to the biobank and collection tables based
+        on the quality info tables.
+        """
+        self.printer.print("Adding quality information")
+        self._set_quality_for_table(self.node_data.biobanks)
+        self._set_quality_for_table(self.node_data.collections)
+
+    def _set_quality_for_table(self, table: Table):
+        for row in table.rows:
+            qualities = self.quality.get_qualities(table.type)
+            quality_ids = qualities.get(row["id"], [])
+            if quality_ids:
+                row["quality"] = quality_ids

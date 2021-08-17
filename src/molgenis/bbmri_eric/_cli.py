@@ -1,12 +1,15 @@
 import argparse
 import logging
+import signal
 import sys
 import textwrap
 from getpass import getpass
 from typing import List, Tuple
 
+import requests
+
 from molgenis.bbmri_eric import __version__, bbmri_client
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.client import MolgenisRequestError
 
@@ -39,19 +42,23 @@ def main(args: List[str]):
     Args:
       args (List[str]): command line parameters as list of strings
     """
+    signal.signal(signal.SIGINT, interrupt_handler)
     args = parse_args(args)
     session = _create_session(args)
     eric = Eric(session)
     execute_command(args, eric)
 
 
-def _create_session(args) -> BbmriSession:
+def _create_session(args) -> EricSession:
     username, password = _get_username_password(args)
-    session = bbmri_client.BbmriSession(url=args.target)
+    session = bbmri_client.EricSession(url=args.target)
     try:
         session.login(username, password)
     except MolgenisRequestError as e:
         print(e.message)
+        exit(1)
+    except requests.RequestException as e:
+        print(str(e))
         exit(1)
     return session
 
@@ -96,6 +103,16 @@ def execute_command(args, eric: Eric):
 def run():
     """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`"""
     main(sys.argv[1:])
+
+
+# noinspection PyUnusedLocal
+def interrupt_handler(sig, frame):
+    """
+    Prints a friendly message instead of a traceback if the program is
+    interrupted/stopped by a user.
+    """
+    print("Interrupted by user")
+    sys.exit(0)
 
 
 def parse_args(args):

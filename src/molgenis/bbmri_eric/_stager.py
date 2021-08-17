@@ -1,6 +1,6 @@
 from molgenis.bbmri_eric._model import ExternalServerNode, TableType
 from molgenis.bbmri_eric._printer import Printer
-from molgenis.bbmri_eric.bbmri_client import BbmriSession
+from molgenis.bbmri_eric.bbmri_client import EricSession, ExternalServerSession
 from molgenis.bbmri_eric.errors import EricError
 from molgenis.client import MolgenisRequestError
 
@@ -11,7 +11,7 @@ class Stager:
     its staging area in the BBMRI ERIC directory.
     """
 
-    def __init__(self, session: BbmriSession, printer: Printer):
+    def __init__(self, session: EricSession, printer: Printer):
         self.session = session
         self.printer = printer
 
@@ -44,8 +44,8 @@ class Stager:
         self.printer.indent()
 
         try:
-            source_session = BbmriSession(url=node.url)
-            source_data = source_session.get_node_data(node, staging=False)
+            source_session = ExternalServerSession(node=node, url=node.url)
+            source_data = source_session.get_node_data()
         except MolgenisRequestError as e:
             raise EricError(f"Error getting data from {node.url}") from e
 
