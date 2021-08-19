@@ -1,5 +1,5 @@
 # Changelog
 
-## Version 0.1 (development)
+## Version 1.0
 
-- Project skeleton started with PyScaffold
+- Adds library and command line tool for staging, validating, enriching and publishing national nodes of BBMRI-ERIC
