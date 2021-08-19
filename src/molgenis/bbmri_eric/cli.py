@@ -44,22 +44,23 @@ def main(args: List[str]):
     """
     signal.signal(signal.SIGINT, interrupt_handler)
     args = parse_args(args)
-    session = _create_session(args)
-    eric = Eric(session)
-    execute_command(args, eric)
 
-
-def _create_session(args) -> EricSession:
-    username, password = _get_username_password(args)
-    session = bbmri_client.EricSession(url=args.target)
     try:
-        session.login(username, password)
+        session = _create_session(args)
+        eric = Eric(session)
+        execute_command(args, eric)
     except MolgenisRequestError as e:
         print(e.message)
         exit(1)
     except requests.RequestException as e:
         print(str(e))
         exit(1)
+
+
+def _create_session(args) -> EricSession:
+    username, password = _get_username_password(args)
+    session = bbmri_client.EricSession(url=args.target)
+    session.login(username, password)
     return session
 
 
