@@ -176,6 +176,16 @@ class EricSession(ExtendedSession):
             collections={row["id"]: row["quality"] for row in collections},
         )
 
+    def get_node(self, code: str) -> Node:
+        """
+        Retrieves a single Node object from the national nodes table.
+        :param code: node to get by code
+        :return: Node object
+        """
+        nodes = self.get(self.NODES_TABLE, q=f"id=={code}")
+        self._validate_codes([code], nodes)
+        return self._to_nodes(nodes)[0]
+
     def get_nodes(self, codes: List[str] = None) -> List[Node]:
         """
         Retrieves a list of Node objects from the national nodes table. Will return
@@ -191,6 +201,16 @@ class EricSession(ExtendedSession):
         if codes:
             self._validate_codes(codes, nodes)
         return self._to_nodes(nodes)
+
+    def get_external_node(self, code: str) -> ExternalServerNode:
+        """
+        Retrieves a single ExternalServerNode object from the national nodes table.
+        :param code: node to get by code
+        :return: ExternalServerNode object
+        """
+        nodes = self.get(self.NODES_TABLE, q=f"id=={code};dns!=''")
+        self._validate_codes([code], nodes)
+        return self._to_nodes(nodes)[0]
 
     def get_external_nodes(self, codes: List[str] = None) -> List[ExternalServerNode]:
         """
