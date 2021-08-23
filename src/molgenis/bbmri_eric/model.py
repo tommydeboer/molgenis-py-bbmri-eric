@@ -31,7 +31,7 @@ class Table:
 
     type: TableType
     full_name: str
-    rows_by_id: typing.OrderedDict[str, dict]
+    rows_by_id: "typing.OrderedDict[str, dict]"
 
     @property
     def rows(self) -> List[dict]:

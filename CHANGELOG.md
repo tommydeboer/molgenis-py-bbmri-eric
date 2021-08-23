@@ -4,6 +4,10 @@
 
 -
 
+## Version 1.0.3
+
+- Fixed critical error when running on Python 3.6 or lower
+
 ## Version 1.0.2
 
 - Fixed support for Python 3.6 by including the [dataclasses backport](https://pypi.org/project/dataclasses/)
