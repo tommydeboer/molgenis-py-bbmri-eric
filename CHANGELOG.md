@@ -3,6 +3,9 @@
 ## Version 1.1.0 (development)
 
 -
+## Version 1.0.4
+
+- Fixed issue #36 Deleted rows from a staging area are not deleted from the published ERIC tables
 
 ## Version 1.0.3
 
