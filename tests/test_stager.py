@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError
 from molgenis.bbmri_eric.model import ExternalServerNode, NodeData
@@ -63,10 +64,24 @@ def test_import_node(session_mock, node_data: NodeData):
     session_mock.assert_called_with(node=node)
     source_session_mock_instance.get_node_data.assert_called_once()
     assert session.add_batched.mock_calls == [
-        mock.call("eu_bbmri_eric_NO_persons", node_data.persons.rows),
-        mock.call("eu_bbmri_eric_NO_networks", node_data.networks.rows),
-        mock.call("eu_bbmri_eric_NO_biobanks", node_data.biobanks.rows),
-        mock.call("eu_bbmri_eric_NO_collections", node_data.collections.rows),
+        mock.call(
+            "eu_bbmri_eric_NO_persons",
+            utils.remove_one_to_manys(node_data.persons.rows, node_data.persons.meta),
+        ),
+        mock.call(
+            "eu_bbmri_eric_NO_networks",
+            utils.remove_one_to_manys(node_data.networks.rows, node_data.networks.meta),
+        ),
+        mock.call(
+            "eu_bbmri_eric_NO_biobanks",
+            utils.remove_one_to_manys(node_data.biobanks.rows, node_data.biobanks.meta),
+        ),
+        mock.call(
+            "eu_bbmri_eric_NO_collections",
+            utils.remove_one_to_manys(
+                node_data.collections.rows, node_data.collections.meta
+            ),
+        ),
     ]
 
 

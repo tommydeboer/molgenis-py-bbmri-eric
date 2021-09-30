@@ -23,10 +23,10 @@ def test_publish(enricher_mock, node_data: NodeData):
     assert enricher_mock.called_with(node_data, printer)
     enricher_instance.enrich.assert_called_once()
     assert session.upsert_batched.mock_calls == [
-        mock.call("eu_bbmri_eric_persons", node_data.persons.rows),
-        mock.call("eu_bbmri_eric_networks", node_data.networks.rows),
-        mock.call("eu_bbmri_eric_biobanks", node_data.biobanks.rows),
-        mock.call("eu_bbmri_eric_collections", node_data.collections.rows),
+        mock.call(node_data.persons.type.base_id, node_data.persons.rows),
+        mock.call(node_data.networks.type.base_id, node_data.networks.rows),
+        mock.call(node_data.biobanks.type.base_id, node_data.biobanks.rows),
+        mock.call(node_data.collections.type.base_id, node_data.collections.rows),
     ]
     assert publisher._delete_rows.mock_calls == [
         mock.call(node_data.collections, node_data.node),
@@ -37,7 +37,7 @@ def test_publish(enricher_mock, node_data: NodeData):
 
 
 def test_delete_rows(node_data: NodeData):
-    q_info = QualityInfo(biobanks={"undeletable_id": "quality"}, collections={})
+    q_info = QualityInfo(biobanks={"undeletable_id": ["quality"]}, collections={})
     session = EricSession("url")
     session.delete_list = MagicMock()
     session.get = MagicMock()
