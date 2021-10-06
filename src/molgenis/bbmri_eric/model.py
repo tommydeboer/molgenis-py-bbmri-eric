@@ -23,6 +23,31 @@ class TableType(Enum):
 
 
 @dataclass(frozen=True)
+class TableMeta:
+    """Convenient wrapper for the output of the metadata API."""
+
+    meta: dict
+
+    @property
+    def id(self):
+        return self.meta["data"]["id"]
+
+    @property
+    def id_attribute(self):
+        for attribute in self.meta["data"]["attributes"]["items"]:
+            if attribute["data"]["idAttribute"] is True:
+                return attribute["data"]["name"]
+
+    @property
+    def one_to_manys(self) -> List[str]:
+        one_to_manys = []
+        for attribute in self.meta["data"]["attributes"]["items"]:
+            if attribute["data"]["type"] == "onetomany":
+                one_to_manys.append(attribute["data"]["name"])
+        return one_to_manys
+
+
+@dataclass(frozen=True)
 class Table:
     """
     Simple representation of a BBMRI ERIC node table. The rows should be in the
@@ -30,15 +55,19 @@ class Table:
     """
 
     type: TableType
-    full_name: str
     rows_by_id: "typing.OrderedDict[str, dict]"
+    meta: TableMeta
 
     @property
     def rows(self) -> List[dict]:
         return list(self.rows_by_id.values())
 
+    @property
+    def full_name(self) -> str:
+        return self.meta.id
+
     @staticmethod
-    def of(table_type: TableType, full_name: str, rows: List[dict]) -> "Table":
+    def of(table_type: TableType, meta: TableMeta, rows: List[dict]) -> "Table":
         """Factory method that takes a list of rows instead of an OrderedDict of
         ids/rows."""
         rows_by_id = OrderedDict()
@@ -46,7 +75,7 @@ class Table:
             rows_by_id[row["id"]] = row
         return Table(
             type=table_type,
-            full_name=full_name,
+            meta=meta,
             rows_by_id=rows_by_id,
         )
 

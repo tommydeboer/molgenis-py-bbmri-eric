@@ -1,7 +1,5 @@
 import json
 from collections import defaultdict
-from dataclasses import dataclass
-from enum import Enum
 from typing import List, Optional
 from urllib.parse import quote_plus
 
@@ -15,31 +13,11 @@ from molgenis.bbmri_eric.model import (
     QualityInfo,
     Source,
     Table,
+    TableMeta,
     TableType,
 )
 from molgenis.bbmri_eric.utils import batched
 from molgenis.client import Session
-
-
-@dataclass(frozen=True)
-class ReferenceAttributeNames:
-    """
-    Object containing names of all reference attributes of an entity type.
-    """
-
-    xrefs: List[str]
-    mrefs: List[str]
-    categoricals: List[str]
-    categorical_mrefs: List[str]
-    one_to_manys: List[str]
-
-
-class ReferenceType(Enum):
-    XREF = "XREF"
-    MREF = "MREF"
-    CATEGORICAL = "CATEGORICAL"
-    CATEGORICAL_MREF = "CATEGORICAL_MREF"
-    ONE_TO_MANY = "ONE_TO_MANY"
 
 
 class ExtendedSession(Session):
@@ -52,38 +30,12 @@ class ExtendedSession(Session):
         super(ExtendedSession, self).__init__(url, token)
         self.url = url
 
-    def get_reference_attribute_names(self, id_: str) -> ReferenceAttributeNames:
-        """
-        Gets the names of all reference attributes of an entity type
-
-        Parameters:
-            id_ (str): the id of the entity type
-        """
-        attrs = self.get_entity_meta_data(id_)["attributes"]
-
-        result = defaultdict(list)
-        for name, attr in attrs.items():
-            try:
-                type_ = ReferenceType[attr["fieldType"]]
-                result[type_].append(name)
-            except KeyError:
-                pass
-
-        return ReferenceAttributeNames(
-            xrefs=result.get(ReferenceType.XREF, []),
-            mrefs=result.get(ReferenceType.MREF, []),
-            categoricals=result.get(ReferenceType.CATEGORICAL, []),
-            categorical_mrefs=result.get(ReferenceType.CATEGORICAL_MREF, []),
-            one_to_manys=result.get(ReferenceType.ONE_TO_MANY, []),
-        )
-
     def get_uploadable_data(self, entity_type_id: str, *args, **kwargs) -> List[dict]:
         """
         Returns all the rows of an entity type, transformed to the uploadable format.
         """
         rows = self.get(entity_type_id, *args, **kwargs)
-        ref_names = self.get_reference_attribute_names(entity_type_id)
-        return utils.to_upload_format(rows, ref_names.one_to_manys)
+        return utils.to_upload_format(rows)
 
     def upsert_batched(self, entity_type_id: str, entities: List[dict]):
         """
@@ -92,11 +44,9 @@ class ExtendedSession(Session):
         @param entities: the entities to upsert
         """
         # Get the existing identifiers
-        meta = self.get_entity_meta_data(entity_type_id)
-        id_attr = meta["idAttribute"]
-        existing_entities = self.get(
-            entity_type_id, batch_size=10000, attributes=id_attr
-        )
+        meta = self.get_meta(entity_type_id)
+        id_attr = meta.id_attribute
+        existing_entities = self.get(meta.id, batch_size=10000, attributes=id_attr)
         existing_ids = {entity[id_attr] for entity in existing_entities}
 
         # Based on the existing identifiers, decide which rows should be added/updated
@@ -108,9 +58,12 @@ class ExtendedSession(Session):
             else:
                 add.append(entity)
 
+        # Sanitize data: rows that are added should not contain one_to_manys
+        add = utils.remove_one_to_manys(add, meta)
+
         # Do the adds and updates in batches
-        self.add_batched(entity_type_id, add)
-        self.update_batched(entity_type_id, update)
+        self.add_batched(meta.id, add)
+        self.update_batched(meta.id, update)
 
     def update(self, entity_type_id: str, entities: List[dict]):
         """Updates multiple entities."""
@@ -143,6 +96,20 @@ class ExtendedSession(Session):
         for batch in batches:
             self.add_all(entity_type_id, batch)
 
+    def get_meta(self, entity_type_id: str) -> TableMeta:
+        """Similar to get_entity_meta_data() of the parent Session class, but uses the
+        newer Metadata API instead of the REST API V1."""
+        response = self._session.get(
+            self._api_url + "metadata/" + quote_plus(entity_type_id),
+            headers=self._get_token_header(),
+        )
+        try:
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
+
+        return TableMeta(meta=response.json())
+
 
 class EricSession(ExtendedSession):
     """
@@ -171,13 +138,12 @@ class EricSession(ExtendedSession):
         biobanks = utils.to_upload_format(biobank_qualities)
         collections = utils.to_upload_format(collection_qualities)
 
-        bb_qual = {}
-        {bb_qual.setdefault(row["biobank"], []).append(row["id"]) for row in biobanks}
-        coll_qual = {}
-        {
-            coll_qual.setdefault(row["collection"], []).append(row["id"])
-            for row in collections
-        }
+        bb_qual = defaultdict(list)
+        coll_qual = defaultdict(list)
+        for row in biobanks:
+            bb_qual[row["biobank"]].append(row["id"])
+        for row in collections:
+            coll_qual[row["collection"]].append(row["id"])
 
         return QualityInfo(biobanks=bb_qual, collections=coll_qual)
 
@@ -268,10 +234,11 @@ class EricSession(ExtendedSession):
         tables = dict()
         for table_type in TableType.get_import_order():
             id_ = node.get_staging_id(table_type)
+            meta = self.get_meta(id_)
 
             tables[table_type] = Table.of(
                 table_type=table_type,
-                full_name=id_,
+                meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
             )
 
@@ -289,10 +256,11 @@ class EricSession(ExtendedSession):
         tables = dict()
         for table_type in TableType.get_import_order():
             id_ = table_type.base_id
+            meta = self.get_meta(id_)
 
             tables[table_type] = Table.of(
                 table_type=table_type,
-                full_name=id_,
+                meta=meta,
                 rows=self.get_uploadable_data(
                     id_, batch_size=10000, q=f"national_node=={node.code}"
                 ),
@@ -320,10 +288,11 @@ class ExternalServerSession(ExtendedSession):
         tables = dict()
         for table_type in TableType.get_import_order():
             id_ = table_type.base_id
+            meta = self.get_meta(id_)
 
             tables[table_type] = Table.of(
                 table_type=table_type,
-                full_name=id_,
+                meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
             )
 

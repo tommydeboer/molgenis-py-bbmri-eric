@@ -1,3 +1,4 @@
+from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.bbmri_client import EricSession, ExternalServerSession
 from molgenis.bbmri_eric.errors import EricError
 from molgenis.bbmri_eric.model import ExternalServerNode, TableType
@@ -54,7 +55,9 @@ class Stager:
                 target_name = node.get_staging_id(table.type)
 
                 self.printer.print(f"Importing data to {target_name}")
-                self.session.add_batched(target_name, table.rows)
+                self.session.add_batched(
+                    target_name, utils.remove_one_to_manys(table.rows, table.meta)
+                )
         except MolgenisRequestError as e:
             raise EricError(f"Error copying from {node.url} to staging area") from e
 

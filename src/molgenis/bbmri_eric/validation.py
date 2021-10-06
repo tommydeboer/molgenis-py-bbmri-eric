@@ -51,7 +51,7 @@ class Validator:
         for collection in self.node_data.collections.rows:
             self._validate_xref(collection, "contact")
             self._validate_xref(collection, "biobank")
-            self._validate_mref(collection, "parent_collection")
+            self._validate_xref(collection, "parent_collection")
             self._validate_mref(collection, "networks")
 
     def _validate_xref(self, row: dict, ref_attr: str):
