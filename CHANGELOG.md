@@ -6,6 +6,8 @@
 ## Version 1.0.4
 
 - Fixed issue #36 Deleted rows from a staging area are not deleted from the published ERIC tables
+- Fixed issue #38 Parent and sub collections are empty in the ERIC collections table
+- Fixed an issue where references were not validated correctly
 
 ## Version 1.0.3
 
