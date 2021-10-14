@@ -81,10 +81,10 @@ class Validator:
             errors.append(warning)
 
         id_value = id_.lstrip(prefix)
-        if not re.search("^[A-Za-z0-9-_:@.]+$", id_value):
+        if not re.search("^[A-Za-z0-9-_:]+$", id_value):
             warning = EricWarning(
                 f"Subpart {id_value} of {id_} in entity: {table.full_name} contains "
-                f"invalid characters. Only alphanumerics and -_:@. are allowed."
+                f"invalid characters. Only alphanumerics and -_: are allowed."
             )
             self.printer.print_warning(warning)
             errors.append(warning)

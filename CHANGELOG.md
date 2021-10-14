@@ -2,7 +2,8 @@
 
 ## Version 1.1.0 (development)
 
--
+- Fixed issue #42 ID validation should not allow @ and .
+
 ## Version 1.0.4
 
 - Fixed issue #36 Deleted rows from a staging area are not deleted from the published ERIC tables

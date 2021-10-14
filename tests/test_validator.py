@@ -17,7 +17,7 @@ def mock_node_data():
         persons_meta,
         [
             {"id": "bbmri-eric:contactID:NL_valid-person-1"},
-            {"id": "bbmri-eric:contactID:NL_valid:person@2"},
+            {"id": "bbmri-eric:contactID:NL_valid:person-2"},
             {"id": "bbmri-eric:ID:NL_invalid_classifier"},  # warning
             {"id": "bbmri-eric:contactID:EU_invalid_node_code"},  # warning
             {"id": "bbmri-eric:contactID:NL_invalid_illegal_characters#$&"},  # warning
@@ -35,7 +35,7 @@ def mock_node_data():
                 "contact": "bbmri-eric:contactID:NL_valid-person-1",
             },
             {
-                "id": "bbmri-eric:networkID:NL_valid:network@2",
+                "id": "bbmri-eric:networkID:NL_valid:network-2",
                 "contact": "bbmri-eric:ID:NL_invalid_classifier",  # warning
                 "parent_network": ["bbmri-eric:network:NL_valid-network-1"],
             },
@@ -61,7 +61,7 @@ def mock_node_data():
                 "contact": "bbmri-eric:contactID:NL_valid-person-1",
             },
             {
-                "id": "bbmri-eric:ID:NL_valid:biobank@2",
+                "id": "bbmri-eric:ID:NL_valid:biobank-2",
                 "contact": "bbmri-eric:ID:NL_invalid_classifier",  # warning
                 "network": ["bbmri-eric:networkID:NL_valid-network-1"],
             },
@@ -88,7 +88,7 @@ def mock_node_data():
                 "biobank": "bbmri-eric:networkID:NL_valid-biobank-1",
             },
             {
-                "id": "bbmri-eric:ID:NL_valid:collection@2",
+                "id": "bbmri-eric:ID:NL_valid:collection-2",
                 "contact": "bbmri-eric:ID:NL_invalid_classifier",  # warning
                 "networks": ["bbmri-eric:network:NL_valid-network-1"],
                 "biobank": "bbmri-eric:ID:NL_invalid_classifier",  # warning
@@ -138,7 +138,7 @@ def test_validate_id(mock_node_data):
             message="Subpart valid_illegal_characters#$& of "
             "bbmri-eric:contactID:NL_invalid_illegal_characters#$& in entity: "
             "eu_bbmri_eric_NL_persons contains invalid characters. Only "
-            "alphanumerics and -_:@. are allowed."
+            "alphanumerics and -_: are allowed."
         ),
         EricWarning(
             message="bbmri-eric:ID:NL_invalid_classifier in entity: "
@@ -167,7 +167,7 @@ def test_validate_id(mock_node_data):
             "eu_bbmri_eric_NL_collections does not start with bbmri-eric:ID:NL_"
         ),
         EricWarning(
-            message="bbmri-eric:networkID:NL_valid:network@2 references invalid id: "
+            message="bbmri-eric:networkID:NL_valid:network-2 references invalid id: "
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
@@ -175,7 +175,7 @@ def test_validate_id(mock_node_data):
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
-            message="bbmri-eric:ID:NL_valid:biobank@2 references invalid id: "
+            message="bbmri-eric:ID:NL_valid:biobank-2 references invalid id: "
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
@@ -183,15 +183,15 @@ def test_validate_id(mock_node_data):
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
-            message="bbmri-eric:ID:NL_valid:collection@2 references invalid id: "
+            message="bbmri-eric:ID:NL_valid:collection-2 references invalid id: "
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
-            message="bbmri-eric:ID:NL_valid:collection@2 references invalid id: "
+            message="bbmri-eric:ID:NL_valid:collection-2 references invalid id: "
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
-            message="bbmri-eric:ID:NL_valid:collection@2 references invalid id: "
+            message="bbmri-eric:ID:NL_valid:collection-2 references invalid id: "
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
         EricWarning(
