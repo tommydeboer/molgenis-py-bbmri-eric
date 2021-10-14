@@ -135,8 +135,7 @@ def test_validate_id(mock_node_data):
             "bbmri-eric:contactID:NL_"
         ),
         EricWarning(
-            message="Subpart valid_illegal_characters#$& of "
-            "bbmri-eric:contactID:NL_invalid_illegal_characters#$& in entity: "
+            message="bbmri-eric:contactID:NL_invalid_illegal_characters#$& in entity: "
             "eu_bbmri_eric_NL_persons contains invalid characters. Only "
             "alphanumerics and -_: are allowed."
         ),
