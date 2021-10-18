@@ -3,6 +3,7 @@
 ## Version 1.1.0 (development)
 
 - Fixed issue #42 ID validation should not allow @ and .
+- Fixed issue #43 Current ID validation results in false-positive invalid IDs
 
 ## Version 1.0.4
 
