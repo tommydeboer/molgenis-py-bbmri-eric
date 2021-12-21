@@ -3,20 +3,36 @@ from molgenis.bbmri_eric.printer import Printer
 
 
 class Enricher:
-    def __init__(self, node_data: NodeData, quality: QualityInfo, printer: Printer):
+    """
+    The published tables have a few extra attributes that the staging tables do not.
+    This class is responsible for adding those attributes so the staging tables can be
+    published correctly.
+    """
+
+    def __init__(
+        self,
+        node_data: NodeData,
+        quality: QualityInfo,
+        printer: Printer,
+        existing_biobanks: Table,
+    ):
         self.node_data = node_data
         self.quality = quality
         self.printer = printer
+        self.existing_biobank_pids = existing_biobanks.rows_by_id
 
     def enrich(self):
         """
         Enriches the data of a node:
         1. Sets the commercial use boolean
         2. Adds the national node code to all rows
+        3. Sets the quality info field for biobanks and collections
+        4. Adds PIDs to biobanks
         """
         self._set_commercial_use_bool()
         self._set_national_node_code()
         self._set_quality_info()
+        self._set_biobank_pids()
 
     def _set_commercial_use_bool(self):
         """
@@ -62,3 +78,13 @@ class Enricher:
             quality_ids = qualities.get(row["id"], [])
             if quality_ids:
                 row["quality"] = quality_ids
+
+    def _set_biobank_pids(self):
+        """
+        Adds the PIDs for existing biobanks.
+        """
+        self.printer.print("Adding existing PIDs to biobanks")
+        for biobank in self.node_data.biobanks.rows:
+            biobank_id = biobank["id"]
+            if biobank_id in self.existing_biobank_pids:
+                biobank["pid"] = self.existing_biobank_pids[biobank_id]["pid"]
