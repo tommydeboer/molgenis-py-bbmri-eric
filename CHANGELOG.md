@@ -1,6 +1,9 @@
 # Changelog
 
-## Version 1.1.0 (development)
+## Version 1.2.0 (development)
+- 
+
+## Version 1.1.0
 
 - Persistent Identifiers (PIDs) for biobanks
   - New biobanks are automatically assigned a PID
