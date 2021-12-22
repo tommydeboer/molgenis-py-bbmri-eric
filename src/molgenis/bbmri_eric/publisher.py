@@ -23,6 +23,9 @@ class Publisher:
         self.pid_manager = PidManager(pid_service, printer, session.url)
         self.warnings: List[EricWarning] = []
         self.quality_info: QualityInfo = session.get_quality_info()
+        self.eu_node_data: NodeData = session.get_staging_node_data(
+            session.get_node("EU")
+        )
 
     def publish(self, node_data: NodeData) -> List[EricWarning]:
         """
@@ -37,8 +40,12 @@ class Publisher:
 
         self.printer.print("✏️ Preparing data")
         with self.printer.indentation():
-            Enricher(
-                node_data, self.quality_info, self.printer, existing_node_data.biobanks
+            self.warnings += Enricher(
+                node_data=node_data,
+                quality=self.quality_info,
+                printer=self.printer,
+                existing_biobanks=existing_node_data.biobanks,
+                eu_node_data=self.eu_node_data,
             ).enrich()
 
         self.printer.print("🆔 Managing PIDs")

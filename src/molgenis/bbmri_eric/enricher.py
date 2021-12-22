@@ -1,4 +1,5 @@
-from molgenis.bbmri_eric.model import NodeData, QualityInfo, Table
+from molgenis.bbmri_eric.errors import EricWarning
+from molgenis.bbmri_eric.model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric.printer import Printer
 
 
@@ -15,11 +16,14 @@ class Enricher:
         quality: QualityInfo,
         printer: Printer,
         existing_biobanks: Table,
+        eu_node_data: NodeData,
     ):
         self.node_data = node_data
         self.quality = quality
         self.printer = printer
         self.existing_biobank_pids = existing_biobanks.rows_by_id
+        self.eu_node_data = eu_node_data
+        self.warnings = []
 
     def enrich(self):
         """
@@ -28,11 +32,14 @@ class Enricher:
         2. Adds the national node code to all rows
         3. Sets the quality info field for biobanks and collections
         4. Adds PIDs to biobanks
+        5. Replaces a node's EU rows with the data from node EU's staging area
         """
+        self._replace_eu_rows()
         self._set_commercial_use_bool()
         self._set_national_node_code()
         self._set_quality_info()
         self._set_biobank_pids()
+        return self.warnings
 
     def _set_commercial_use_bool(self):
         """
@@ -88,3 +95,30 @@ class Enricher:
             biobank_id = biobank["id"]
             if biobank_id in self.existing_biobank_pids:
                 biobank["pid"] = self.existing_biobank_pids[biobank_id]["pid"]
+
+    def _replace_eu_rows(self):
+        """
+        Replaces a node's EU networks and persons with data from the EU staging node.
+        """
+        node_data = self.node_data
+        node = node_data.node
+        if node.code == "EU":
+            return
+
+        self.printer.print("Replacing EU networks and persons")
+        self._replace_rows(node, node_data.persons, self.eu_node_data.persons)
+        self._replace_rows(node, node_data.networks, self.eu_node_data.networks)
+
+    def _replace_rows(self, node: Node, table: Table, eu_table: Table):
+        eu_prefix = node.get_eu_id_prefix(table.type)
+        for network in table.rows:
+            id_ = network["id"]
+            if id_.startswith(eu_prefix):
+                if id_ in eu_table.rows_by_id:
+                    table.rows_by_id[id_] = eu_table.rows_by_id[id_]
+                else:
+                    warning = EricWarning(
+                        f"{id_} is not present in {eu_table.type.base_id}"
+                    )
+                    self.printer.print_warning(warning, indent=1)
+                    self.warnings.append(warning)
