@@ -54,7 +54,6 @@ class PidService:
 
         {
           "handle_server_url": "...",
-          "baseuri": "...",
           "private_key": "...",
           "certificate_only": "...",
           "client": "rest",
