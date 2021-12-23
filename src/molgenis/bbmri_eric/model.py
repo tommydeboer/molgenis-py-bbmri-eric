@@ -114,6 +114,19 @@ class Node:
         classifier = self._classifiers[table_type]
         return f"bbmri-eric:{classifier}:{self.code}_"
 
+    @classmethod
+    def get_eu_id_prefix(cls, table_type: TableType) -> str:
+        """
+        Some nodes can refer to rows in the EU node. These rows have an EU prefix and
+        it's based on the classifier of the table.
+
+        :param TableType table_type: the table to get the EU id prefix for
+        :return: the EU id prefix
+        """
+
+        classifier = cls._classifiers[table_type]
+        return f"bbmri-eric:{classifier}:EU_"
+
 
 @dataclass(frozen=True)
 class ExternalServerNode(Node):
