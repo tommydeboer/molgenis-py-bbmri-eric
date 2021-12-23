@@ -1,7 +1,8 @@
 # Changelog
 
-## Version 1.2.0 (development)
--
+## Version 1.1.1 (development)
+- Fixed issue #35 References to EU networks and persons don't pass validation
+- Fixed issue #41 Rows of node EU are overwritten by other nodes that reference them
 
 ## Version 1.1.0
 
