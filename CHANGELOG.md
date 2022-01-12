@@ -1,7 +1,7 @@
 # Changelog
 
-## Version 1.2.0 (development)
--
+## Version 1.1.1 (development)
+- Change PID format to use a random 12 digit hexadecimal number (example: 6ed7-328b-2793)
 
 ## Version 1.1.0
 

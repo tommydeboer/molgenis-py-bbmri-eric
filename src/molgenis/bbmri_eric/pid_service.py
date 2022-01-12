@@ -1,3 +1,4 @@
+import secrets
 from enum import Enum
 from typing import List, Optional
 from urllib.parse import quote
@@ -97,9 +98,8 @@ class PidService:
         :param name: the NAME for the handle
         :return: the generated PID
         """
-        return self.client.generate_and_register_handle(
-            prefix=self.prefix, location=url, NAME=name
-        )
+        pid = self.generate_pid()
+        return self.client.register_handle(handle=pid, location=url, NAME=name)
 
     @pyhandle_error_handler
     def set_name(self, pid: str, new_name: str):
@@ -129,3 +129,12 @@ class PidService:
         :param pid: the PID to remove the STATUS field of
         """
         self.client.delete_handle_value(pid, "STATUS")
+
+    def generate_pid(self) -> str:
+        """
+        Generates a new PID. Uses a cryptographically secure random, 12 digit
+        hexadecimal number separated by hyphens every 4 digits (example: 6ed7-328b-2793)
+        Has been tested to have <1 collisions every 10 million ids.
+        """
+        id_ = secrets.token_hex(6)
+        return f"{self.prefix}/{id_[:4]}-{id_[4:8]}-{id_[8:]}"

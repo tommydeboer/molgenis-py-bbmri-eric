@@ -1,3 +1,4 @@
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -35,14 +36,16 @@ def test_reverse_lookup_no_auth(pid_service, handle_client):
 
 
 def test_register_pid(pid_service: PidService, handle_client):
-    handle_client.generate_and_register_handle.return_value = "pid1"
+    handle_client.register_handle.return_value = "test/pid"
 
-    result = pid_service.register_pid("url", "biobank1")
+    with mock.patch.object(PidService, "generate_pid") as generate_pid_mock:
+        generate_pid_mock.return_value = "test/pid"
+        result = pid_service.register_pid("url", "biobank1")
 
-    handle_client.generate_and_register_handle.assert_called_with(
-        prefix="test", location="url", NAME="biobank1"
+    handle_client.register_handle.assert_called_with(
+        handle="test/pid", location="url", NAME="biobank1"
     )
-    assert result == "pid1"
+    assert result == "test/pid"
 
 
 def test_set_name(pid_service: PidService, handle_client):
@@ -58,3 +61,16 @@ def test_set_status(pid_service: PidService, handle_client):
 def test_remove_status(pid_service: PidService, handle_client):
     pid_service.remove_status("pid1")
     handle_client.delete_handle_value.assert_called_with("pid1", "STATUS")
+
+
+def test_generate_pid(pid_service: PidService):
+    pid = pid_service.generate_pid()
+
+    pid = pid.replace("-", "")
+    prefix, suffix = pid.split("/")
+
+    assert prefix == "test"
+    try:
+        int(suffix, 16)
+    except ValueError:
+        pytest.fail("Couldn't parse hex id as int")
