@@ -3,7 +3,7 @@ from typing import List, Optional
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData
-from molgenis.bbmri_eric.pid_service import PidService
+from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
 from molgenis.bbmri_eric.publisher import Publisher
 from molgenis.bbmri_eric.stager import Stager
@@ -16,13 +16,15 @@ class Eric:
     Main class for doing operations on the ERIC directory.
     """
 
-    def __init__(self, session: EricSession, pid_service: Optional[PidService] = None):
+    def __init__(
+        self, session: EricSession, pid_service: Optional[BasePidService] = None
+    ):
         """
         :param BbmriSession session: an authenticated session with an ERIC directory
         """
         self.session = session
         self.printer = Printer()
-        self.pid_service: Optional[PidService] = pid_service
+        self.pid_service: Optional[BasePidService] = pid_service
 
     def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> ErrorReport:
         """

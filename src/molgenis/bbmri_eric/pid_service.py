@@ -1,4 +1,5 @@
 import secrets
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Optional
 from urllib.parse import quote
@@ -38,7 +39,35 @@ def pyhandle_error_handler(func):
     return inner_function
 
 
-class PidService:
+class BasePidService(ABC):
+    @abstractmethod
+    def reverse_lookup(self, url: str) -> Optional[List[str]]:
+        pass
+
+    @abstractmethod
+    def register_pid(self, url: str, name: str) -> str:
+        pass
+
+    @abstractmethod
+    def set_name(self, pid: str, new_name: str):
+        pass
+
+    @abstractmethod
+    def set_status(self, pid: str, status: Status):
+        pass
+
+    @staticmethod
+    def generate_pid(prefix: str) -> str:
+        """
+        Generates a new PID. Uses a cryptographically secure random, 12 digit
+        hexadecimal number separated by hyphens every 4 digits (example: 6ed7-328b-2793)
+        Has been tested to have <1 collisions every 10 million ids.
+        """
+        id_ = secrets.token_hex(6)
+        return f"{prefix}/{id_[:4]}-{id_[4:8]}-{id_[8:]}"
+
+
+class PidService(BasePidService):
     """
     Low level service for interacting with the handle server.
     """
@@ -98,7 +127,7 @@ class PidService:
         :param name: the NAME for the handle
         :return: the generated PID
         """
-        pid = self.generate_pid()
+        pid = self.generate_pid(self.prefix)
         return self.client.register_handle(handle=pid, location=url, NAME=name)
 
     @pyhandle_error_handler
@@ -130,11 +159,21 @@ class PidService:
         """
         self.client.delete_handle_value(pid, "STATUS")
 
-    def generate_pid(self) -> str:
-        """
-        Generates a new PID. Uses a cryptographically secure random, 12 digit
-        hexadecimal number separated by hyphens every 4 digits (example: 6ed7-328b-2793)
-        Has been tested to have <1 collisions every 10 million ids.
-        """
-        id_ = secrets.token_hex(6)
-        return f"{self.prefix}/{id_[:4]}-{id_[4:8]}-{id_[8:]}"
+
+class DummyPidService(BasePidService):
+    """
+    This dummy implementation can be used to test publishing without actually
+    interacting with a Handle server.
+    """
+
+    def reverse_lookup(self, url: str) -> Optional[List[str]]:
+        pass
+
+    def register_pid(self, url: str, name: str) -> str:
+        return self.generate_pid("FAKE-PREFIX")
+
+    def set_name(self, pid: str, new_name: str):
+        pass
+
+    def set_status(self, pid: str, status: Status):
+        pass

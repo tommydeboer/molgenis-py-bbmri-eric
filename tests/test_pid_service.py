@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from molgenis.bbmri_eric.errors import EricError
-from molgenis.bbmri_eric.pid_service import PidService, Status
+from molgenis.bbmri_eric.pid_service import DummyPidService, PidService, Status
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def test_remove_status(pid_service: PidService, handle_client):
 
 
 def test_generate_pid(pid_service: PidService):
-    pid = pid_service.generate_pid()
+    pid = pid_service.generate_pid("test")
 
     pid = pid.replace("-", "")
     prefix, suffix = pid.split("/")
@@ -74,3 +74,10 @@ def test_generate_pid(pid_service: PidService):
         int(suffix, 16)
     except ValueError:
         pytest.fail("Couldn't parse hex id as int")
+
+
+def test_dummy_service():
+    dummy = DummyPidService()
+
+    assert dummy.register_pid("", "").startswith("FAKE-PREFIX/")
+    assert dummy.reverse_lookup("") is None

@@ -2,6 +2,7 @@
 
 ## Version 1.1.1 (development)
 - Change PID format to use a random 12 digit hexadecimal number (example: 6ed7-328b-2793)
+- Introduced a DummyPidService to test publishing without interacting with a Handle server
 
 ## Version 1.1.0
 
