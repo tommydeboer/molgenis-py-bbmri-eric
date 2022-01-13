@@ -2,7 +2,7 @@ import re
 from typing import List, Set
 
 from molgenis.bbmri_eric.errors import EricWarning
-from molgenis.bbmri_eric.model import NodeData, Table
+from molgenis.bbmri_eric.model import NodeData, Table, TableType
 from molgenis.bbmri_eric.printer import Printer
 
 
@@ -13,6 +13,8 @@ class Validator:
     1. Checking the validity of all identifiers
     2. Checking if there are rows that reference rows with invalid identifiers
     """
+
+    ALLOWS_EU_PREFIXES = {TableType.PERSONS, TableType.NETWORKS}
 
     def __init__(self, node_data: NodeData, printer: Printer):
         self.printer = printer
@@ -72,14 +74,33 @@ class Validator:
     def _validate_id(self, table: Table, id_: str) -> List[EricWarning]:
         errors = []
 
-        prefix = self.node_data.node.get_id_prefix(table.type)
-        if not id_.startswith(prefix):
-            warning = EricWarning(
-                f"{id_} in entity: {table.full_name} does not start with {prefix}"
-            )
-            self.printer.print_warning(warning)
-            errors.append(warning)
+        self._validate_id_prefix(errors, id_, table)
+        self._validate_id_chars(errors, id_, table)
 
+        return errors
+
+    def _validate_id_prefix(self, errors: List[EricWarning], id_: str, table: Table):
+        node = self.node_data.node
+
+        prefix = node.get_id_prefix(table.type)
+        if table.type in self.ALLOWS_EU_PREFIXES:
+            eu_prefix = node.get_eu_id_prefix(table.type)
+            if not id_.startswith((prefix, eu_prefix)):
+                warning = EricWarning(
+                    f"{id_} in entity: {table.full_name} does not start with {prefix} "
+                    f"or {eu_prefix}"
+                )
+                self.printer.print_warning(warning)
+                errors.append(warning)
+        else:
+            if not id_.startswith(prefix):
+                warning = EricWarning(
+                    f"{id_} in entity: {table.full_name} does not start with {prefix}"
+                )
+                self.printer.print_warning(warning)
+                errors.append(warning)
+
+    def _validate_id_chars(self, errors: List[EricWarning], id_: str, table: Table):
         if not re.search("^[A-Za-z0-9-_:]+$", id_):
             warning = EricWarning(
                 f"{id_} in entity: {table.full_name} contains"
@@ -87,8 +108,6 @@ class Validator:
             )
             self.printer.print_warning(warning)
             errors.append(warning)
-
-        return errors
 
     def _add_invalid_id(self, id_: str, warnings: List[EricWarning]):
         self.invalid_ids.add(id_)

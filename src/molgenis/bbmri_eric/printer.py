@@ -49,8 +49,8 @@ class Printer:
             message += f" - Cause: {str(error.__cause__)}"
         self.print(f"❌ {message}")
 
-    def print_warning(self, warning: EricWarning):
-        self.print(f"⚠️ {warning.message}")
+    def print_warning(self, warning: EricWarning, indent: int = 0):
+        self.print(f"⚠️ {warning.message}", indent)
 
     def print_summary(self, report: ErrorReport):
         self.reset_indent()

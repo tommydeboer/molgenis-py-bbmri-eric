@@ -57,6 +57,15 @@ def test_node_id_prefix():
     assert node.get_id_prefix(TableType.COLLECTIONS) == "bbmri-eric:ID:BE_"
 
 
+def test_node_eu_id_prefix():
+    node = Node("BE", "BE")
+
+    assert node.get_eu_id_prefix(TableType.PERSONS) == "bbmri-eric:contactID:EU_"
+    assert node.get_eu_id_prefix(TableType.NETWORKS) == "bbmri-eric:networkID:EU_"
+    assert node.get_eu_id_prefix(TableType.BIOBANKS) == "bbmri-eric:ID:EU_"
+    assert node.get_eu_id_prefix(TableType.COLLECTIONS) == "bbmri-eric:ID:EU_"
+
+
 def test_external_server_node():
     node = ExternalServerNode("NL", description="NL", url="test.nl")
 
