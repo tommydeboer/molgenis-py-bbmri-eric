@@ -127,12 +127,7 @@ def test_validate_id(mock_node_data):
         EricWarning(
             message="bbmri-eric:ID:NL_invalid_classifier in entity: "
             "eu_bbmri_eric_NL_persons does not start with "
-            "bbmri-eric:contactID:NL_"
-        ),
-        EricWarning(
-            message="bbmri-eric:contactID:EU_invalid_node_code in entity: "
-            "eu_bbmri_eric_NL_persons does not start with "
-            "bbmri-eric:contactID:NL_"
+            "bbmri-eric:contactID:NL_ or bbmri-eric:contactID:EU_"
         ),
         EricWarning(
             message="bbmri-eric:contactID:NL_invalid_illegal_characters#$& in entity: "
@@ -142,12 +137,12 @@ def test_validate_id(mock_node_data):
         EricWarning(
             message="bbmri-eric:ID:NL_invalid_classifier in entity: "
             "eu_bbmri_eric_NL_networks does not start with "
-            "bbmri-eric:networkID:NL_"
+            "bbmri-eric:networkID:NL_ or bbmri-eric:networkID:EU_"
         ),
         EricWarning(
             message="bbmri-eric:networkID:BE_invalid_node_code in entity: "
             "eu_bbmri_eric_NL_networks does not start with "
-            "bbmri-eric:networkID:NL_"
+            "bbmri-eric:networkID:NL_ or bbmri-eric:networkID:EU_"
         ),
         EricWarning(
             message="bbmri-eric:test:NL_invalid_classifier in entity: "
