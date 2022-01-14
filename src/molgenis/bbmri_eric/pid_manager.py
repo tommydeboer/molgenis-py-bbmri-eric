@@ -2,7 +2,7 @@ from typing import List
 
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Table
-from molgenis.bbmri_eric.pid_service import PidService, Status
+from molgenis.bbmri_eric.pid_service import BasePidService, Status
 from molgenis.bbmri_eric.printer import Printer
 
 
@@ -12,7 +12,7 @@ class PidManager:
     updates en status changes are done here.
     """
 
-    def __init__(self, pid_service: PidService, printer: Printer, url: str):
+    def __init__(self, pid_service: BasePidService, printer: Printer, url: str):
         self.pid_service = pid_service
         self.printer = printer
         self.biobank_url_prefix = url.rstrip("/") + "/#/biobank/"

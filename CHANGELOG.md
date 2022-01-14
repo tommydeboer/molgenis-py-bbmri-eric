@@ -1,6 +1,8 @@
 # Changelog
 
-## Version 1.1.1 (development)
+## Version 1.2.0 (development)
+- Change PID format to use a random 12 digit hexadecimal number (example: 6ed7-328b-2793)
+- Introduced a DummyPidService to test publishing without interacting with a Handle server
 - Fixed issue #35 References to EU networks and persons don't pass validation
 - Fixed issue #41 Rows of node EU are overwritten by other nodes that reference them
 
