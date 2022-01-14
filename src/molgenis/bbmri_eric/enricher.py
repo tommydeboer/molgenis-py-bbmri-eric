@@ -34,9 +34,9 @@ class Enricher:
         4. Adds PIDs to biobanks
         5. Replaces a node's EU rows with the data from node EU's staging area
         """
+        self._set_national_node_code()
         self._replace_eu_rows()
         self._set_commercial_use_bool()
-        self._set_national_node_code()
         self._set_quality_info()
         self._set_biobank_pids()
         return self.warnings
@@ -116,6 +116,9 @@ class Enricher:
             if id_.startswith(eu_prefix):
                 if id_ in eu_table.rows_by_id:
                     table.rows_by_id[id_] = eu_table.rows_by_id[id_]
+
+                    # overwrite EU code that was added in previous enrichment step
+                    table.rows_by_id[id_]["national_node"] = self.eu_node_data.node.code
                 else:
                     warning = EricWarning(
                         f"{id_} is not present in {eu_table.type.base_id}"
