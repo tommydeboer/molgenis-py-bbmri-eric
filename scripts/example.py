@@ -9,7 +9,6 @@ from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.eric import Eric
 from molgenis.bbmri_eric.pid_service import PidService
 
-# Get credentials from .env.local
 # Get credentials from .env
 config = dotenv_values(".env")
 target = config["TARGET"]
