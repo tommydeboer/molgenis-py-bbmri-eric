@@ -14,7 +14,7 @@ def handle_client() -> MagicMock:
 
 @pytest.fixture
 def pid_service(handle_client) -> PidService:
-    return PidService(handle_client, "test")
+    return PidService(handle_client, "test", "test.nl")
 
 
 def test_reverse_lookup(pid_service, handle_client):
@@ -81,3 +81,11 @@ def test_dummy_service():
 
     assert dummy.register_pid("", "").startswith("FAKE-PREFIX/")
     assert dummy.reverse_lookup("") is None
+
+
+def test_base_url(handle_client):
+    service1 = PidService(handle_client, "test", "test1.nl")
+    service2 = PidService(handle_client, "test", "test2.nl")
+
+    assert service1.base_url == "test1.nl/"
+    assert service2.base_url == "test2.nl/"

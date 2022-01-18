@@ -37,7 +37,9 @@ def printer() -> MagicMock:
 
 @pytest.fixture
 def pid_service() -> MagicMock:
-    return MagicMock()
+    service = MagicMock()
+    service.base_url = "url/"
+    return service
 
 
 @pytest.fixture

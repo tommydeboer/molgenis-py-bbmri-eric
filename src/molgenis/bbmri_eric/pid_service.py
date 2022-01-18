@@ -1,5 +1,5 @@
 import secrets
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from enum import Enum
 from typing import List, Optional
 from urllib.parse import quote
@@ -39,7 +39,9 @@ def pyhandle_error_handler(func):
     return inner_function
 
 
-class BasePidService(ABC):
+class BasePidService(metaclass=ABCMeta):
+    base_url: str
+
     @abstractmethod
     def reverse_lookup(self, url: str) -> Optional[List[str]]:
         pass
@@ -72,12 +74,13 @@ class PidService(BasePidService):
     Low level service for interacting with the handle server.
     """
 
-    def __init__(self, client: RESTHandleClient, prefix: str):
+    def __init__(self, client: RESTHandleClient, prefix: str, base_url: str):
         self.client = client
         self.prefix = prefix
+        self.base_url = base_url.rstrip("/") + "/"
 
     @staticmethod
-    def from_credentials(credentials_json: str):
+    def from_credentials(credentials_json: str, base_url: str = None) -> "PidService":
         """
         Factory method to create a PidService from a credentials JSON file. The
         credentials file should have the following contents:
@@ -89,16 +92,26 @@ class PidService(BasePidService):
           "client": "rest",
           "prefix": "...",
           "reverselookup_username": "...",
-          "reverselookup_password": "..."
+          "reverselookup_password": "...",
+          "server_url": "..." <- optional
         }
 
+        :param base_url: the base URL to which the PIDs will link
         :param credentials_json: a full path to the credentials file
         :return: a PidService
         """
         credentials = PIDClientCredentials.load_from_JSON(credentials_json)
+
+        if not base_url:
+            try:
+                base_url = credentials.get_config()["server_url"]
+            except KeyError:
+                raise ValueError("server_url missing in credentials file")
+
         return PidService(
             PyHandleClient("rest").instantiate_with_credentials(credentials),
             credentials.get_prefix(),
+            base_url,
         )
 
     @pyhandle_error_handler
@@ -165,6 +178,9 @@ class DummyPidService(BasePidService):
     This dummy implementation can be used to test publishing without actually
     interacting with a Handle server.
     """
+
+    def __init__(self):
+        self.base_url = "FAKE-SERVER/"
 
     def reverse_lookup(self, url: str) -> Optional[List[str]]:
         pass
