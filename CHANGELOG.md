@@ -1,7 +1,7 @@
 # Changelog
 
 ## Version 1.3.0 (development)
--
+- PID URLs are based on a config parameter instead of the session
 
 ## Version 1.2.0
 - Change PID format to use a random 12 digit hexadecimal number (example: 6ed7-328b-2793)

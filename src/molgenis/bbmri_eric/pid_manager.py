@@ -12,10 +12,10 @@ class PidManager:
     updates en status changes are done here.
     """
 
-    def __init__(self, pid_service: BasePidService, printer: Printer, url: str):
+    def __init__(self, pid_service: BasePidService, printer: Printer):
         self.pid_service = pid_service
         self.printer = printer
-        self.biobank_url_prefix = url.rstrip("/") + "/#/biobank/"
+        self.biobank_url_prefix = pid_service.base_url + "#/biobank/"
 
     def assign_biobank_pids(self, biobanks: Table) -> List[EricWarning]:
         """

@@ -10,7 +10,7 @@ from molgenis.bbmri_eric.pid_service import Status
 
 @pytest.fixture
 def pid_manager(pid_service, printer):
-    return PidManager(pid_service, printer, "url")
+    return PidManager(pid_service, printer)
 
 
 def test_assign_biobank_pids(pid_manager, pid_service):

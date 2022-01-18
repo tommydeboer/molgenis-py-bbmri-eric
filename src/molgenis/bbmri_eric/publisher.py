@@ -22,7 +22,7 @@ class Publisher:
         self.session = session
         self.printer = printer
         self.pid_service = pid_service
-        self.pid_manager = PidManager(pid_service, printer, session.url)
+        self.pid_manager = PidManager(pid_service, printer)
         self.warnings: List[EricWarning] = []
         self.quality_info: QualityInfo = session.get_quality_info()
         self.eu_node_data: NodeData = session.get_staging_node_data(
