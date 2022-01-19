@@ -1,9 +1,9 @@
 # Changelog
 
-## Version 1.4.0 (development)
+## Version 1.3.0 (development)
 -
 
-## Version 1.3.0
+## Version 1.2.1
 - PID URLs are based on a config parameter instead of the session
 
 ## Version 1.2.0
