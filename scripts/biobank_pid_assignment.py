@@ -16,7 +16,8 @@ PASSWORD=<ADMIN_PASSWORD>
   "private_key": "<FULL_PATH_TO_PRIVATE_KEY.pem>",
   "certificate_only": "<FULL_PATH_TO_CERTIFICATE_ONLY.pem>",
   "client": "rest",
-  "prefix": "<HANDLE_PREFIX>"
+  "prefix": "<HANDLE_PREFIX>",
+  "server_url": "<URL_TO_WHICH_THE_PIDS_WILL_RESOLVE>"
 }
 
 See https://eudat-b2handle.github.io/PYHANDLE/pyhandleclientrest.html#authentication
