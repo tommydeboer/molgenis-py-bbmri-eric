@@ -176,7 +176,7 @@ class PidService(BasePidService):
 class DummyPidService(BasePidService):
     """
     This dummy implementation can be used to test publishing without actually
-    interacting with a Handle server.
+    interacting with a Handle server. It will create fake PIDs.
     """
 
     def __init__(self):
@@ -187,6 +187,25 @@ class DummyPidService(BasePidService):
 
     def register_pid(self, url: str, name: str) -> str:
         return self.generate_pid("FAKE-PREFIX")
+
+    def set_name(self, pid: str, new_name: str):
+        pass
+
+    def set_status(self, pid: str, status: Status):
+        pass
+
+
+class NoOpPidService(BasePidService):
+    """
+    The NoOpPidService does completely nothing. It can be used as a feature toggle:
+    using this implementation will turn off all PID features.
+    """
+
+    def reverse_lookup(self, url: str) -> Optional[List[str]]:
+        pass
+
+    def register_pid(self, url: str, name: str) -> str:
+        pass
 
     def set_name(self, pid: str, new_name: str):
         pass

@@ -1,12 +1,27 @@
+from abc import ABC, abstractmethod
 from typing import List
 
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Table
-from molgenis.bbmri_eric.pid_service import BasePidService, Status
+from molgenis.bbmri_eric.pid_service import BasePidService, NoOpPidService, Status
 from molgenis.bbmri_eric.printer import Printer
 
 
-class PidManager:
+class BasePidManager(ABC):
+    @abstractmethod
+    def assign_biobank_pids(self, biobanks: Table) -> List[EricWarning]:
+        pass
+
+    @abstractmethod
+    def update_biobank_pids(self, biobanks: Table, existing_biobanks: Table):
+        pass
+
+    @abstractmethod
+    def terminate_biobanks(self, biobank_pids: List[str]):
+        pass
+
+
+class PidManager(BasePidManager):
     """
     This class is responsible for managing PIDs of BBMRI-ERIC entities: assignment,
     updates en status changes are done here.
@@ -79,3 +94,32 @@ class PidManager:
     def _update_biobank_name(self, pid: str, name: str):
         self.pid_service.set_name(pid, name)
         self.printer.print(f'Updated NAME of {pid} to "{name}"')
+
+
+class NoOpPidManager(BasePidManager):
+    """
+    This implementation does nothing. It's used to turn off all PID features.
+    """
+
+    def assign_biobank_pids(self, biobanks: Table) -> List[EricWarning]:
+        return []
+
+    def update_biobank_pids(self, biobanks: Table, existing_biobanks: Table):
+        pass
+
+    def terminate_biobanks(self, biobank_pids: List[str]):
+        pass
+
+
+class PidManagerFactory:
+    """
+    Returns an implementation of BasePidManager based on the BasePidService that is
+    provided.
+    """
+
+    @staticmethod
+    def create(pid_service: BasePidService, printer: Printer) -> BasePidManager:
+        if type(pid_service) == NoOpPidService:
+            return NoOpPidManager()
+        else:
+            return PidManager(pid_service, printer)

@@ -4,7 +4,7 @@ from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.enricher import Enricher
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.bbmri_eric.model import NodeData, QualityInfo, Table, TableType
-from molgenis.bbmri_eric.pid_manager import PidManager
+from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
@@ -22,7 +22,7 @@ class Publisher:
         self.session = session
         self.printer = printer
         self.pid_service = pid_service
-        self.pid_manager = PidManager(pid_service, printer)
+        self.pid_manager = PidManagerFactory.create(pid_service, printer)
         self.warnings: List[EricWarning] = []
         self.quality_info: QualityInfo = session.get_quality_info()
         self.eu_node_data: NodeData = session.get_staging_node_data(

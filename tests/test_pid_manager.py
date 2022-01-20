@@ -4,8 +4,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from molgenis.bbmri_eric.model import Table, TableType
-from molgenis.bbmri_eric.pid_manager import PidManager
-from molgenis.bbmri_eric.pid_service import Status
+from molgenis.bbmri_eric.pid_manager import (
+    NoOpPidManager,
+    PidManager,
+    PidManagerFactory,
+)
+from molgenis.bbmri_eric.pid_service import DummyPidService, NoOpPidService, Status
+from molgenis.bbmri_eric.printer import Printer
 
 
 @pytest.fixture
@@ -67,3 +72,23 @@ def test_terminate_biobanks(pid_manager, pid_service):
         mock.call("pid1", Status.TERMINATED),
         mock.call("pid2", Status.TERMINATED),
     ]
+
+
+def test_noop_pid_manager():
+    noop = NoOpPidManager()
+
+    assert noop.assign_biobank_pids(MagicMock()) == []
+    assert noop.update_biobank_pids(MagicMock(), MagicMock()) is None
+    assert noop.terminate_biobanks(MagicMock()) is None
+
+
+def test_pid_manager_factory():
+    noop_pid_service = NoOpPidService()
+    dummy_pid_service = DummyPidService()
+    printer = Printer()
+
+    manager1 = PidManagerFactory.create(noop_pid_service, printer)
+    manager2 = PidManagerFactory.create(dummy_pid_service, printer)
+
+    assert type(manager1) == NoOpPidManager
+    assert type(manager2) == PidManager

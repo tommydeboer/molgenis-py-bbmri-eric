@@ -4,7 +4,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from molgenis.bbmri_eric.errors import EricError
-from molgenis.bbmri_eric.pid_service import DummyPidService, PidService, Status
+from molgenis.bbmri_eric.pid_service import (
+    DummyPidService,
+    NoOpPidService,
+    PidService,
+    Status,
+)
 
 
 @pytest.fixture
@@ -81,6 +86,13 @@ def test_dummy_service():
 
     assert dummy.register_pid("", "").startswith("FAKE-PREFIX/")
     assert dummy.reverse_lookup("") is None
+
+
+def test_noop_service():
+    noop = NoOpPidService()
+
+    assert noop.register_pid("", "") is None
+    assert noop.reverse_lookup("") is None
 
 
 def test_base_url(handle_client):

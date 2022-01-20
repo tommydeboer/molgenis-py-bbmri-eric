@@ -13,15 +13,17 @@ def enricher_init():
 
 
 @pytest.fixture
-def pid_manager_init():
-    with patch("molgenis.bbmri_eric.publisher.PidManager") as pid_manager_mock:
-        yield pid_manager_mock
+def pid_manager_factory():
+    with patch(
+        "molgenis.bbmri_eric.publisher.PidManagerFactory"
+    ) as pid_manager_factory_mock:
+        yield pid_manager_factory_mock
 
 
 def test_publish(
     publisher,
     enricher_init,
-    pid_manager_init,
+    pid_manager_factory,
     pid_service,
     node_data: NodeData,
     session,
@@ -40,15 +42,16 @@ def test_publish(
         TableType.COLLECTIONS: collections,
     }
     session.get_published_node_data.return_value = existing_node_data
+    pid_manager = pid_manager_factory.create.return_value = MagicMock()
 
     publisher.publish(node_data)
 
     assert enricher_init.called_with(node_data, printer)
     enricher_init.return_value.enrich.assert_called_once()
 
-    assert pid_manager_init.called_with(pid_service, printer, "url")
-    assert pid_manager_init.assign_biobank_pids.called_with(node_data.biobanks)
-    assert pid_manager_init.update_biobank_pids.called_with(
+    assert pid_manager.called_with(pid_service, printer, "url")
+    assert pid_manager.assign_biobank_pids.called_with(node_data.biobanks)
+    assert pid_manager.update_biobank_pids.called_with(
         node_data.biobanks, existing_node_data.biobanks
     )
 
