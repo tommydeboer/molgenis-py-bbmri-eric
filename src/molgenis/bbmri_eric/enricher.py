@@ -21,7 +21,7 @@ class Enricher:
         self.node_data = node_data
         self.quality = quality
         self.printer = printer
-        self.existing_biobank_pids = existing_biobanks.rows_by_id
+        self.existing_biobanks = existing_biobanks.rows_by_id
         self.eu_node_data = eu_node_data
         self.warnings = []
 
@@ -93,8 +93,10 @@ class Enricher:
         self.printer.print("Adding existing PIDs to biobanks")
         for biobank in self.node_data.biobanks.rows:
             biobank_id = biobank["id"]
-            if biobank_id in self.existing_biobank_pids:
-                biobank["pid"] = self.existing_biobank_pids[biobank_id]["pid"]
+            if biobank_id in self.existing_biobanks:
+                existing_biobank = self.existing_biobanks[biobank_id]
+                if "pid" in existing_biobank:
+                    biobank["pid"] = existing_biobank["pid"]
 
     def _replace_eu_rows(self):
         """

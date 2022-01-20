@@ -27,6 +27,8 @@ nodes_to_publish = session.get_nodes(["CY"])
 pid_service = PidService.from_credentials("pyhandle_creds.json")
 # Use the DummyPidService if you want to test without interacting with a handle server
 # pid_service = DummyPidService()
+# Use the NoOpPidService if you want to turn off the PID features completely
+# pid_service = NoOpPidService()
 
 # Instantiate the Eric class and do some work
 eric = Eric(session, pid_service)
