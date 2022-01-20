@@ -1,7 +1,9 @@
 # Changelog
 
-## Version 1.3.0 (development)
--
+## Version 1.4.0 (development)
+
+## Version 1.3.0
+- The PID feature can be turned off completely by supplying a NoOpPidService
 
 ## Version 1.2.1
 - PID URLs are based on a config parameter instead of the session
