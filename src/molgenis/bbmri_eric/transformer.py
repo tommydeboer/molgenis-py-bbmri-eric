@@ -3,7 +3,7 @@ from molgenis.bbmri_eric.model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric.printer import Printer
 
 
-class Enricher:
+class Transformer:
     """
     The published tables have a few extra attributes that the staging tables do not.
     This class is responsible for adding those attributes so the staging tables can be
@@ -27,7 +27,7 @@ class Enricher:
 
     def enrich(self):
         """
-        Enriches the data of a node:
+        Transforms the data of a node:
         1. Sets the commercial use boolean
         2. Adds the national node code to all rows
         3. Sets the quality info field for biobanks and collections
