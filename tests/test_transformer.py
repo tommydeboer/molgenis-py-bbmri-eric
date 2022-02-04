@@ -1,16 +1,16 @@
 from unittest.mock import MagicMock
 
-from molgenis.bbmri_eric.enricher import Enricher
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Node, QualityInfo, Table, TableType
 from molgenis.bbmri_eric.printer import Printer
+from molgenis.bbmri_eric.transformer import Transformer
 
 
-def test_enricher_node_codes(node_data):
+def test_transformer_node_codes(node_data):
     for table in node_data.import_order:
         assert "national_node" not in table.rows[0]
 
-    Enricher(
+    Transformer(
         node_data=node_data,
         quality=MagicMock(),
         printer=Printer(),
@@ -22,7 +22,7 @@ def test_enricher_node_codes(node_data):
         assert table.rows[0]["national_node"] == "NO"
 
 
-def test_enricher_commercial_use():
+def test_transformer_commercial_use():
     node_data = MagicMock()
     node_data.collections.rows = [
         {"biobank": "biobank1", "collaboration_commercial": True},
@@ -41,7 +41,7 @@ def test_enricher_commercial_use():
         "biobank3": {"collaboration_commercial": False},
     }
 
-    Enricher(
+    Transformer(
         node_data=node_data,
         quality=MagicMock(),
         printer=Printer(),
@@ -60,7 +60,7 @@ def test_enricher_commercial_use():
     assert node_data.collections.rows[8]["commercial_use"] is False
 
 
-def test_enricher_quality(node_data):
+def test_transformer_quality(node_data):
     q_info = QualityInfo(
         biobanks={
             "bbmri-eric:ID:NO_BIOBANK1": ["quality1", "quality2"],
@@ -72,7 +72,7 @@ def test_enricher_quality(node_data):
         },
     )
 
-    Enricher(
+    Transformer(
         node_data=node_data,
         quality=q_info,
         printer=Printer(),
@@ -100,26 +100,26 @@ def test_enricher_quality(node_data):
     )
 
 
-def test_enricher_replace_eu_rows_skip_eu():
+def test_transformer_replace_eu_rows_skip_eu():
     eu = Node("EU", "Europe")
 
     node_data = MagicMock()
     node_data.node = eu
-    enricher = Enricher(
+    transformer = Transformer(
         node_data=node_data,
         quality=MagicMock(),
         printer=Printer(),
         existing_biobanks=MagicMock(),
         eu_node_data=MagicMock(),
     )
-    enricher._replace_rows = MagicMock()
+    transformer._replace_rows = MagicMock()
 
-    enricher._replace_eu_rows()
+    transformer._replace_eu_rows()
 
-    enricher._replace_rows.assert_not_called()
+    transformer._replace_rows.assert_not_called()
 
 
-def test_enricher_replace_eu_rows():
+def test_transformer_replace_eu_rows():
     cy = Node("CY", "Cyprus")
     eu = Node("EU", "Europe")
 
@@ -150,17 +150,17 @@ def test_enricher_replace_eu_rows():
     node_data.node = cy
     eu_node_data.node = eu
 
-    enricher = Enricher(
+    transformer = Transformer(
         node_data=node_data,
         quality=MagicMock(),
         printer=Printer(),
         existing_biobanks=MagicMock(),
         eu_node_data=eu_node_data,
     )
-    enricher._replace_rows(cy, persons, eu_persons)
+    transformer._replace_rows(cy, persons, eu_persons)
 
     assert persons.rows_by_id["bbmri-eric:contactID:EU_person2"]["name"] == "person2"
-    assert enricher.warnings == [
+    assert transformer.warnings == [
         EricWarning(
             message="bbmri-eric:contactID:EU_person4 is not present in "
             "eu_bbmri_eric_persons"

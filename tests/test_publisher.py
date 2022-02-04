@@ -7,9 +7,9 @@ from molgenis.bbmri_eric.model import NodeData, QualityInfo, TableType
 
 
 @pytest.fixture
-def enricher_init():
-    with patch("molgenis.bbmri_eric.publisher.Enricher") as enricher_mock:
-        yield enricher_mock
+def transformer_init():
+    with patch("molgenis.bbmri_eric.publisher.Transformer") as transformer_mock:
+        yield transformer_mock
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def pid_manager_factory():
 
 def test_publish(
     publisher,
-    enricher_init,
+    transformer_init,
     pid_manager_factory,
     pid_service,
     node_data: NodeData,
@@ -46,8 +46,8 @@ def test_publish(
 
     publisher.publish(node_data)
 
-    assert enricher_init.called_with(node_data, printer)
-    enricher_init.return_value.enrich.assert_called_once()
+    assert transformer_init.called_with(node_data, printer)
+    transformer_init.return_value.enrich.assert_called_once()
 
     assert pid_manager.called_with(pid_service, printer, "url")
     assert pid_manager.assign_biobank_pids.called_with(node_data.biobanks)

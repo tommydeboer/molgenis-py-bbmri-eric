@@ -1,12 +1,12 @@
 from typing import List
 
 from molgenis.bbmri_eric.bbmri_client import EricSession
-from molgenis.bbmri_eric.enricher import Enricher
 from molgenis.bbmri_eric.errors import EricError, EricWarning
 from molgenis.bbmri_eric.model import NodeData, QualityInfo, Table, TableType
 from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
+from molgenis.bbmri_eric.transformer import Transformer
 from molgenis.client import MolgenisRequestError
 
 
@@ -42,7 +42,7 @@ class Publisher:
 
         self.printer.print("✏️ Preparing data")
         with self.printer.indentation():
-            self.warnings += Enricher(
+            self.warnings += Transformer(
                 node_data=node_data,
                 quality=self.quality_info,
                 printer=self.printer,
