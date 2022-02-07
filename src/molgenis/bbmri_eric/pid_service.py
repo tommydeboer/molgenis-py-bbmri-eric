@@ -40,6 +40,8 @@ def pyhandle_error_handler(func):
 
 
 class BasePidService(metaclass=ABCMeta):
+    service_prefix = "1."
+
     base_url: str
 
     @abstractmethod
@@ -63,10 +65,11 @@ class BasePidService(metaclass=ABCMeta):
         """
         Generates a new PID. Uses a cryptographically secure random, 12 digit
         hexadecimal number separated by hyphens every 4 digits (example: 6ed7-328b-2793)
-        Has been tested to have <1 collisions every 10 million ids.
+        Has been tested to have <1 collisions every 10 million ids. PIDs of the
+        directory are also prefixed with "1.".
         """
         id_ = secrets.token_hex(6)
-        return f"{prefix}/{id_[:4]}-{id_[4:8]}-{id_[8:]}"
+        return f"{prefix}/{BasePidService.service_prefix}{id_[:4]}-{id_[4:8]}-{id_[8:]}"
 
 
 class PidService(BasePidService):

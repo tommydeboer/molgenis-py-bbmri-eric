@@ -72,7 +72,7 @@ def test_generate_pid(pid_service: PidService):
     pid = pid_service.generate_pid("test")
 
     pid = pid.replace("-", "")
-    prefix, suffix = pid.split("/")
+    prefix, suffix = pid.split("/1.")
 
     assert prefix == "test"
     try:
@@ -84,7 +84,7 @@ def test_generate_pid(pid_service: PidService):
 def test_dummy_service():
     dummy = DummyPidService()
 
-    assert dummy.register_pid("", "").startswith("FAKE-PREFIX/")
+    assert dummy.register_pid("", "").startswith("FAKE-PREFIX/1.")
     assert dummy.reverse_lookup("") is None
 
 
