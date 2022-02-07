@@ -69,11 +69,6 @@ Build and run the tests:
 tox
 ```
 
-The package's command-line entry point is already installed
-```
-eric -h
-```
-
 
 ## Note
 
