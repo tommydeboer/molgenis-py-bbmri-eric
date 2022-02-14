@@ -166,3 +166,38 @@ def test_transformer_replace_eu_rows():
             "eu_bbmri_eric_persons"
         )
     ]
+
+
+def test_transformer_create_hidden_networks():
+    node_data = MagicMock()
+    node_data.collections.rows = [
+        {"biobank": "biobank1", "network": []},
+        {"biobank": "biobank2", "network": ["network1"]},
+        {"biobank": "biobank3", "network": ["network2"]},
+        {"biobank": "biobank4", "network": []},
+        {"biobank": "biobank5", "network": ["network1", "network2"]},
+        {"biobank": "biobank6", "network": []}
+    ]
+    node_data.biobanks.rows_by_id = {
+        "biobank1": {"network": ["network1", "network2"]},
+        "biobank2": {"network": []},
+        "biobank3": {"network": ["network1"]},
+        "biobank4": {"network": ["network2"]},
+        "biobank5": {"network": []},
+        "biobank6": {"network": []},
+    }
+
+    Transformer(
+        node_data=node_data,
+        quality=MagicMock(),
+        printer=Printer(),
+        existing_biobanks=MagicMock(),
+        eu_node_data=MagicMock(),
+    )._set_hidden_networks()
+
+    assert node_data.collections.rows[0]["hidden_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[1]["hidden_network"] == ["network1"]
+    assert node_data.collections.rows[2]["hidden_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[3]["hidden_network"] == ["network2"]
+    assert node_data.collections.rows[4]["hidden_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[5]["hidden_network"] == []
