@@ -168,7 +168,7 @@ def test_transformer_replace_eu_rows():
     ]
 
 
-def test_transformer_create_hidden_networks():
+def test_transformer_create_combined_networks():
     node_data = MagicMock()
     node_data.collections.rows = [
         {"biobank": "biobank1", "network": []},
@@ -193,11 +193,11 @@ def test_transformer_create_hidden_networks():
         printer=Printer(),
         existing_biobanks=MagicMock(),
         eu_node_data=MagicMock(),
-    )._set_hidden_networks()
+    )._set_combined_networks()
 
-    assert node_data.collections.rows[0]["hidden_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[1]["hidden_network"] == ["network1"]
-    assert node_data.collections.rows[2]["hidden_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[3]["hidden_network"] == ["network2"]
-    assert node_data.collections.rows[4]["hidden_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[5]["hidden_network"] == []
+    assert node_data.collections.rows[0]["combined_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[1]["combined_network"] == ["network1"]
+    assert node_data.collections.rows[2]["combined_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[3]["combined_network"] == ["network2"]
+    assert node_data.collections.rows[4]["combined_network"] == ["network1", "network2"]
+    assert node_data.collections.rows[5]["combined_network"] == []

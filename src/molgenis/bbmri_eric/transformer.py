@@ -33,14 +33,14 @@ class Transformer:
         3. Sets the quality info field for biobanks and collections
         4. Adds PIDs to biobanks
         5. Replaces a node's EU rows with the data from node EU's staging area
-        6. Adds the hidden networks' ids to collections
+        6. Adds the combined networks' ids to collections
         """
         self._set_national_node_code()
         self._replace_eu_rows()
         self._set_commercial_use_bool()
         self._set_quality_info()
         self._set_biobank_pids()
-        self._set_hidden_networks()
+        self._set_combined_networks()
         return self.warnings
 
     def _set_commercial_use_bool(self):
@@ -130,12 +130,12 @@ class Transformer:
                     self.printer.print_warning(warning, indent=1)
                     self.warnings.append(warning)
 
-    def _set_hidden_networks(self):
+    def _set_combined_networks(self):
         """
-        For every collection of the Node, adds to the `hidden_network` field, the union of the networks of the
+        For every collection of the Node, adds to the `combined_network` field, the union of the networks of the
         collection itself and the ones of its biobank
         """
-        self.printer.print("Adding hidden networks")
+        self.printer.print("Adding combined networks")
         for collection in self.node_data.collections.rows:
             biobank = self.node_data.biobanks.rows_by_id[collection['biobank']]
-            collection['hidden_network'] = list(set(biobank['network'] + collection['network']))
+            collection['combined_network'] = list(set(biobank['network'] + collection['network']))
