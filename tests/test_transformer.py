@@ -176,7 +176,7 @@ def test_transformer_create_combined_networks():
         {"biobank": "biobank3", "network": ["network2"]},
         {"biobank": "biobank4", "network": []},
         {"biobank": "biobank5", "network": ["network1", "network2"]},
-        {"biobank": "biobank6", "network": []}
+        {"biobank": "biobank6", "network": []},
     ]
     node_data.biobanks.rows_by_id = {
         "biobank1": {"network": ["network1", "network2"]},
@@ -195,9 +195,18 @@ def test_transformer_create_combined_networks():
         eu_node_data=MagicMock(),
     )._set_combined_networks()
 
-    assert node_data.collections.rows[0]["combined_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[1]["combined_network"] == ["network1"]
-    assert node_data.collections.rows[2]["combined_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[3]["combined_network"] == ["network2"]
-    assert node_data.collections.rows[4]["combined_network"] == ["network1", "network2"]
-    assert node_data.collections.rows[5]["combined_network"] == []
+    assert set(node_data.collections.rows[0]["combined_network"]) == {
+        "network1",
+        "network2",
+    }
+    assert set(node_data.collections.rows[1]["combined_network"]) == {"network1"}
+    assert set(node_data.collections.rows[2]["combined_network"]) == {
+        "network1",
+        "network2",
+    }
+    assert set(node_data.collections.rows[3]["combined_network"]) == {"network2"}
+    assert set(node_data.collections.rows[4]["combined_network"]) == {
+        "network1",
+        "network2",
+    }
+    assert set(node_data.collections.rows[5]["combined_network"]) == set()
