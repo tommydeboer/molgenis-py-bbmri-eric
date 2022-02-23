@@ -132,10 +132,12 @@ class Transformer:
 
     def _set_combined_networks(self):
         """
-        For every collection of the Node, adds to the `combined_network` field, the union of the networks of the
-        collection itself and the ones of its biobank
+        For every collection of the Node, adds to the `combined_network` field, the
+        union of the networks of the collection itself and the ones of its biobank
         """
         self.printer.print("Adding combined networks")
         for collection in self.node_data.collections.rows:
-            biobank = self.node_data.biobanks.rows_by_id[collection['biobank']]
-            collection['combined_network'] = list(set(biobank['network'] + collection['network']))
+            biobank = self.node_data.biobanks.rows_by_id[collection["biobank"]]
+            collection["combined_network"] = list(
+                set(biobank["network"] + collection["network"])
+            )
