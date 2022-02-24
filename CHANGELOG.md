@@ -1,5 +1,6 @@
 # Changelog
 ## Version 1.5.0 (development)
+- Adds step to fill combined_network field
 
 ## Version 1.4.0
 - PIDs are prefixed with `1.` (example: `1.6ed7-328b-2793`)
