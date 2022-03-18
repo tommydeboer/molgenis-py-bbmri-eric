@@ -1,6 +1,8 @@
 import copy
 from typing import List
 
+import pandas as pd
+
 from molgenis.bbmri_eric.model import TableMeta
 
 
@@ -43,7 +45,39 @@ def remove_one_to_manys(rows: List[dict], meta: TableMeta) -> List[dict]:
     return copied_rows
 
 
+def sort_self_references(rows: List[dict], self_references: List[str]) -> List[dict]:
+    """
+    Make sure rows with a self-referencing column are added after the rows
+    with the reference
+    """
+    df = pd.DataFrame(rows)
+
+    # If all rows have a missing value for the self_referencing column, it won't be in
+    # the DataFrame
+    ref_columns = list(set(self_references).intersection(df.columns))
+
+    if ref_columns:
+        df.sort_values(by=ref_columns, na_position="first", inplace=True)
+
+    # Turn pd.DataFrame into list of dictionaries again
+    sorted_data = df.to_dict("records")
+
+    # Remove missing (NaN) values
+    for row in sorted_data:
+        for column in df.columns:
+            if isnan(row[column]):
+                del row[column]
+
+    return sorted_data
+
+
 def batched(list_: List, batch_size: int):
     """Yield successive n-sized batches from list_."""
     for i in range(0, len(list_), batch_size):
         yield list_[i : i + batch_size]
+
+
+def isnan(value):
+    # A NaN implemented following the standard, is the only value for which
+    # the inequality comparison with itself should return True:
+    return value != value

@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from molgenis.bbmri_eric import utils
@@ -89,3 +90,44 @@ def test_remove_one_to_manys(meta):
         },
         {"id": "collB"},
     ]
+
+
+def test_sort_self_references():
+    self_references = ["parent_collection"]
+    rows = [
+        {
+            "id": "collA",
+            "name": "CollectionA",
+            "parent_collection": "collB",
+        },
+        {"id": "collB", "name": "CollectionB"},
+        {"id": "collC", "name": "CollectionC"},
+        {"id": "collD", "name": "CollectionD", "parent_collection": "collA"},
+        {"id": "collE", "name": "CollectionE", "parent_collection": "collB"},
+    ]
+
+    assert utils.sort_self_references(rows, self_references) == [
+        {
+            "id": "collB",
+            "name": "CollectionB",
+        },
+        {
+            "id": "collC",
+            "name": "CollectionC",
+        },
+        {"id": "collD", "name": "CollectionD", "parent_collection": "collA"},
+        {"id": "collA", "name": "CollectionA", "parent_collection": "collB"},
+        {"id": "collE", "name": "CollectionE", "parent_collection": "collB"},
+    ]
+
+
+def test_isnan():
+    x1 = np.nan
+    x2 = "test"
+    x3 = ["test1", "test2"]
+    x4 = np.NaN
+
+    assert utils.isnan(x1) is True
+    assert utils.isnan(x2) is False
+    assert utils.isnan(x3) is False
+    assert utils.isnan(x4) is True
