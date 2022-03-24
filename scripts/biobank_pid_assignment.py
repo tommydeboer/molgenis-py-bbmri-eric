@@ -52,7 +52,7 @@ print("Getting data from the directory")
 biobanks = session.get_uploadable_data(table)
 
 print("Registering PIDs")
-url_prefix = session.url + "#/biobank/"
+url_prefix = pid_service.base_url + "#/biobank/"
 for biobank in biobanks:
     if "pid" in biobank:
         continue
@@ -63,6 +63,6 @@ for biobank in biobanks:
     print(f"Generated {pid} for {biobank['id']}")
 
 print("Uploading to directory")
-session.update_batched(table, biobanks)
+session.update_batched(table, [], biobanks)
 
 print("All done!")
