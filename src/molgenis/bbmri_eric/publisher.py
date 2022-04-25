@@ -43,7 +43,7 @@ class Publisher:
         for table in state.data_to_publish.import_order:
             self.printer.print(f"Upserting rows in {table.type.base_id}")
             try:
-                self.session.upsert_batched(table.type.base_id, table.rows)
+                self.session.upsert(table.type.base_id, table.rows)
             except MolgenisRequestError as e:
                 raise EricError(f"Error upserting rows to {table.type.base_id}") from e
 

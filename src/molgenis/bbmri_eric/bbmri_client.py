@@ -17,7 +17,6 @@ from molgenis.bbmri_eric.model import (
     TableMeta,
     TableType,
 )
-from molgenis.bbmri_eric.utils import batched
 from molgenis.client import Session
 
 
@@ -38,9 +37,9 @@ class ExtendedSession(Session):
         rows = self.get(entity_type_id, *args, **kwargs)
         return utils.to_upload_format(rows)
 
-    def upsert_batched(self, entity_type_id: str, entities: List[dict]):
+    def upsert(self, entity_type_id: str, entities: List[dict]):
         """
-        Upserts entities in an entity type (in batches, if needed).
+        Upserts entities in an entity type.
         @param entity_type_id: the id of the entity type to upsert to
         @param entities: the entities to upsert
         """
@@ -62,9 +61,11 @@ class ExtendedSession(Session):
         # Sanitize data: rows that are added should not contain one_to_manys
         add = utils.remove_one_to_manys(add, meta)
 
-        # Do the adds and updates in batches
-        self.add_batched(meta.id, add)
-        self.update_batched(meta.id, update)
+        # Do the adds and updates
+        if add:
+            self.add_all(meta.id, add)
+        if update:
+            self.update(meta.id, update)
 
     def update(self, entity_type_id: str, entities: List[dict]):
         """Updates multiple entities."""
@@ -80,22 +81,6 @@ class ExtendedSession(Session):
             self._raise_exception(ex)
 
         return response
-
-    def update_batched(self, entity_type_id: str, entities: List[dict]):
-        """Updates multiple entities in batches of 1000."""
-        # TODO updating things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed.
-        batches = list(batched(entities, 1000))
-        for batch in batches:
-            self.update(entity_type_id, batch)
-
-    def add_batched(self, entity_type_id: str, entities: List[dict]):
-        """Adds multiple entities in batches of 1000."""
-        # TODO adding things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed.
-        batches = list(batched(entities, 1000))
-        for batch in batches:
-            self.add_all(entity_type_id, batch)
 
     def get_meta(self, entity_type_id: str) -> TableMeta:
         """Similar to get_entity_meta_data() of the parent Session class, but uses the

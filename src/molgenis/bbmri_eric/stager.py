@@ -54,7 +54,7 @@ class Stager:
                 target_name = node.get_staging_id(table.type)
 
                 self.printer.print(f"Importing data to {target_name}")
-                self.session.add_batched(
+                self.session.add_all(
                     target_name, utils.remove_one_to_manys(table.rows, table.meta)
                 )
         except MolgenisRequestError as e:

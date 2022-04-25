@@ -41,9 +41,3 @@ def remove_one_to_manys(rows: List[dict], meta: TableMeta) -> List[dict]:
         for one_to_many in meta.one_to_manys:
             row.pop(one_to_many, None)
     return copied_rows
-
-
-def batched(list_: List, batch_size: int):
-    """Yield successive n-sized batches from list_."""
-    for i in range(0, len(list_), batch_size):
-        yield list_[i : i + batch_size]
