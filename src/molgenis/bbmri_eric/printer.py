@@ -42,10 +42,6 @@ class Printer:
         self.print(title)
         self.print(border)
 
-    def print_sub_header(self, text: str):
-        self.print()
-        self.print(text)
-
     def print_error(self, error: EricError):
         message = str(error)
         if error.__cause__:

@@ -68,7 +68,6 @@ class Eric:
         if not self.pid_service:
             raise ValueError("A PID service is required to publish nodes")
 
-        self.printer.print("📦 Retrieving existing published data")
         state = self._prepare_state(nodes)
 
         for node in nodes:
@@ -90,9 +89,14 @@ class Eric:
         return state.report
 
     def _prepare_state(self, nodes: List[Node]) -> PublishingState:
+        self.printer.print_header("⚙️ Preparation")
+        self.printer.print("📦 Retrieving existing published data")
         published_data = self.session.get_published_data(nodes)
+        self.printer.print("📦 Retrieving quality information")
         quality_info = self.session.get_quality_info()
+        self.printer.print("📦 Retrieving data of node EU")
         eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
+
         report = ErrorReport(nodes)
         publisher = Publisher(
             self.session, self.printer, quality_info, self.pid_manager
@@ -111,9 +115,10 @@ class Eric:
 
     def _publish_nodes(self, state: PublishingState):
         codes = [node.code for node in state.nodes]
-        self.printer.print_header(f"📤 Publishing nodes {','.join(codes)}")
-        with self.printer.indentation():
-            state.publisher.publish(state)
+        self.printer.print_header(
+            f"🎁 Publishing node{'s' if len(codes) > 1 else ''} {', '.join(codes)}"
+        )
+        state.publisher.publish(state)
 
     @requests_error_handler
     def _prepare_node_data(self, node: Node, state: PublishingState):
@@ -129,12 +134,12 @@ class Eric:
 
     @requests_error_handler
     def _stage_node(self, node: ExternalServerNode):
-        self.printer.print_sub_header(f"📥 Staging data of node {node.code}")
+        self.printer.print(f"📥 Staging data of node {node.code}")
         with self.printer.indentation():
             Stager(self.session, self.printer).stage(node)
 
     def _transform_node(self, node_data: NodeData, state: PublishingState):
-        self.printer.print("✏️ Preparing data")
+        self.printer.print("✏️ Preparing staged data for publishing")
         with self.printer.indentation():
             warnings = Transformer(
                 node_data=node_data,
@@ -157,9 +162,7 @@ class Eric:
                 state.report.add_warnings(node_data.node, warnings)
 
     def _validate_node(self, node_data: NodeData, report: ErrorReport):
-        self.printer.print_sub_header(
-            f"🔎 Validating staging data of node {node_data.node.code}"
-        )
+        self.printer.print(f"🔎 Validating staged data of node {node_data.node.code}")
         with self.printer.indentation():
             warnings = Validator(node_data, self.printer).validate()
             if warnings:
@@ -167,9 +170,7 @@ class Eric:
 
     def _get_node_data(self, node: Node) -> NodeData:
         try:
-            self.printer.print_sub_header(
-                f"📦 Retrieving staging data of node {node.code}"
-            )
+            self.printer.print(f"📦 Retrieving staged data of node {node.code}")
             return self.session.get_staging_node_data(node)
         except MolgenisRequestError as e:
             raise EricError(f"Error retrieving data of node {node.code}") from e

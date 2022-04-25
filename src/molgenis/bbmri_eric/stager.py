@@ -20,7 +20,7 @@ class Stager:
         """
         Stages all data from the provided external node in the BBMRI-ERIC directory.
         """
-        self.printer.print(f"🗑 Clearing staging area of {node.code}")
+        self.printer.print(f"🔥 Clearing staging area of {node.code}")
         self._clear_staging_area(node)
 
         self.printer.print(

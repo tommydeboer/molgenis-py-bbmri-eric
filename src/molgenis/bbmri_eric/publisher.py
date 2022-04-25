@@ -47,19 +47,19 @@ class Publisher:
 
     def publish(self, state: PublishingState):
         """
-        Publishes data from the provided node to the production tables. Before being
-        copied over, the data is enriched with additional information.
-        """
-        self.printer.print("💾 Copying data to combined tables")
-        with self.printer.indentation():
-            self._publish_data(state)
-
-    def _publish_data(self, state: PublishingState):
-        """
         Copies staging data to the combined tables. This happens in two phases:
         1. New/existing rows are upserted in the combined tables
         2. Removed rows are deleted from the combined tables
         """
+        self.printer.print("💾 Saving data to combined tables")
+        with self.printer.indentation():
+            self._upsert_data(state)
+
+        self.printer.print("🧼 Cleaning up removed data in combined tables")
+        with self.printer.indentation():
+            self._delete_data(state)
+
+    def _upsert_data(self, state):
         for table in state.data_to_publish.import_order:
             self.printer.print(f"Upserting rows in {table.type.base_id}")
             try:
@@ -67,6 +67,7 @@ class Publisher:
             except MolgenisRequestError as e:
                 raise EricError(f"Error upserting rows to {table.type.base_id}") from e
 
+    def _delete_data(self, state):
         for table in reversed(state.data_to_publish.import_order):
             self.printer.print(f"Deleting rows in {table.type.base_id}")
             try:
