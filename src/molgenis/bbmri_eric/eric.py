@@ -3,8 +3,8 @@ from typing import List, Optional
 from molgenis.bbmri_eric.bbmri_client import AttributesRequest, EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.bbmri_eric.model import (
-    EricData,
     ExternalServerNode,
+    MixedData,
     Node,
     NodeData,
     Source,
@@ -109,7 +109,7 @@ class Eric:
         publisher = Publisher(
             self.session, self.printer, quality_info, self.pid_manager
         )
-        data_to_publish = EricData.from_empty(Source.TRANSFORMED)
+        data_to_publish = MixedData.from_empty(Source.TRANSFORMED)
 
         return PublishingState(
             existing_data=published_data,
@@ -129,7 +129,7 @@ class Eric:
         state.publisher.publish(state)
 
     @requests_error_handler
-    def _prepare_node_data(self, node: Node, state: PublishingState):
+    def _prepare_node_data(self, node: Node, state: PublishingState) -> NodeData:
         if isinstance(node, ExternalServerNode):
             self._stage_node(node)
 

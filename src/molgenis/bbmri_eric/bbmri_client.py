@@ -8,8 +8,8 @@ import requests
 
 from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.model import (
-    EricData,
     ExternalServerNode,
+    MixedData,
     Node,
     NodeData,
     QualityInfo,
@@ -265,7 +265,7 @@ class EricSession(ExtendedSession):
 
     def get_published_data(
         self, nodes: List[Node], attributes: AttributesRequest
-    ) -> EricData:
+    ) -> MixedData:
         """
         Gets the four tables that belong to one or more nodes from the published tables.
         Filters the rows based on the national_node field.
@@ -297,7 +297,7 @@ class EricSession(ExtendedSession):
                 ),
             )
 
-        return EricData.from_mixed_dict(source=Source.PUBLISHED, tables=tables)
+        return MixedData.from_mixed_dict(source=Source.PUBLISHED, tables=tables)
 
 
 class ExternalServerSession(ExtendedSession):

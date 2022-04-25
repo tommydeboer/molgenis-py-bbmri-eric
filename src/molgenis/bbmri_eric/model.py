@@ -1,4 +1,5 @@
 import typing
+from abc import ABC
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -146,13 +147,10 @@ class Source(Enum):
     TRANSFORMED = "transformed"
 
 
-# TODO introduce MixedData class
-
-
-@dataclass()
-class EricData:
-    """Container object storing rows from the four ERIC tables. Can contain rows from
-    multiple nodes."""
+@dataclass
+class EricData(ABC):
+    """Abstract base class for containers storing rows from the four ERIC tables:
+    persons, networks, biobanks and collections."""
 
     source: Source
     persons: Table
@@ -173,26 +171,6 @@ class EricData:
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
 
-    @staticmethod
-    def from_mixed_dict(source: Source, tables: Dict[str, Table]) -> "EricData":
-        return EricData(source=source, **tables)
-
-    @staticmethod
-    def from_empty(source: Source) -> "EricData":
-        return EricData(
-            source=source,
-            persons=Table.of_empty(TableType.PERSONS),
-            networks=Table.of_empty(TableType.NETWORKS),
-            biobanks=Table.of_empty(TableType.BIOBANKS),
-            collections=Table.of_empty(TableType.COLLECTIONS),
-        )
-
-    def merge(self, other_data: "EricData"):
-        self.persons.rows_by_id.update(other_data.persons.rows_by_id)
-        self.networks.rows_by_id.update(other_data.networks.rows_by_id)
-        self.biobanks.rows_by_id.update(other_data.biobanks.rows_by_id)
-        self.collections.rows_by_id.update(other_data.collections.rows_by_id)
-
 
 @dataclass
 class NodeData(EricData):
@@ -203,6 +181,31 @@ class NodeData(EricData):
     @staticmethod
     def from_dict(node: Node, source: Source, tables: Dict[str, Table]) -> "NodeData":
         return NodeData(node=node, source=source, **tables)
+
+
+class MixedData(EricData):
+    """Container object storing the four tables with mixed origins, for example from
+    the combined tables or from multiple staging areas."""
+
+    @staticmethod
+    def from_empty(source: Source) -> "MixedData":
+        return MixedData(
+            source=source,
+            persons=Table.of_empty(TableType.PERSONS),
+            networks=Table.of_empty(TableType.NETWORKS),
+            biobanks=Table.of_empty(TableType.BIOBANKS),
+            collections=Table.of_empty(TableType.COLLECTIONS),
+        )
+
+    @staticmethod
+    def from_mixed_dict(source: Source, tables: Dict[str, Table]) -> "MixedData":
+        return MixedData(source=source, **tables)
+
+    def merge(self, other_data: EricData):
+        self.persons.rows_by_id.update(other_data.persons.rows_by_id)
+        self.networks.rows_by_id.update(other_data.networks.rows_by_id)
+        self.biobanks.rows_by_id.update(other_data.biobanks.rows_by_id)
+        self.collections.rows_by_id.update(other_data.collections.rows_by_id)
 
 
 @dataclass(frozen=True)
