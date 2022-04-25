@@ -123,4 +123,4 @@ class Publisher:
 
                     code = existing_table.rows_by_id[id_]["national_node"]
                     node = report.get_node(code)
-                    report.add_warnings(node, [warning])
+                    report.add_node_warnings(node, [warning])

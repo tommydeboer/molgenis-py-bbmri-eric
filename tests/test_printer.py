@@ -123,10 +123,10 @@ def test_print_summary(capsys):
     report = ErrorReport(nodes)
     warning = EricWarning("warning")
     error = EricError("error")
-    report.add_warnings(c, [warning])
-    report.add_warnings(d, [warning, warning])
-    report.add_error(b, error)
-    report.add_error(c, error)
+    report.add_node_warnings(c, [warning])
+    report.add_node_warnings(d, [warning, warning])
+    report.add_node_error(b, error)
+    report.add_node_error(c, error)
 
     Printer().print_summary(report)
 

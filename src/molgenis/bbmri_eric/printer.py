@@ -59,14 +59,14 @@ class Printer:
         self.print("==========")
 
         for node in report.nodes:
-            if node in report.errors or report.publishing_error:
+            if node in report.node_errors or report.error:
                 message = f"❌ Node {node.code} failed"
-                if node in report.warnings:
-                    message += f" with {len(report.warnings[node])} warning(s)"
-            elif node in report.warnings:
+                if node in report.node_warnings:
+                    message += f" with {len(report.node_warnings[node])} warning(s)"
+            elif node in report.node_warnings:
                 message = (
                     f"⚠️ Node {node.code} finished successfully with "
-                    f"{len(report.warnings[node])} warning(s)"
+                    f"{len(report.node_warnings[node])} warning(s)"
                 )
             else:
                 message = f"✅ Node {node.code} finished successfully"

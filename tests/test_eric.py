@@ -40,8 +40,8 @@ def test_stage_external_nodes(stager_init, eric, printer):
         mock.call(eric.session, eric.printer),
         mock.call().stage(be),
     ]
-    assert nl not in report.errors
-    assert report.errors[be] == error
+    assert nl not in report.node_errors
+    assert report.node_errors[be] == error
     printer.print_summary.assert_called_once_with(report)
 
 
@@ -66,7 +66,7 @@ def test_publish_node_staging_fails(
     assert not session.get_published_node_data.called
     assert not validator_init.called
     assert not publisher_init.return_value.publish.called
-    assert report.errors[nl] == error
+    assert report.node_errors[nl] == error
     eric.printer.print_summary.assert_called_once_with(report)
 
 
@@ -91,7 +91,7 @@ def test_publish_node_get_data_fails(
     session.get_staging_node_data.assert_called_with(nl)
     assert not validator_init.called
     assert not publisher_init.return_value.publish.called
-    assert report.errors[nl] == error
+    assert report.node_errors[nl] == error
     eric.printer.print_summary.assert_called_once_with(report)
 
 
@@ -124,10 +124,10 @@ def test_publish_nodes(
         mock.call().publish(no_data),
         mock.call().publish(nl_data),
     ]
-    assert no not in report.errors
-    assert report.errors[nl] == error
-    assert nl not in report.warnings
-    assert report.warnings[no] == [warning]
+    assert no not in report.node_errors
+    assert report.node_errors[nl] == error
+    assert nl not in report.node_warnings
+    assert report.node_warnings[no] == [warning]
     eric.printer.print_summary.assert_called_once_with(report)
 
 

@@ -52,7 +52,7 @@ class Eric:
                 self._stage_node(node)
             except EricError as e:
                 self.printer.print_error(e)
-                report.add_error(node, e)
+                report.add_node_error(node, e)
 
         self.printer.print_summary(report)
         return report
@@ -77,7 +77,7 @@ class Eric:
                 state.data_to_publish.merge(node_data)
             except EricError as e:
                 self.printer.print_error(e)
-                state.report.add_error(node, e)
+                state.report.add_node_error(node, e)
 
         try:
             self._publish_nodes(state)
@@ -157,7 +157,7 @@ class Eric:
                 eu_node_data=state.eu_node_data,
             ).enrich()
             if warnings:
-                state.report.add_warnings(node_data.node, warnings)
+                state.report.add_node_warnings(node_data.node, warnings)
 
     def _manage_node_pids(self, node_data: NodeData, state: PublishingState):
         self.printer.print("🆔 Managing PIDs")
@@ -167,14 +167,14 @@ class Eric:
                 node_data.biobanks, state.existing_data.biobanks
             )
             if warnings:
-                state.report.add_warnings(node_data.node, warnings)
+                state.report.add_node_warnings(node_data.node, warnings)
 
     def _validate_node(self, node_data: NodeData, report: ErrorReport):
         self.printer.print(f"🔎 Validating staged data of node {node_data.node.code}")
         with self.printer.indentation():
             warnings = Validator(node_data, self.printer).validate()
             if warnings:
-                report.add_warnings(node_data.node, warnings)
+                report.add_node_warnings(node_data.node, warnings)
 
     def _get_node_data(self, node: Node) -> NodeData:
         try:
