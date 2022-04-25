@@ -1,10 +1,30 @@
+from dataclasses import dataclass
+from typing import List
+
 from molgenis.bbmri_eric.bbmri_client import EricSession
-from molgenis.bbmri_eric.eric import PublishingState
 from molgenis.bbmri_eric.errors import EricError, EricWarning, ErrorReport
-from molgenis.bbmri_eric.model import QualityInfo, Table, TableType
+from molgenis.bbmri_eric.model import (
+    EricData,
+    Node,
+    NodeData,
+    QualityInfo,
+    Table,
+    TableType,
+)
 from molgenis.bbmri_eric.pid_manager import BasePidManager
 from molgenis.bbmri_eric.printer import Printer
 from molgenis.client import MolgenisRequestError
+
+
+@dataclass
+class PublishingState:
+    existing_data: EricData
+    eu_node_data: NodeData
+    quality_info: QualityInfo
+    report: ErrorReport
+    publisher: "Publisher"
+    nodes: List[Node]
+    data_to_publish: EricData
 
 
 class Publisher:

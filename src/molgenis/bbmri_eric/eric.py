@@ -1,7 +1,5 @@
 from typing import List, Optional
 
-from attr import dataclass
-
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.bbmri_eric.model import (
@@ -9,28 +7,16 @@ from molgenis.bbmri_eric.model import (
     ExternalServerNode,
     Node,
     NodeData,
-    QualityInfo,
     Source,
 )
 from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
-from molgenis.bbmri_eric.publisher import Publisher
+from molgenis.bbmri_eric.publisher import Publisher, PublishingState
 from molgenis.bbmri_eric.stager import Stager
 from molgenis.bbmri_eric.transformer import Transformer
 from molgenis.bbmri_eric.validation import Validator
 from molgenis.client import MolgenisRequestError
-
-
-@dataclass
-class PublishingState:
-    existing_data: EricData
-    eu_node_data: NodeData
-    quality_info: QualityInfo
-    report: ErrorReport
-    publisher: Publisher
-    nodes: List[Node]
-    data_to_publish: EricData
 
 
 class Eric:
@@ -97,6 +83,7 @@ class Eric:
         try:
             self._publish_nodes(state)
         except EricError as e:
+            self.printer.print_error(e)
             state.report.set_publishing_error(e)
 
         self.printer.print_summary(state.report)
@@ -110,7 +97,7 @@ class Eric:
         publisher = Publisher(
             self.session, self.printer, quality_info, self.pid_manager
         )
-        data_to_publish = EricData.from_empty(Source.NONE)
+        data_to_publish = EricData.from_empty(Source.TRANSFORMED)
 
         return PublishingState(
             existing_data=published_data,
@@ -126,8 +113,7 @@ class Eric:
         codes = [node.code for node in state.nodes]
         self.printer.print_header(f"📤 Publishing nodes {','.join(codes)}")
         with self.printer.indentation():
-            warnings = state.publisher.publish(state)
-            state.report.add_publishing_warnings(warnings)
+            state.publisher.publish(state)
 
     @requests_error_handler
     def _prepare_node_data(self, node: Node, state: PublishingState):

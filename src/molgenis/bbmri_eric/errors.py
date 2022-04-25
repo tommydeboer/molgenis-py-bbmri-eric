@@ -31,6 +31,8 @@ class ErrorReport:
     Summary object. Stores errors and warnings that occurred for each node.
     """
 
+    # TODO variable + method naming
+
     nodes: List[Node]
     errors: DefaultDict[Node, EricError] = field(
         default_factory=lambda: defaultdict(list)
@@ -38,9 +40,7 @@ class ErrorReport:
     warnings: DefaultDict[Node, List[EricWarning]] = field(
         default_factory=lambda: defaultdict(list)
     )
-
     publishing_error: Optional[EricError] = None
-    publishing_warnings: List[EricWarning] = field(default_factory=list())
 
     def get_node(self, code: str) -> Optional[Node]:
         return next((node for node in self.nodes if node.code == code), None)
@@ -52,15 +52,11 @@ class ErrorReport:
         if warnings:
             self.warnings[node].extend(warnings)
 
-    def add_publishing_warnings(self, warnings: List[EricWarning]):
-        if warnings:
-            self.publishing_warnings.extend(warnings)
-
     def set_publishing_error(self, error: EricError):
         self.publishing_error = error
 
     def has_errors(self) -> bool:
-        return len(self.errors) > 0
+        return len(self.errors) > 0 or self.publishing_error
 
     def has_warnings(self) -> bool:
         return len(self.warnings) > 0
