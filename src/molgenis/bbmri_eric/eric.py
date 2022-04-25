@@ -1,14 +1,36 @@
 from typing import List, Optional
 
+from attr import dataclass
+
 from molgenis.bbmri_eric.bbmri_client import EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
-from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData
+from molgenis.bbmri_eric.model import (
+    EricData,
+    ExternalServerNode,
+    Node,
+    NodeData,
+    QualityInfo,
+    Source,
+)
+from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
 from molgenis.bbmri_eric.publisher import Publisher
 from molgenis.bbmri_eric.stager import Stager
+from molgenis.bbmri_eric.transformer import Transformer
 from molgenis.bbmri_eric.validation import Validator
 from molgenis.client import MolgenisRequestError
+
+
+@dataclass
+class PublishingState:
+    existing_data: EricData
+    eu_node_data: NodeData
+    quality_info: QualityInfo
+    report: ErrorReport
+    publisher: Publisher
+    nodes: List[Node]
+    data_to_publish: EricData
 
 
 class Eric:
@@ -20,11 +42,15 @@ class Eric:
         self, session: EricSession, pid_service: Optional[BasePidService] = None
     ):
         """
-        :param BbmriSession session: an authenticated session with an ERIC directory
+        :param session: an authenticated session with an ERIC directory
+        :param pid_service: a configured PidService, required for publishing. When no
+        PidService is provided, nodes can only be staged.
         """
         self.session = session
         self.printer = Printer()
         self.pid_service: Optional[BasePidService] = pid_service
+        if pid_service:
+            self.pid_manager = PidManagerFactory.create(self.pid_service, self.printer)
 
     def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> ErrorReport:
         """
@@ -56,33 +82,64 @@ class Eric:
         if not self.pid_service:
             raise ValueError("A PID service is required to publish nodes")
 
-        report = ErrorReport(nodes)
-        publisher = Publisher(self.session, self.printer, self.pid_service)
+        self.printer.print("📦 Retrieving existing published data")
+        state = self._prepare_state(nodes)
+
         for node in nodes:
             self.printer.print_node_title(node)
             try:
-                self._publish_node(node, report, publisher)
+                node_data = self._prepare_node_data(node, state)
+                state.data_to_publish.merge(node_data)
             except EricError as e:
                 self.printer.print_error(e)
-                report.add_error(node, e)
+                state.report.add_error(node, e)
 
-        self.printer.print_summary(report)
-        return report
+        try:
+            self._publish_nodes(state)
+        except EricError as e:
+            state.report.set_publishing_error(e)
+
+        self.printer.print_summary(state.report)
+        return state.report
+
+    def _prepare_state(self, nodes: List[Node]) -> PublishingState:
+        published_data = self.session.get_published_data(nodes)
+        quality_info = self.session.get_quality_info()
+        eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
+        report = ErrorReport(nodes)
+        publisher = Publisher(
+            self.session, self.printer, quality_info, self.pid_manager
+        )
+        data_to_publish = EricData.from_empty(Source.NONE)
+
+        return PublishingState(
+            existing_data=published_data,
+            quality_info=quality_info,
+            eu_node_data=eu_node_data,
+            report=report,
+            publisher=publisher,
+            nodes=nodes,
+            data_to_publish=data_to_publish,
+        )
+
+    def _publish_nodes(self, state: PublishingState):
+        codes = [node.code for node in state.nodes]
+        self.printer.print_header(f"📤 Publishing nodes {','.join(codes)}")
+        with self.printer.indentation():
+            warnings = state.publisher.publish(state)
+            state.report.add_publishing_warnings(warnings)
 
     @requests_error_handler
-    def _publish_node(self, node: Node, report: ErrorReport, publisher: Publisher):
-        # Stage the data if this node has an external server
+    def _prepare_node_data(self, node: Node, state: PublishingState):
         if isinstance(node, ExternalServerNode):
             self._stage_node(node)
 
-        # Get the data from the staging area
         node_data = self._get_node_data(node)
+        self._validate_node(node_data, state.report)
+        self._transform_node(node_data, state)
+        self._manage_node_pids(node_data, state)
 
-        # Validate all the rows in the staging area
-        self._validate_node(node_data, report)
-
-        # Copy the data from staging to the combined tables
-        self._publish_node_data(node_data, publisher, report)
+        return node_data
 
     @requests_error_handler
     def _stage_node(self, node: ExternalServerNode):
@@ -90,13 +147,28 @@ class Eric:
         with self.printer.indentation():
             Stager(self.session, self.printer).stage(node)
 
-    def _publish_node_data(
-        self, node_data: NodeData, publisher: Publisher, report: ErrorReport
-    ):
-        self.printer.print_sub_header(f"📤 Publishing node {node_data.node.code}")
+    def _transform_node(self, node_data: NodeData, state: PublishingState):
+        self.printer.print("✏️ Preparing data")
         with self.printer.indentation():
-            warnings = publisher.publish(node_data)
-            report.add_warnings(node_data.node, warnings)
+            warnings = Transformer(
+                node_data=node_data,
+                quality=state.quality_info,
+                printer=self.printer,
+                existing_biobanks=state.existing_data.biobanks,
+                eu_node_data=state.eu_node_data,
+            ).enrich()
+            if warnings:
+                state.report.add_warnings(node_data.node, warnings)
+
+    def _manage_node_pids(self, node_data: NodeData, state: PublishingState):
+        self.printer.print("🆔 Managing PIDs")
+        with self.printer.indentation():
+            warnings = self.pid_manager.assign_biobank_pids(node_data.biobanks)
+            self.pid_manager.update_biobank_pids(
+                node_data.biobanks, state.existing_data.biobanks
+            )
+            if warnings:
+                state.report.add_warnings(node_data.node, warnings)
 
     def _validate_node(self, node_data: NodeData, report: ErrorReport):
         self.printer.print_sub_header(

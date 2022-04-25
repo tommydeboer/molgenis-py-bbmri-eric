@@ -1,8 +1,8 @@
 import typing
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class TableType(Enum):
@@ -65,7 +65,7 @@ class Table:
 
     type: TableType
     rows_by_id: "typing.OrderedDict[str, dict]"
-    meta: TableMeta
+    meta: TableMeta = None
 
     @property
     def rows(self) -> List[dict]:
@@ -88,13 +88,17 @@ class Table:
             rows_by_id=rows_by_id,
         )
 
+    @staticmethod
+    def of_empty(table_type: TableType):
+        return Table(table_type, OrderedDict())
+
 
 @dataclass(frozen=True)
 class Node:
     """Represents a single national node in the BBMRI ERIC directory."""
 
     code: str
-    description: str
+    description: Optional[str]
 
     _classifiers = {
         TableType.PERSONS: "contactID",
@@ -148,23 +152,73 @@ class Source(Enum):
     EXTERNAL_SERVER = "external_server"
     STAGING = "staging"
     PUBLISHED = "published"
+    TRANSFORMED = "transformed"
+
+
+# TODO introduce MixedData class
 
 
 @dataclass()
-class NodeData:
-    """Container object storing the four tables of a single node."""
+class EricData:
+    """Container object storing rows from the four ERIC tables. Can contain rows from
+    multiple nodes."""
 
-    node: Node
     source: Source
     persons: Table
     networks: Table
     biobanks: Table
     collections: Table
-    table_by_type: Dict[TableType, Table]
+    table_by_type: Dict[TableType, Table] = field(init=False)
+
+    def __post_init__(self):
+        self.table_by_type = {
+            TableType.PERSONS: self.persons,
+            TableType.NETWORKS: self.networks,
+            TableType.BIOBANKS: self.biobanks,
+            TableType.COLLECTIONS: self.collections,
+        }
 
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
+
+    @staticmethod
+    def from_mixed_dict(source: Source, tables: Dict[TableType, Table]) -> "EricData":
+        # TODO pass separate tables instead of dict?
+        return EricData(
+            source=source,
+            persons=tables[TableType.PERSONS],
+            networks=tables[TableType.NETWORKS],
+            biobanks=tables[TableType.BIOBANKS],
+            collections=tables[TableType.COLLECTIONS],
+        )
+
+    @staticmethod
+    def from_empty(source: Source) -> "EricData":
+        all_persons = Table.of_empty(TableType.PERSONS)
+        all_networks = Table.of_empty(TableType.NETWORKS)
+        all_biobanks = Table.of_empty(TableType.BIOBANKS)
+        all_collections = Table.of_empty(TableType.COLLECTIONS)
+        return EricData(
+            source=source,
+            persons=all_persons,
+            networks=all_networks,
+            biobanks=all_biobanks,
+            collections=all_collections,
+        )
+
+    def merge(self, other_data: "EricData"):
+        self.persons.rows_by_id.update(other_data.persons.rows_by_id)
+        self.networks.rows_by_id.update(other_data.networks.rows_by_id)
+        self.biobanks.rows_by_id.update(other_data.biobanks.rows_by_id)
+        self.collections.rows_by_id.update(other_data.collections.rows_by_id)
+
+
+@dataclass
+class NodeData(EricData):
+    """Container object storing the four tables of a single node."""
+
+    node: Node
 
     @staticmethod
     def from_dict(
@@ -177,7 +231,6 @@ class NodeData:
             networks=tables[TableType.NETWORKS],
             biobanks=tables[TableType.BIOBANKS],
             collections=tables[TableType.COLLECTIONS],
-            table_by_type=tables,
         )
 
 

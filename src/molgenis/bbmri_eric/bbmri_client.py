@@ -7,6 +7,7 @@ import requests
 
 from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.model import (
+    EricData,
     ExternalServerNode,
     Node,
     NodeData,
@@ -279,6 +280,34 @@ class EricSession(ExtendedSession):
             )
 
         return NodeData.from_dict(node=node, source=Source.PUBLISHED, tables=tables)
+
+    def get_published_data(self, nodes: List[Node]) -> EricData:
+        """
+        Gets the four tables that belong to one or more nodes from the published tables.
+        Filters the rows based on the national_node field.
+
+        :param List[Node] nodes: the node(s) to get the published data for
+        :return: an EricData object
+        """
+
+        if len(nodes) == 0:
+            raise ValueError("No nodes provided")
+
+        codes = [node.code for node in nodes]
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = table_type.base_id
+            meta = self.get_meta(id_)
+
+            tables[table_type] = Table.of(
+                table_type=table_type,
+                meta=meta,
+                rows=self.get_uploadable_data(
+                    id_, batch_size=10000, q=f"national_node=in=({','.join(codes)})"
+                ),
+            )
+
+        return EricData.from_mixed_dict(source=Source.PUBLISHED, tables=tables)
 
 
 class ExternalServerSession(ExtendedSession):

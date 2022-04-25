@@ -31,7 +31,10 @@ class Printer:
         self.indents -= indent
 
     def print_node_title(self, node: Node):
-        title = f"🌍 Node {node.code} ({node.description})"
+        self.print_header(f"🌍 Node {node.code} ({node.description})")
+
+    def print_header(self, text: str):
+        title = f"{text}"
         border = "=" * (len(title) + 1)
         self.reset_indent()
         self.print()
@@ -60,7 +63,7 @@ class Printer:
         self.print("==========")
 
         for node in report.nodes:
-            if node in report.errors:
+            if node in report.errors or report.publishing_error:
                 message = f"❌ Node {node.code} failed"
                 if node in report.warnings:
                     message += f" with {len(report.warnings[node])} warning(s)"

@@ -35,7 +35,7 @@ def to_upload_format(rows: List[dict]) -> List[dict]:
 def remove_one_to_manys(rows: List[dict], meta: TableMeta) -> List[dict]:
     """
     Removes all one-to-manys from a list of rows based on the table's metadata. Removing
-    one-to-manys is necessary when addingnew rows. Returns a copy so that the original
+    one-to-manys is necessary when adding new rows. Returns a copy so that the original
     rows are not changed in any way.
     """
     copied_rows = copy.deepcopy(rows)
