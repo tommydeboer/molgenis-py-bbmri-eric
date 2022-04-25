@@ -174,28 +174,17 @@ class EricData:
         return [self.persons, self.networks, self.biobanks, self.collections]
 
     @staticmethod
-    def from_mixed_dict(source: Source, tables: Dict[TableType, Table]) -> "EricData":
-        # TODO pass separate tables instead of dict?
-        return EricData(
-            source=source,
-            persons=tables[TableType.PERSONS],
-            networks=tables[TableType.NETWORKS],
-            biobanks=tables[TableType.BIOBANKS],
-            collections=tables[TableType.COLLECTIONS],
-        )
+    def from_mixed_dict(source: Source, tables: Dict[str, Table]) -> "EricData":
+        return EricData(source=source, **tables)
 
     @staticmethod
     def from_empty(source: Source) -> "EricData":
-        all_persons = Table.of_empty(TableType.PERSONS)
-        all_networks = Table.of_empty(TableType.NETWORKS)
-        all_biobanks = Table.of_empty(TableType.BIOBANKS)
-        all_collections = Table.of_empty(TableType.COLLECTIONS)
         return EricData(
             source=source,
-            persons=all_persons,
-            networks=all_networks,
-            biobanks=all_biobanks,
-            collections=all_collections,
+            persons=Table.of_empty(TableType.PERSONS),
+            networks=Table.of_empty(TableType.NETWORKS),
+            biobanks=Table.of_empty(TableType.BIOBANKS),
+            collections=Table.of_empty(TableType.COLLECTIONS),
         )
 
     def merge(self, other_data: "EricData"):
@@ -212,17 +201,8 @@ class NodeData(EricData):
     node: Node
 
     @staticmethod
-    def from_dict(
-        node: Node, source: Source, tables: Dict[TableType, Table]
-    ) -> "NodeData":
-        return NodeData(
-            node=node,
-            source=source,
-            persons=tables[TableType.PERSONS],
-            networks=tables[TableType.NETWORKS],
-            biobanks=tables[TableType.BIOBANKS],
-            collections=tables[TableType.COLLECTIONS],
-        )
+    def from_dict(node: Node, source: Source, tables: Dict[str, Table]) -> "NodeData":
+        return NodeData(node=node, source=source, **tables)
 
 
 @dataclass(frozen=True)

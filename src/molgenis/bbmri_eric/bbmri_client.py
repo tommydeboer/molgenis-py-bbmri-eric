@@ -231,7 +231,7 @@ class EricSession(ExtendedSession):
             id_ = node.get_staging_id(table_type)
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
@@ -253,7 +253,7 @@ class EricSession(ExtendedSession):
             id_ = table_type.base_id
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(
@@ -284,9 +284,9 @@ class EricSession(ExtendedSession):
         for table_type in TableType.get_import_order():
             id_ = table_type.base_id
             meta = self.get_meta(id_)
-            attrs = attributes[table_type.name.lower()]
+            attrs = attributes[table_type.value]
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(
@@ -321,7 +321,7 @@ class ExternalServerSession(ExtendedSession):
             id_ = table_type.base_id
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
