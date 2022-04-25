@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from molgenis.bbmri_eric.bbmri_client import EricSession
+from molgenis.bbmri_eric.bbmri_client import AttributesRequest, EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
 from molgenis.bbmri_eric.model import (
     EricData,
@@ -91,7 +91,15 @@ class Eric:
     def _prepare_state(self, nodes: List[Node]) -> PublishingState:
         self.printer.print_header("⚙️ Preparation")
         self.printer.print("📦 Retrieving existing published data")
-        published_data = self.session.get_published_data(nodes)
+        published_data = self.session.get_published_data(
+            nodes,
+            AttributesRequest(
+                persons=["id", "national_node"],
+                networks=["id", "national_node"],
+                biobanks=["id", "pid", "name", "national_node"],
+                collections=["id", "national_node"],
+            ),
+        )
         self.printer.print("📦 Retrieving quality information")
         quality_info = self.session.get_quality_info()
         self.printer.print("📦 Retrieving data of node EU")

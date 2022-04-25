@@ -1,5 +1,6 @@
 import json
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 from typing import List, Optional
 from urllib.parse import quote_plus
 
@@ -18,6 +19,14 @@ from molgenis.bbmri_eric.model import (
     TableType,
 )
 from molgenis.client import Session
+
+
+@dataclass
+class AttributesRequest:
+    persons: List[str]
+    networks: List[str]
+    biobanks: List[str]
+    collections: List[str]
 
 
 class ExtendedSession(Session):
@@ -254,29 +263,37 @@ class EricSession(ExtendedSession):
 
         return NodeData.from_dict(node=node, source=Source.PUBLISHED, tables=tables)
 
-    def get_published_data(self, nodes: List[Node]) -> EricData:
+    def get_published_data(
+        self, nodes: List[Node], attributes: AttributesRequest
+    ) -> EricData:
         """
         Gets the four tables that belong to one or more nodes from the published tables.
         Filters the rows based on the national_node field.
 
         :param List[Node] nodes: the node(s) to get the published data for
+        :param AttributesRequest attributes: the attributes to get for each table
         :return: an EricData object
         """
 
         if len(nodes) == 0:
             raise ValueError("No nodes provided")
 
+        attributes = asdict(attributes)
         codes = [node.code for node in nodes]
         tables = dict()
         for table_type in TableType.get_import_order():
             id_ = table_type.base_id
             meta = self.get_meta(id_)
+            attrs = attributes[table_type.name.lower()]
 
             tables[table_type] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(
-                    id_, batch_size=10000, q=f"national_node=in=({','.join(codes)})"
+                    id_,
+                    batch_size=10000,
+                    q=f"national_node=in=({','.join(codes)})",
+                    attributes=",".join(attrs),
                 ),
             )
 
