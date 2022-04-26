@@ -32,10 +32,10 @@ class ErrorReport:
     """
 
     nodes: List[Node]
-    node_errors: DefaultDict[Node, EricError] = field(
+    node_errors: DefaultDict[str, EricError] = field(
         default_factory=lambda: defaultdict(list)
     )
-    node_warnings: DefaultDict[Node, List[EricWarning]] = field(
+    node_warnings: DefaultDict[str, List[EricWarning]] = field(
         default_factory=lambda: defaultdict(list)
     )
     error: Optional[EricError] = None
@@ -44,11 +44,11 @@ class ErrorReport:
         return next((node for node in self.nodes if node.code == code), None)
 
     def add_node_error(self, node: Node, error: EricError):
-        self.node_errors[node] = error
+        self.node_errors[node.code] = error
 
     def add_node_warnings(self, node: Node, warnings: List[EricWarning]):
         if warnings:
-            self.node_warnings[node].extend(warnings)
+            self.node_warnings[node.code].extend(warnings)
 
     def set_publishing_error(self, error: EricError):
         self.error = error

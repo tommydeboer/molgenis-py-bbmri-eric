@@ -2,13 +2,7 @@ from typing import List, Optional
 
 from molgenis.bbmri_eric.bbmri_client import AttributesRequest, EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
-from molgenis.bbmri_eric.model import (
-    ExternalServerNode,
-    MixedData,
-    Node,
-    NodeData,
-    Source,
-)
+from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData
 from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
@@ -77,6 +71,7 @@ class Eric:
                 state.data_to_publish.merge(node_data)
             except EricError as e:
                 self.printer.print_error(e)
+                state.existing_data.remove_node_rows(node)
                 state.report.add_node_error(node, e)
 
         try:
@@ -105,28 +100,20 @@ class Eric:
         self.printer.print("📦 Retrieving data of node EU")
         eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
 
-        report = ErrorReport(nodes)
-        publisher = Publisher(
-            self.session, self.printer, quality_info, self.pid_manager
-        )
-        data_to_publish = MixedData.from_empty(Source.TRANSFORMED)
-
         return PublishingState(
             existing_data=published_data,
             quality_info=quality_info,
             eu_node_data=eu_node_data,
-            report=report,
-            publisher=publisher,
             nodes=nodes,
-            data_to_publish=data_to_publish,
         )
 
     def _publish_nodes(self, state: PublishingState):
-        codes = [node.code for node in state.nodes]
         self.printer.print_header(
-            f"🎁 Publishing node{'s' if len(codes) > 1 else ''} {', '.join(codes)}"
+            f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
         )
-        state.publisher.publish(state)
+        Publisher(
+            self.session, self.printer, state.quality_info, self.pid_manager
+        ).publish(state)
 
     @requests_error_handler
     def _prepare_node_data(self, node: Node, state: PublishingState) -> NodeData:

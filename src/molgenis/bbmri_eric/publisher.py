@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 from molgenis.bbmri_eric.bbmri_client import EricSession
@@ -8,6 +8,7 @@ from molgenis.bbmri_eric.model import (
     Node,
     NodeData,
     QualityInfo,
+    Source,
     Table,
     TableType,
 )
@@ -21,10 +22,13 @@ class PublishingState:
     existing_data: MixedData
     eu_node_data: NodeData
     quality_info: QualityInfo
-    report: ErrorReport
-    publisher: "Publisher"
     nodes: List[Node]
-    data_to_publish: MixedData
+    report: ErrorReport = field(init=False)
+    data_to_publish: MixedData = field(init=False)
+
+    def __post_init__(self):
+        self.report = ErrorReport(self.nodes)
+        self.data_to_publish = MixedData.from_empty(Source.TRANSFORMED)
 
 
 class Publisher:
@@ -90,7 +94,7 @@ class Publisher:
         :param Table existing_table: the existing rows
         """
         # Compare the ids from staging and production to see what was deleted
-        staging_ids = {row["id"] for row in table.rows}
+        staging_ids = table.rows_by_id.keys()
         production_ids = set(existing_table.rows_by_id.keys())
         deleted_ids = production_ids.difference(staging_ids)
 

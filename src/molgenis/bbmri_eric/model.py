@@ -207,6 +207,13 @@ class MixedData(EricData):
         self.biobanks.rows_by_id.update(other_data.biobanks.rows_by_id)
         self.collections.rows_by_id.update(other_data.collections.rows_by_id)
 
+    def remove_node_rows(self, node: Node):
+        for table in self.import_order:
+            ids_to_remove = [
+                row["id"] for row in table.rows if row["national_node"] == node.code
+            ]
+            all(table.rows_by_id.pop(id_) for id_ in ids_to_remove)
+
 
 @dataclass(frozen=True)
 class QualityInfo:
