@@ -45,6 +45,13 @@ def test_error_report():
     assert report.has_warnings()
 
 
+def test_error_report_global_error():
+    report = ErrorReport([])
+    assert not report.has_errors()
+    report.set_global_error(EricError())
+    assert report.has_errors()
+
+
 def test_requests_error_handler():
     exception = requests.exceptions.ConnectionError()
 

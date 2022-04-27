@@ -61,14 +61,14 @@ def test_import_node(external_server_init, node_data: NodeData):
     source_session_mock_instance = external_server_init.return_value
     source_session_mock_instance.get_node_data.return_value = node_data
     session = EricSession("url")
-    session.add_batched = MagicMock(name="add_batched")
+    session.add_all = MagicMock(name="add_all")
     node = ExternalServerNode("NO", "Norway", "url")
 
     Stager(session, Printer())._import_node(node)
 
     external_server_init.assert_called_with(node=node)
     source_session_mock_instance.get_node_data.assert_called_once()
-    assert session.add_batched.mock_calls == [
+    assert session.add_all.mock_calls == [
         mock.call(
             "eu_bbmri_eric_NO_persons",
             utils.remove_one_to_manys(node_data.persons.rows, node_data.persons.meta),
@@ -106,8 +106,8 @@ def test_import_node_copy_node_error(external_server_init, node_data: NodeData):
     source_session_mock_instance = external_server_init.return_value
     source_session_mock_instance.get_node_data.return_value = node_data
     session = EricSession("url")
-    session.add_batched = MagicMock(name="add_batched")
-    session.add_batched.side_effect = MolgenisRequestError("error")
+    session.add_all = MagicMock(name="add_all")
+    session.add_all.side_effect = MolgenisRequestError("error")
     node = ExternalServerNode("NO", "Norway", "url")
 
     with pytest.raises(EricError) as e:

@@ -81,13 +81,12 @@ def test_node_data_order():
     node = Node("NL", "NL")
 
     node_data = NodeData(
-        node,
+        node=node,
         source=Source.STAGING,
         persons=persons,
         networks=networks,
         biobanks=biobanks,
         collections=collections,
-        table_by_type=MagicMock(),
     )
 
     assert node_data.import_order == [persons, networks, biobanks, collections]
