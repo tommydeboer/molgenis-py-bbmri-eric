@@ -5,6 +5,7 @@ from typing import DefaultDict, List, Optional
 import requests
 
 from molgenis.bbmri_eric.model import Node
+from molgenis.client import MolgenisRequestError
 
 
 @dataclass(frozen=True)
@@ -28,7 +29,7 @@ class EricError(Exception):
 @dataclass
 class ErrorReport:
     """
-    Summary object. Stores errors and warnings that occurred for each node.
+    Summary object. Stores errors and warnings that occur during publishing.
     """
 
     nodes: List[Node]
@@ -50,7 +51,7 @@ class ErrorReport:
         if warnings:
             self.node_warnings[node.code].extend(warnings)
 
-    def set_publishing_error(self, error: EricError):
+    def set_global_error(self, error: EricError):
         self.error = error
 
     def has_errors(self) -> bool:
@@ -68,7 +69,7 @@ def requests_error_handler(func):
     def inner_function(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, MolgenisRequestError) as e:
             raise EricError("Request failed") from e
 
     return inner_function

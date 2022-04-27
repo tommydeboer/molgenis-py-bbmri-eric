@@ -23,11 +23,10 @@ class PublishingState:
     eu_node_data: NodeData
     quality_info: QualityInfo
     nodes: List[Node]
-    report: ErrorReport = field(init=False)
+    report: ErrorReport
     data_to_publish: MixedData = field(init=False)
 
     def __post_init__(self):
-        self.report = ErrorReport(self.nodes)
         self.data_to_publish = MixedData.from_empty(Source.TRANSFORMED)
 
 

@@ -10,7 +10,6 @@ from molgenis.bbmri_eric.publisher import Publisher, PublishingState
 from molgenis.bbmri_eric.stager import Stager
 from molgenis.bbmri_eric.transformer import Transformer
 from molgenis.bbmri_eric.validation import Validator
-from molgenis.client import MolgenisRequestError
 
 
 class Eric:
@@ -62,29 +61,23 @@ class Eric:
         if not self.pid_service:
             raise ValueError("A PID service is required to publish nodes")
 
-        state = self._prepare_state(nodes)
-
-        for node in nodes:
-            self.printer.print_node_title(node)
-            try:
-                node_data = self._prepare_node_data(node, state)
-                state.data_to_publish.merge(node_data)
-            except EricError as e:
-                self.printer.print_error(e)
-                state.existing_data.remove_node_rows(node)
-                state.report.add_node_error(node, e)
-
+        report = ErrorReport(nodes)
         try:
-            self._publish_nodes(state)
+            state = self._init_state(nodes, report)
         except EricError as e:
             self.printer.print_error(e)
-            state.report.set_publishing_error(e)
+            report.set_global_error(e)
+        else:
+            self._prepare_nodes(nodes, state)
+            self._publish_nodes(state)
 
-        self.printer.print_summary(state.report)
-        return state.report
+        self.printer.print_summary(report)
+        return report
 
-    def _prepare_state(self, nodes: List[Node]) -> PublishingState:
+    @requests_error_handler
+    def _init_state(self, nodes: List[Node], report: ErrorReport) -> PublishingState:
         self.printer.print_header("⚙️ Preparation")
+
         self.printer.print("📦 Retrieving existing published data")
         published_data = self.session.get_published_data(
             nodes,
@@ -95,8 +88,10 @@ class Eric:
                 collections=["id", "national_node"],
             ),
         )
+
         self.printer.print("📦 Retrieving quality information")
         quality_info = self.session.get_quality_info()
+
         self.printer.print("📦 Retrieving data of node EU")
         eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
 
@@ -105,15 +100,31 @@ class Eric:
             quality_info=quality_info,
             eu_node_data=eu_node_data,
             nodes=nodes,
+            report=report,
         )
 
+    def _prepare_nodes(self, nodes, state):
+        for node in nodes:
+            self.printer.print_node_title(node)
+            try:
+                node_data = self._prepare_node_data(node, state)
+                state.data_to_publish.merge(node_data)
+            except EricError as e:
+                self.printer.print_error(e)
+                state.existing_data.remove_node_rows(node)
+                state.report.add_node_error(node, e)
+
     def _publish_nodes(self, state: PublishingState):
-        self.printer.print_header(
-            f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
-        )
-        Publisher(
-            self.session, self.printer, state.quality_info, self.pid_manager
-        ).publish(state)
+        try:
+            self.printer.print_header(
+                f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
+            )
+            Publisher(
+                self.session, self.printer, state.quality_info, self.pid_manager
+            ).publish(state)
+        except EricError as e:
+            self.printer.print_error(e)
+            state.report.set_global_error(e)
 
     @requests_error_handler
     def _prepare_node_data(self, node: Node, state: PublishingState) -> NodeData:
@@ -163,9 +174,7 @@ class Eric:
             if warnings:
                 report.add_node_warnings(node_data.node, warnings)
 
+    @requests_error_handler
     def _get_node_data(self, node: Node) -> NodeData:
-        try:
-            self.printer.print(f"📦 Retrieving staged data of node {node.code}")
-            return self.session.get_staging_node_data(node)
-        except MolgenisRequestError as e:
-            raise EricError(f"Error retrieving data of node {node.code}") from e
+        self.printer.print(f"📦 Retrieving staged data of node {node.code}")
+        return self.session.get_staging_node_data(node)
