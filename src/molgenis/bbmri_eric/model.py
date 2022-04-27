@@ -132,6 +132,18 @@ class Node:
         classifier = cls._classifiers[table_type]
         return f"bbmri-eric:{classifier}:EU_"
 
+    @staticmethod
+    def of(code: str):
+        return Node(code, None)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Node):
+            return self.code == other.code
+        return False
+
+    def __hash__(self):
+        return hash(self.code)
+
 
 @dataclass(frozen=True)
 class ExternalServerNode(Node):

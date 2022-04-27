@@ -58,18 +58,15 @@ class Printer:
         self.print("📋 Summary")
         self.print("==========")
 
-        # TODO make more clear when to use node vs node.code
         for node in report.nodes:
-            if node.code in report.node_errors or report.error:
+            if node in report.node_errors or report.error:
                 message = f"❌ Node {node.code} failed"
-                if node.code in report.node_warnings:
-                    message += (
-                        f" with {len(report.node_warnings[node.code])} warning(s)"
-                    )
-            elif node.code in report.node_warnings:
+                if node in report.node_warnings:
+                    message += f" with {len(report.node_warnings[node])} warning(s)"
+            elif node in report.node_warnings:
                 message = (
                     f"⚠️ Node {node.code} finished successfully with "
-                    f"{len(report.node_warnings[node.code])} warning(s)"
+                    f"{len(report.node_warnings[node])} warning(s)"
                 )
             else:
                 message = f"✅ Node {node.code} finished successfully"

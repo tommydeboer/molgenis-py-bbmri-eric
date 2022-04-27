@@ -115,10 +115,10 @@ class Eric:
                 state.report.add_node_error(node, e)
 
     def _publish_nodes(self, state: PublishingState):
+        self.printer.print_header(
+            f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
+        )
         try:
-            self.printer.print_header(
-                f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
-            )
             Publisher(
                 self.session, self.printer, state.quality_info, self.pid_manager
             ).publish(state)

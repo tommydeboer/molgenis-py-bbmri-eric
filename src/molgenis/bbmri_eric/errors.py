@@ -29,27 +29,24 @@ class EricError(Exception):
 @dataclass
 class ErrorReport:
     """
-    Summary object. Stores errors and warnings that occur during publishing.
+    Summary object. Stores errors and warnings that occur during staging or publishing.
     """
 
     nodes: List[Node]
-    node_errors: DefaultDict[str, EricError] = field(
+    node_errors: DefaultDict[Node, EricError] = field(
         default_factory=lambda: defaultdict(list)
     )
-    node_warnings: DefaultDict[str, List[EricWarning]] = field(
+    node_warnings: DefaultDict[Node, List[EricWarning]] = field(
         default_factory=lambda: defaultdict(list)
     )
     error: Optional[EricError] = None
 
-    def get_node(self, code: str) -> Optional[Node]:
-        return next((node for node in self.nodes if node.code == code), None)
-
     def add_node_error(self, node: Node, error: EricError):
-        self.node_errors[node.code] = error
+        self.node_errors[node] = error
 
     def add_node_warnings(self, node: Node, warnings: List[EricWarning]):
         if warnings:
-            self.node_warnings[node.code].extend(warnings)
+            self.node_warnings[node].extend(warnings)
 
     def set_global_error(self, error: EricError):
         self.error = error
