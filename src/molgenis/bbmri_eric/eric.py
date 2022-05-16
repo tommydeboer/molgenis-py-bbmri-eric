@@ -153,7 +153,7 @@ class Eric:
                 printer=self.printer,
                 existing_biobanks=state.existing_data.biobanks,
                 eu_node_data=state.eu_node_data,
-            ).enrich()
+            ).transform()
             if warnings:
                 state.report.add_node_warnings(node_data.node, warnings)
 

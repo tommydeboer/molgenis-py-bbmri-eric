@@ -25,7 +25,7 @@ class Transformer:
         self.eu_node_data = eu_node_data
         self.warnings = []
 
-    def enrich(self):
+    def transform(self):
         """
         Transforms the data of a node:
         1. Sets the commercial use boolean
