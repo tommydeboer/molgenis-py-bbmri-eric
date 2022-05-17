@@ -55,19 +55,11 @@ def test_publish(publisher, session):
 
     assert publisher._delete_rows.mock_calls == [
         mock.call(
-            state.data_to_publish.collections,
-            state.existing_data.collections,
-            state.report,
+            state.data_to_publish.collections, state.existing_data.collections, state
         ),
-        mock.call(
-            state.data_to_publish.biobanks, state.existing_data.biobanks, state.report
-        ),
-        mock.call(
-            state.data_to_publish.networks, state.existing_data.networks, state.report
-        ),
-        mock.call(
-            state.data_to_publish.persons, state.existing_data.persons, state.report
-        ),
+        mock.call(state.data_to_publish.biobanks, state.existing_data.biobanks, state),
+        mock.call(state.data_to_publish.networks, state.existing_data.networks, state),
+        mock.call(state.data_to_publish.persons, state.existing_data.persons, state),
     ]
 
 

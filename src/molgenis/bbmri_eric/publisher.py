@@ -74,9 +74,7 @@ class Publisher:
             try:
                 with self.printer.indentation():
                     self._delete_rows(
-                        table,
-                        state.existing_data.table_by_type[table.type],
-                        state.report,
+                        table, state.existing_data.table_by_type[table.type], state
                     )
             except MolgenisRequestError as e:
                 raise EricError(f"Error deleting rows from {table.type.base_id}") from e
