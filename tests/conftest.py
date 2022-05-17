@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 import pkg_resources
 import pytest
 
-from molgenis.bbmri_eric.eric import Eric
 from molgenis.bbmri_eric.model import NodeData
 
 
@@ -39,10 +38,3 @@ def pid_service() -> MagicMock:
     service = MagicMock()
     service.base_url = "url/"
     return service
-
-
-@pytest.fixture
-def eric(session, printer, pid_service) -> Eric:
-    eric = Eric(session, pid_service)
-    eric.printer = printer
-    return eric

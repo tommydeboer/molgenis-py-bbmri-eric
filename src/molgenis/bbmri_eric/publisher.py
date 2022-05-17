@@ -40,12 +40,10 @@ class Publisher:
         self,
         session: EricSession,
         printer: Printer,
-        quality_info: QualityInfo,
         pid_manager: BasePidManager,
     ):
         self.session = session
         self.printer = printer
-        self.quality_info = quality_info
         self.pid_manager = pid_manager
 
     def publish(self, state: PublishingState):
@@ -83,7 +81,7 @@ class Publisher:
             except MolgenisRequestError as e:
                 raise EricError(f"Error deleting rows from {table.type.base_id}") from e
 
-    def _delete_rows(self, table: Table, existing_table: Table, report: ErrorReport):
+    def _delete_rows(self, table: Table, existing_table: Table, state: PublishingState):
         """
         Deletes rows from a combined table that are not present in the staging area's
         table. If a row is referenced from the quality info tables, it is not deleted
@@ -98,7 +96,7 @@ class Publisher:
         deleted_ids = production_ids.difference(staging_ids)
 
         # Remove ids that we are not allowed to delete
-        undeletable_ids = self.quality_info.get_qualities(table.type).keys()
+        undeletable_ids = state.quality_info.get_qualities(table.type).keys()
         deletable_ids = deleted_ids.difference(undeletable_ids)
 
         # For deleted biobanks, update the handle
@@ -125,4 +123,4 @@ class Publisher:
                     self.printer.print_warning(warning)
 
                     code = existing_table.rows_by_id[id_]["national_node"]
-                    report.add_node_warnings(Node.of(code), [warning])
+                    state.report.add_node_warnings(Node.of(code), [warning])

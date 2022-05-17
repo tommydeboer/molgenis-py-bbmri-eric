@@ -18,7 +18,7 @@ def pid_manager_factory():
 
 @pytest.fixture
 def publisher(session, printer, pid_service) -> Publisher:
-    return Publisher(session, printer, MagicMock(), pid_service)
+    return Publisher(session, printer, pid_service)
 
 
 def test_publish(publisher, session):
@@ -72,9 +72,6 @@ def test_publish(publisher, session):
 
 
 def test_delete_rows(publisher, pid_service, node_data: NodeData, session):
-    publisher.quality_info = QualityInfo(
-        biobanks={"undeletable_id": ["quality"]}, collections={}
-    )
     existing_biobanks_table = MagicMock()
     existing_biobanks_table.rows_by_id.return_value = {
         "bbmri-eric:ID:NO_OUS": {"pid": "pid1"},
@@ -86,9 +83,13 @@ def test_delete_rows(publisher, pid_service, node_data: NodeData, session):
         "delete_this_row",
         "undeletable_id",
     }
-    report = ErrorReport([Node.of("NO")])
+    state: PublishingState = MagicMock()
+    state.quality_info = QualityInfo(
+        biobanks={"undeletable_id": ["quality"]}, collections={}
+    )
+    state.report = ErrorReport([Node.of("NO")])
 
-    publisher._delete_rows(node_data.biobanks, existing_biobanks_table, report)
+    publisher._delete_rows(node_data.biobanks, existing_biobanks_table, state)
 
     publisher.pid_manager.terminate_biobanks(["pid2"])
     session.delete_list.assert_called_with(
