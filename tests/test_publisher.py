@@ -4,7 +4,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from molgenis.bbmri_eric.errors import ErrorReport
-from molgenis.bbmri_eric.model import MixedData, Node, NodeData, QualityInfo, Source
+from molgenis.bbmri_eric.model import (
+    MixedData,
+    Node,
+    NodeData,
+    QualityInfo,
+    Source,
+    Table,
+    TableType,
+)
 from molgenis.bbmri_eric.publisher import Publisher, PublishingState
 
 
@@ -26,7 +34,13 @@ def test_publish(publisher, session):
 
     state = PublishingState(
         nodes=[Node.of("NL"), Node.of("BE")],
-        existing_data=MixedData.from_empty(Source.PUBLISHED),
+        existing_data=MixedData(
+            source=Source.TRANSFORMED,
+            persons=Table.of_empty(TableType.PERSONS, MagicMock()),
+            networks=Table.of_empty(TableType.NETWORKS, MagicMock()),
+            biobanks=Table.of_empty(TableType.BIOBANKS, MagicMock()),
+            collections=Table.of_empty(TableType.COLLECTIONS, MagicMock()),
+        ),
         eu_node_data=MagicMock(),
         quality_info=MagicMock(),
         report=MagicMock(),
@@ -34,25 +48,7 @@ def test_publish(publisher, session):
 
     publisher.publish(state)
 
-    assert session.upsert.mock_calls == [
-        mock.call(
-            state.data_to_publish.persons.type.base_id,
-            state.data_to_publish.persons.rows,
-        ),
-        mock.call(
-            state.data_to_publish.networks.type.base_id,
-            state.data_to_publish.networks.rows,
-        ),
-        mock.call(
-            state.data_to_publish.biobanks.type.base_id,
-            state.data_to_publish.biobanks.rows,
-        ),
-        mock.call(
-            state.data_to_publish.collections.type.base_id,
-            state.data_to_publish.collections.rows,
-        ),
-    ]
-
+    session.import_as_csv.assert_called_with(state.data_to_publish)
     assert publisher._delete_rows.mock_calls == [
         mock.call(
             state.data_to_publish.collections, state.existing_data.collections, state
