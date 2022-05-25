@@ -140,8 +140,8 @@ class ExtendedSession(Session):
     def import_emx_file(
         self,
         file: Path,
-        action: ImportDataAction = ImportDataAction.ADD_UPDATE_EXISTING,
-        metadata_action: ImportMetadataAction = ImportMetadataAction.IGNORE,
+        action: ImportDataAction,
+        metadata_action: ImportMetadataAction,
     ):
         """
         Imports a file with the Import API.
@@ -376,7 +376,11 @@ class EricSession(ExtendedSession):
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             archive = self._create_emx_archive(data, tmpdir)
-            self.import_emx_file(archive)
+            self.import_emx_file(
+                archive,
+                action=ImportDataAction.ADD_UPDATE_EXISTING,
+                metadata_action=ImportMetadataAction.IGNORE,
+            )
 
     @classmethod
     def _create_emx_archive(cls, data: EricData, directory: str) -> Path:
