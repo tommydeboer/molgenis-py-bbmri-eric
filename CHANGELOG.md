@@ -1,6 +1,8 @@
 # Changelog
 ## Version 1.6.0 (development)
-- Improves indexing performance by publishing all nodes at once (requires MOLGENIS 10.0.4)
+- Improves indexing performance:
+  - by publishing all nodes at once
+  - by using the Import API
 
 ## Version 1.5.0
 - Adds step to fill combined_network field
