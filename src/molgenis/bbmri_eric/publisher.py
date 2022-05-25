@@ -27,7 +27,8 @@ class PublishingState:
     data_to_publish: MixedData = field(init=False)
 
     def __post_init__(self):
-        self.data_to_publish = MixedData.from_empty(Source.TRANSFORMED)
+        self.data_to_publish = self.existing_data.copy_empty()
+        self.data_to_publish.source = Source.TRANSFORMED
 
 
 class Publisher:
@@ -52,7 +53,7 @@ class Publisher:
         1. New/existing rows are upserted in the combined tables
         2. Removed rows are deleted from the combined tables
         """
-        self.printer.print("💾 Saving data to combined tables")
+        self.printer.print("💾 Saving new and updated data to combined tables")
         with self.printer.indentation():
             self._upsert_data(state)
 
@@ -61,12 +62,10 @@ class Publisher:
             self._delete_data(state)
 
     def _upsert_data(self, state):
-        for table in state.data_to_publish.import_order:
-            self.printer.print(f"Upserting rows in {table.type.base_id}")
-            try:
-                self.session.upsert(table.type.base_id, table.rows)
-            except MolgenisRequestError as e:
-                raise EricError(f"Error upserting rows to {table.type.base_id}") from e
+        try:
+            self.session.import_as_csv(state.data_to_publish)
+        except MolgenisRequestError as e:
+            raise EricError("Error importing data to combined tables") from e
 
     def _delete_data(self, state):
         for table in reversed(state.data_to_publish.import_order):

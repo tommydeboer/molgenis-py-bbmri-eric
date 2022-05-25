@@ -1,13 +1,20 @@
+import csv
 import json
+import tempfile
 from collections import defaultdict
 from dataclasses import asdict, dataclass
+from enum import Enum
+from pathlib import Path
+from time import sleep
 from typing import List, Optional
 from urllib.parse import quote_plus
+from zipfile import ZipFile
 
 import requests
 
 from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.model import (
+    EricData,
     ExternalServerNode,
     MixedData,
     Node,
@@ -18,7 +25,7 @@ from molgenis.bbmri_eric.model import (
     TableMeta,
     TableType,
 )
-from molgenis.client import Session
+from molgenis.client import MolgenisRequestError, Session
 
 
 @dataclass
@@ -29,15 +36,40 @@ class AttributesRequest:
     collections: List[str]
 
 
+class MolgenisImportError(MolgenisRequestError):
+    pass
+
+
+class ImportDataAction(Enum):
+    """Enum of MOLGENIS import actions"""
+
+    ADD = "add"
+    ADD_UPDATE_EXISTING = "add_update_existing"
+    UPDATE = "update"
+    ADD_IGNORE_EXISTING = "add_ignore_existing"
+
+
+class ImportMetadataAction(Enum):
+    """Enum of MOLGENIS import metadata actions"""
+
+    ADD = "add"
+    UPDATE = "update"
+    UPSERT = "upsert"
+    IGNORE = "ignore"
+
+
 class ExtendedSession(Session):
     """
     Class containing functionality that the base molgenis python client Session class
     does not have. Methods in this class could be moved to molgenis-py-client someday.
     """
 
+    IMPORT_API_LOC = "plugin/importwizard/importFile/"
+
     def __init__(self, url: str, token: Optional[str] = None):
         super(ExtendedSession, self).__init__(url, token)
         self.url = self._root_url
+        self.import_api = self._root_url + self.IMPORT_API_LOC
 
     def get_uploadable_data(self, entity_type_id: str, *args, **kwargs) -> List[dict]:
         """
@@ -104,6 +136,43 @@ class ExtendedSession(Session):
             self._raise_exception(ex)
 
         return TableMeta(meta=response.json())
+
+    def import_emx_file(
+        self,
+        file: Path,
+        action: ImportDataAction = ImportDataAction.ADD_UPDATE_EXISTING,
+        metadata_action: ImportMetadataAction = ImportMetadataAction.IGNORE,
+    ):
+        """
+        Imports a file with the Import API.
+        :param file: the Path to the file
+        :param action: the ImportDataAction to use when importing
+        :param metadata_action: the ImportMetadataAction to use when importing
+        """
+        response = self._session.post(
+            self.import_api,
+            headers=self._get_token_header(),
+            files={"file": open(file, "rb")},
+            params={"action": action.value, "metadataAction": metadata_action.value},
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
+
+        self._await_import_job(response.text.split("/")[-1])
+
+    def _await_import_job(self, job: str):
+        while True:
+            sleep(5)
+            import_run = self.get_by_id(
+                "sys_ImportRun", job, attributes="status,message"
+            )
+            if import_run["status"] == "FAILED":
+                raise MolgenisImportError(import_run["message"])
+            if import_run["status"] != "RUNNING":
+                return
 
 
 class EricSession(ExtendedSession):
@@ -298,6 +367,40 @@ class EricSession(ExtendedSession):
             )
 
         return MixedData.from_mixed_dict(source=Source.PUBLISHED, tables=tables)
+
+    def import_as_csv(self, data: EricData):
+        """
+        Converts the four tables of an EricData object to CSV, bundles them in
+        a ZIP archive and imports them through the import API.
+        :param data: an EricData object
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            archive = self._create_emx_archive(data, tmpdir)
+            self.import_emx_file(archive)
+
+    @classmethod
+    def _create_emx_archive(cls, data: EricData, directory: str) -> Path:
+        archive_name = f"{directory}/archive.zip"
+        with ZipFile(archive_name, "w") as archive:
+            for table_type in TableType.get_import_order():
+                file_name = f"{data.table_by_type[table_type].full_name}.csv"
+                file_path = f"{directory}/{file_name}"
+                cls._create_csv(data.table_by_type[table_type], file_path)
+                archive.write(file_path, file_name)
+        return Path(archive_name)
+
+    @staticmethod
+    def _create_csv(table: Table, file_name: str):
+        with open(file_name, "w") as fp:
+            writer = csv.DictWriter(
+                fp, fieldnames=table.meta.attributes, quoting=csv.QUOTE_ALL
+            )
+            writer.writeheader()
+            for row in table.rows:
+                for key, value in row.items():
+                    if isinstance(value, list):
+                        row[key] = ",".join(value)
+                writer.writerow(row)
 
 
 class ExternalServerSession(ExtendedSession):

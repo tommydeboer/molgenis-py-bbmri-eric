@@ -34,6 +34,12 @@ class TableMeta:
         return self.meta["data"]["id"]
 
     @property
+    def attributes(self):
+        return [
+            attr["data"]["name"] for attr in self.meta["data"]["attributes"]["items"]
+        ]
+
+    @property
     def id_attribute(self):
         for attribute in self.meta["data"]["attributes"]["items"]:
             if attribute["data"]["idAttribute"] is True:
@@ -57,7 +63,7 @@ class Table:
 
     type: TableType
     rows_by_id: "typing.OrderedDict[str, dict]"
-    meta: TableMeta = None
+    meta: TableMeta
 
     @property
     def rows(self) -> List[dict]:
@@ -81,8 +87,8 @@ class Table:
         )
 
     @staticmethod
-    def of_empty(table_type: TableType):
-        return Table(table_type, OrderedDict())
+    def of_empty(table_type: TableType, meta: TableMeta):
+        return Table(table_type, OrderedDict(), meta)
 
 
 @dataclass(frozen=True)
@@ -200,16 +206,6 @@ class MixedData(EricData):
     the combined tables or from multiple staging areas."""
 
     @staticmethod
-    def from_empty(source: Source) -> "MixedData":
-        return MixedData(
-            source=source,
-            persons=Table.of_empty(TableType.PERSONS),
-            networks=Table.of_empty(TableType.NETWORKS),
-            biobanks=Table.of_empty(TableType.BIOBANKS),
-            collections=Table.of_empty(TableType.COLLECTIONS),
-        )
-
-    @staticmethod
     def from_mixed_dict(source: Source, tables: Dict[str, Table]) -> "MixedData":
         return MixedData(source=source, **tables)
 
@@ -225,6 +221,15 @@ class MixedData(EricData):
                 row["id"] for row in table.rows if row["national_node"] == node.code
             ]
             all(table.rows_by_id.pop(id_) for id_ in ids_to_remove)
+
+    def copy_empty(self) -> "MixedData":
+        return MixedData(
+            source=self.source,
+            persons=Table.of_empty(TableType.PERSONS, self.persons.meta),
+            networks=Table.of_empty(TableType.NETWORKS, self.networks.meta),
+            biobanks=Table.of_empty(TableType.BIOBANKS, self.biobanks.meta),
+            collections=Table.of_empty(TableType.COLLECTIONS, self.collections.meta),
+        )
 
 
 @dataclass(frozen=True)
