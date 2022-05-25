@@ -69,7 +69,6 @@ class Publisher:
 
     def _delete_data(self, state):
         for table in reversed(state.data_to_publish.import_order):
-            self.printer.print(f"Deleting rows in {table.type.base_id}")
             try:
                 with self.printer.indentation():
                     self._delete_rows(
