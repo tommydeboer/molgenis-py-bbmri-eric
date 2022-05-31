@@ -395,7 +395,7 @@ class EricSession(ExtendedSession):
 
     @staticmethod
     def _create_csv(table: Table, file_name: str):
-        with open(file_name, "w") as fp:
+        with open(file_name, "w", encoding="utf-8") as fp:
             writer = csv.DictWriter(
                 fp, fieldnames=table.meta.attributes, quoting=csv.QUOTE_ALL
             )
