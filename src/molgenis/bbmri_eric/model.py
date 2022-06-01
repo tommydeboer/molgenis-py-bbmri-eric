@@ -200,6 +200,26 @@ class NodeData(EricData):
     def from_dict(node: Node, source: Source, tables: Dict[str, Table]) -> "NodeData":
         return NodeData(node=node, source=source, **tables)
 
+    def convert_to_staging(self) -> "NodeData":
+        """
+        The metadata of an external node is the same as the metadata of its staging
+        area. This method copies an external server's NodeData and changes only the
+        table identifiers to point to the staging area's identifiers.
+        :return:
+        """
+        if self.source != Source.EXTERNAL_SERVER:
+            raise ValueError("data isn't from an external server")
+
+        tables = dict()
+        for table in self.import_order:
+            metadata = table.meta.meta
+            metadata["data"]["id"] = self.node.get_staging_id(table.type)
+            tables[table.type.value] = Table(
+                table.type, table.rows_by_id, TableMeta(metadata)
+            )
+
+        return NodeData(node=self.node, source=Source.STAGING, **tables)
+
 
 class MixedData(EricData):
     """Container object storing the four tables with mixed origins, for example from
