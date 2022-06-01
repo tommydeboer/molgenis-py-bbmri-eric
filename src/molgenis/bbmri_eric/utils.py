@@ -1,7 +1,4 @@
-import copy
 from typing import List
-
-from molgenis.bbmri_eric.model import TableMeta
 
 
 def to_upload_format(rows: List[dict]) -> List[dict]:
@@ -28,16 +25,3 @@ def to_upload_format(rows: List[dict]) -> List[dict]:
 
         upload_format.append(row)
     return upload_format
-
-
-def remove_one_to_manys(rows: List[dict], meta: TableMeta) -> List[dict]:
-    """
-    Removes all one-to-manys from a list of rows based on the table's metadata. Removing
-    one-to-manys is necessary when adding new rows. Returns a copy so that the original
-    rows are not changed in any way.
-    """
-    copied_rows = copy.deepcopy(rows)
-    for row in copied_rows:
-        for one_to_many in meta.one_to_manys:
-            row.pop(one_to_many, None)
-    return copied_rows

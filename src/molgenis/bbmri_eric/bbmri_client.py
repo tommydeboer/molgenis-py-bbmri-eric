@@ -78,36 +78,6 @@ class ExtendedSession(Session):
         rows = self.get(entity_type_id, *args, **kwargs)
         return utils.to_upload_format(rows)
 
-    def upsert(self, entity_type_id: str, entities: List[dict]):
-        """
-        Upserts entities in an entity type.
-        @param entity_type_id: the id of the entity type to upsert to
-        @param entities: the entities to upsert
-        """
-        # Get the existing identifiers
-        meta = self.get_meta(entity_type_id)
-        id_attr = meta.id_attribute
-        existing_entities = self.get(meta.id, batch_size=10000, attributes=id_attr)
-        existing_ids = {entity[id_attr] for entity in existing_entities}
-
-        # Based on the existing identifiers, decide which rows should be added/updated
-        add = list()
-        update = list()
-        for entity in entities:
-            if entity[id_attr] in existing_ids:
-                update.append(entity)
-            else:
-                add.append(entity)
-
-        # Sanitize data: rows that are added should not contain one_to_manys
-        add = utils.remove_one_to_manys(add, meta)
-
-        # Do the adds and updates
-        if add:
-            self.add_all(meta.id, add)
-        if update:
-            self.update(meta.id, update)
-
     def update(self, entity_type_id: str, entities: List[dict]):
         """Updates multiple entities."""
         response = self._session.put(

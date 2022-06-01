@@ -71,21 +71,3 @@ def test_to_upload_format(rows):
         },
         {"id": "collB", "sub_collections": ["collA"]},
     ]
-
-
-def test_remove_one_to_manys(meta):
-    rows = [
-        {
-            "id": "collA",
-            "parent_collection": "collB",
-            "sub_collections": [],
-        },
-        {"id": "collB", "sub_collections": ["collA"]},
-    ]
-    assert utils.remove_one_to_manys(rows, meta) == [
-        {
-            "id": "collA",
-            "parent_collection": "collB",
-        },
-        {"id": "collB"},
-    ]
