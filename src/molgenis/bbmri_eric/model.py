@@ -1,6 +1,7 @@
 import typing
 from abc import ABC
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
@@ -205,14 +206,13 @@ class NodeData(EricData):
         The metadata of an external node is the same as the metadata of its staging
         area. This method copies an external server's NodeData and changes only the
         table identifiers to point to the staging area's identifiers.
-        :return:
         """
         if self.source != Source.EXTERNAL_SERVER:
             raise ValueError("data isn't from an external server")
 
         tables = dict()
         for table in self.import_order:
-            metadata = table.meta.meta
+            metadata = deepcopy(table.meta.meta)
             metadata["data"]["id"] = self.node.get_staging_id(table.type)
             tables[table.type.value] = Table(
                 table.type, table.rows_by_id, TableMeta(metadata)
