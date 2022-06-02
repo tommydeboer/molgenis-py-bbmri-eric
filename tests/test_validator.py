@@ -110,10 +110,10 @@ def mock_node_data():
         Node("NL", "NL"),
         Source.STAGING,
         {
-            TableType.PERSONS: persons,
-            TableType.NETWORKS: networks,
-            TableType.BIOBANKS: biobanks,
-            TableType.COLLECTIONS: collections,
+            TableType.PERSONS.value: persons,
+            TableType.NETWORKS.value: networks,
+            TableType.BIOBANKS.value: biobanks,
+            TableType.COLLECTIONS.value: collections,
         },
     )
 

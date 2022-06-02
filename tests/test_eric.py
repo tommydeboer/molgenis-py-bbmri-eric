@@ -1,143 +1,114 @@
-from unittest import mock
-from unittest.mock import MagicMock, patch
+from typing import List
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from molgenis.bbmri_eric.errors import EricError, EricWarning
-from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData, Source
+from molgenis.bbmri_eric.eric import Eric
+from molgenis.bbmri_eric.errors import EricError, ErrorReport
+from molgenis.bbmri_eric.model import ExternalServerNode, Node
+from molgenis.bbmri_eric.publisher import PublishingState
 
 
 @pytest.fixture
-def stager_init():
-    with patch("molgenis.bbmri_eric.eric.Stager") as stager_mock:
-        yield stager_mock
+def report_init():
+    with patch("molgenis.bbmri_eric.eric.ErrorReport") as report_mock:
+        yield report_mock
 
 
 @pytest.fixture
-def validator_init():
-    with patch("molgenis.bbmri_eric.eric.Validator") as validator_mock:
-        yield validator_mock
+def eric(session, printer, pid_service) -> Eric:
+    eric = Eric(session, pid_service)
+    eric.printer = printer
+    eric.stager = MagicMock()
+    eric.preparator = MagicMock()
+    eric.pid_manager = MagicMock()
+    eric.publisher = MagicMock()
+    return eric
 
 
-@pytest.fixture
-def publisher_init():
-    with patch("molgenis.bbmri_eric.eric.Publisher") as publisher_mock:
-        yield publisher_mock
-
-
-def test_stage_external_nodes(stager_init, eric, printer):
+def test_stage_external_nodes(eric):
     error = EricError("error")
-    stager_init.return_value.stage.side_effect = [None, error]
+    eric.stager.stage.side_effect = [None, error]
     nl = ExternalServerNode("NL", "will succeed", "url.nl")
     be = ExternalServerNode("BE", "wil fail", "url.be")
 
     report = eric.stage_external_nodes([nl, be])
 
-    assert printer.print_node_title.mock_calls == [mock.call(nl), mock.call(be)]
-    assert stager_init.mock_calls == [
-        mock.call(eric.session, eric.printer),
-        mock.call().stage(nl),
-        mock.call(eric.session, eric.printer),
-        mock.call().stage(be),
-    ]
-    assert nl not in report.errors
-    assert report.errors[be] == error
-    printer.print_summary.assert_called_once_with(report)
+    assert eric.printer.print_node_title.mock_calls == [call(nl), call(be)]
+    assert eric.stager.stage.mock_calls == [call(nl), call(be)]
+    assert nl not in report.node_errors
+    assert report.node_errors[be] == error
+    eric.printer.print_summary.assert_called_once_with(report)
 
 
-def test_publish_node_staging_fails(
-    eric,
-    session,
-    pid_service,
-    stager_init,
-    validator_init,
-    publisher_init,
-):
+def test_publish_node_staging_fails(eric, session, report_init):
     nl = ExternalServerNode("NL", "Netherlands", "url")
+    state = _setup_state([nl], eric, report_init)
+
     error = EricError("error")
-    stager_init.return_value.stage.side_effect = error
+    eric.stager.stage.side_effect = error
 
     report = eric.publish_nodes([nl])
 
     eric.printer.print_node_title.assert_called_once_with(nl)
-    publisher_init.assert_called_with(session, eric.printer, pid_service)
-    stager_init.assert_called_with(session, eric.printer)
-    stager_init.return_value.stage.assert_called_with(nl)
+    eric.stager.stage.assert_called_with(nl)
     assert not session.get_published_node_data.called
-    assert not validator_init.called
-    assert not publisher_init.return_value.publish.called
-    assert report.errors[nl] == error
+    assert not eric.preparator.prepare.called
+    assert eric.publisher.publish.called_with(state)
+    assert len(state.data_to_publish.biobanks.rows_by_id) == 0
+    assert report.node_errors[nl] == error
     eric.printer.print_summary.assert_called_once_with(report)
 
 
-def test_publish_node_get_data_fails(
-    eric,
-    pid_service,
-    publisher_init,
-    validator_init,
-    stager_init,
-    session,
-):
+def test_publish_node_prepare_fails(eric, report_init):
     nl = ExternalServerNode("NL", "Netherlands", "url")
+    state = _setup_state([nl], eric, report_init)
+
     error = EricError("error")
-    session.get_staging_node_data.side_effect = error
+    eric.preparator.prepare.side_effect = error
 
     report = eric.publish_nodes([nl])
 
     eric.printer.print_node_title.assert_called_once_with(nl)
-    publisher_init.assert_called_with(session, eric.printer, pid_service)
-    stager_init.assert_called_with(session, eric.printer)
-    stager_init.return_value.stage.assert_called_with(nl)
-    session.get_staging_node_data.assert_called_with(nl)
-    assert not validator_init.called
-    assert not publisher_init.return_value.publish.called
-    assert report.errors[nl] == error
+    eric.stager.stage.assert_called_with(nl)
+    assert eric.publisher.publish.called_with(state)
+    assert report.node_errors[nl] == error
     eric.printer.print_summary.assert_called_once_with(report)
 
 
-def test_publish_nodes(
-    eric, pid_service, publisher_init, validator_init, stager_init, session
-):
-    no = Node("NO", "succeeds with validation warnings")
+def test_publish_nodes(eric, report_init):
+    no = Node("NO", "succeeds")
     nl = ExternalServerNode("NL", "fails during publishing", "url")
-    no_data = _mock_node_data(no)
-    nl_data = _mock_node_data(nl)
-    session.get_staging_node_data.side_effect = [no_data, nl_data]
-    warning = EricWarning("warning")
-    validator_init.return_value.validate.side_effect = [[warning], []]
+    state = _setup_state([no, nl], eric, report_init)
+
     error = EricError("error")
-    publisher_init.return_value.publish.side_effect = [[], error]
+    eric.publisher.publish.side_effect = error
 
     report = eric.publish_nodes([no, nl])
 
-    assert eric.printer.print_node_title.mock_calls == [mock.call(no), mock.call(nl)]
-    stager_init.assert_called_with(session, eric.printer)
-    stager_init.return_value.stage.assert_called_with(nl)
-    assert validator_init.mock_calls == [
-        mock.call(no_data, eric.printer),
-        mock.call().validate(),
-        mock.call(nl_data, eric.printer),
-        mock.call().validate(),
-    ]
-    assert publisher_init.mock_calls == [
-        mock.call(session, eric.printer, pid_service),
-        mock.call().publish(no_data),
-        mock.call().publish(nl_data),
-    ]
-    assert no not in report.errors
-    assert report.errors[nl] == error
-    assert nl not in report.warnings
-    assert report.warnings[no] == [warning]
+    assert eric.printer.print_node_title.mock_calls == [call(no), call(nl)]
+    eric.preparator.prepare.assert_has_calls(
+        [call(no, state), call(nl, state)], any_order=True
+    )
+    eric.publisher.publish.assert_called_with(state)
+    assert len(report.node_errors) == 0
+    assert report.error == error
+    assert len(report.node_warnings) == 0
     eric.printer.print_summary.assert_called_once_with(report)
 
 
-def _mock_node_data(node: Node):
-    return NodeData(
-        node=node,
-        source=Source.STAGING,
-        persons=MagicMock(),
-        biobanks=MagicMock(),
-        networks=MagicMock(),
-        collections=MagicMock(),
-        table_by_type=MagicMock(),
+# noinspection PyProtectedMember
+def _setup_state(nodes: List[Node], eric: Eric, report_init):
+    report = ErrorReport(nodes)
+    report_init.return_value = report
+
+    state = PublishingState(
+        existing_data=MagicMock(),
+        eu_node_data=MagicMock(),
+        quality_info=MagicMock(),
+        nodes=nodes,
+        report=report,
     )
+    eric._init_state = MagicMock()
+    eric._init_state.return_value = state
+    return state

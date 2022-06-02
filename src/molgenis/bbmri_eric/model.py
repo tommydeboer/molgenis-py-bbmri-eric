@@ -1,8 +1,10 @@
 import typing
+from abc import ABC
 from collections import OrderedDict
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class TableType(Enum):
@@ -33,6 +35,12 @@ class TableMeta:
         return self.meta["data"]["id"]
 
     @property
+    def attributes(self):
+        return [
+            attr["data"]["name"] for attr in self.meta["data"]["attributes"]["items"]
+        ]
+
+    @property
     def id_attribute(self):
         for attribute in self.meta["data"]["attributes"]["items"]:
             if attribute["data"]["idAttribute"] is True:
@@ -45,15 +53,6 @@ class TableMeta:
             if attribute["data"]["type"] == "onetomany":
                 one_to_manys.append(attribute["data"]["name"])
         return one_to_manys
-
-    @property
-    def self_references(self) -> List[str]:
-        self_references = []
-        for attribute in self.meta["data"]["attributes"]["items"]:
-            if attribute["data"]["type"] in ("xref", "mref"):
-                if self.id in attribute["data"]["refEntityType"]["self"]:
-                    self_references.append(attribute["data"]["name"])
-        return self_references
 
 
 @dataclass(frozen=True)
@@ -88,13 +87,17 @@ class Table:
             rows_by_id=rows_by_id,
         )
 
+    @staticmethod
+    def of_empty(table_type: TableType, meta: TableMeta):
+        return Table(table_type, OrderedDict(), meta)
+
 
 @dataclass(frozen=True)
 class Node:
     """Represents a single national node in the BBMRI ERIC directory."""
 
     code: str
-    description: str
+    description: Optional[str]
 
     _classifiers = {
         TableType.PERSONS: "contactID",
@@ -136,6 +139,18 @@ class Node:
         classifier = cls._classifiers[table_type]
         return f"bbmri-eric:{classifier}:EU_"
 
+    @staticmethod
+    def of(code: str):
+        return Node(code, None)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Node):
+            return self.code == other.code
+        return False
+
+    def __hash__(self):
+        return hash(self.code)
+
 
 @dataclass(frozen=True)
 class ExternalServerNode(Node):
@@ -148,36 +163,92 @@ class Source(Enum):
     EXTERNAL_SERVER = "external_server"
     STAGING = "staging"
     PUBLISHED = "published"
+    TRANSFORMED = "transformed"
 
 
-@dataclass()
-class NodeData:
-    """Container object storing the four tables of a single node."""
+@dataclass
+class EricData(ABC):
+    """Abstract base class for containers storing rows from the four ERIC tables:
+    persons, networks, biobanks and collections."""
 
-    node: Node
     source: Source
     persons: Table
     networks: Table
     biobanks: Table
     collections: Table
-    table_by_type: Dict[TableType, Table]
+    table_by_type: Dict[TableType, Table] = field(init=False)
+
+    def __post_init__(self):
+        self.table_by_type = {
+            TableType.PERSONS: self.persons,
+            TableType.NETWORKS: self.networks,
+            TableType.BIOBANKS: self.biobanks,
+            TableType.COLLECTIONS: self.collections,
+        }
 
     @property
     def import_order(self) -> List[Table]:
         return [self.persons, self.networks, self.biobanks, self.collections]
 
+
+@dataclass
+class NodeData(EricData):
+    """Container object storing the four tables of a single node."""
+
+    node: Node
+
     @staticmethod
-    def from_dict(
-        node: Node, source: Source, tables: Dict[TableType, Table]
-    ) -> "NodeData":
-        return NodeData(
-            node=node,
-            source=source,
-            persons=tables[TableType.PERSONS],
-            networks=tables[TableType.NETWORKS],
-            biobanks=tables[TableType.BIOBANKS],
-            collections=tables[TableType.COLLECTIONS],
-            table_by_type=tables,
+    def from_dict(node: Node, source: Source, tables: Dict[str, Table]) -> "NodeData":
+        return NodeData(node=node, source=source, **tables)
+
+    def convert_to_staging(self) -> "NodeData":
+        """
+        The metadata of an external node is the same as the metadata of its staging
+        area. This method copies an external server's NodeData and changes only the
+        table identifiers to point to the staging area's identifiers.
+        """
+        if self.source != Source.EXTERNAL_SERVER:
+            raise ValueError("data isn't from an external server")
+
+        tables = dict()
+        for table in self.import_order:
+            metadata = deepcopy(table.meta.meta)
+            metadata["data"]["id"] = self.node.get_staging_id(table.type)
+            tables[table.type.value] = Table(
+                table.type, table.rows_by_id, TableMeta(metadata)
+            )
+
+        return NodeData(node=self.node, source=Source.STAGING, **tables)
+
+
+class MixedData(EricData):
+    """Container object storing the four tables with mixed origins, for example from
+    the combined tables or from multiple staging areas."""
+
+    @staticmethod
+    def from_mixed_dict(source: Source, tables: Dict[str, Table]) -> "MixedData":
+        return MixedData(source=source, **tables)
+
+    def merge(self, other_data: EricData):
+        self.persons.rows_by_id.update(other_data.persons.rows_by_id)
+        self.networks.rows_by_id.update(other_data.networks.rows_by_id)
+        self.biobanks.rows_by_id.update(other_data.biobanks.rows_by_id)
+        self.collections.rows_by_id.update(other_data.collections.rows_by_id)
+
+    def remove_node_rows(self, node: Node):
+        for table in self.import_order:
+            ids_to_remove = [
+                row["id"] for row in table.rows if row["national_node"] == node.code
+            ]
+            all(table.rows_by_id.pop(id_) for id_ in ids_to_remove)
+
+    def copy_empty(self) -> "MixedData":
+        return MixedData(
+            source=self.source,
+            persons=Table.of_empty(TableType.PERSONS, self.persons.meta),
+            networks=Table.of_empty(TableType.NETWORKS, self.networks.meta),
+            biobanks=Table.of_empty(TableType.BIOBANKS, self.biobanks.meta),
+            collections=Table.of_empty(TableType.COLLECTIONS, self.collections.meta),
         )
 
 

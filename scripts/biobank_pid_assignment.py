@@ -63,6 +63,6 @@ for biobank in biobanks:
     print(f"Generated {pid} for {biobank['id']}")
 
 print("Uploading to directory")
-session.update_batched(table, [], biobanks)
+session.update(table, biobanks)
 
 print("All done!")

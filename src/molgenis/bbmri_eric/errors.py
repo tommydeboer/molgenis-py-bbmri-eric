@@ -1,10 +1,11 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import DefaultDict, List
+from typing import DefaultDict, List, Optional
 
 import requests
 
 from molgenis.bbmri_eric.model import Node
+from molgenis.client import MolgenisRequestError
 
 
 @dataclass(frozen=True)
@@ -28,29 +29,33 @@ class EricError(Exception):
 @dataclass
 class ErrorReport:
     """
-    Summary object. Stores errors and warnings that occurred for each node.
+    Summary object. Stores errors and warnings that occur during staging or publishing.
     """
 
     nodes: List[Node]
-    errors: DefaultDict[Node, EricError] = field(
+    node_errors: DefaultDict[Node, EricError] = field(
         default_factory=lambda: defaultdict(list)
     )
-    warnings: DefaultDict[Node, List[EricWarning]] = field(
+    node_warnings: DefaultDict[Node, List[EricWarning]] = field(
         default_factory=lambda: defaultdict(list)
     )
+    error: Optional[EricError] = None
 
-    def add_error(self, node: Node, error: EricError):
-        self.errors[node] = error
+    def add_node_error(self, node: Node, error: EricError):
+        self.node_errors[node] = error
 
-    def add_warnings(self, node: Node, warnings: List[EricWarning]):
+    def add_node_warnings(self, node: Node, warnings: List[EricWarning]):
         if warnings:
-            self.warnings[node].extend(warnings)
+            self.node_warnings[node].extend(warnings)
+
+    def set_global_error(self, error: EricError):
+        self.error = error
 
     def has_errors(self) -> bool:
-        return len(self.errors) > 0
+        return len(self.node_errors) > 0 or self.error
 
     def has_warnings(self) -> bool:
-        return len(self.warnings) > 0
+        return len(self.node_warnings) > 0
 
 
 def requests_error_handler(func):
@@ -61,7 +66,7 @@ def requests_error_handler(func):
     def inner_function(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, MolgenisRequestError) as e:
             raise EricError("Request failed") from e
 
     return inner_function

@@ -30,19 +30,26 @@ def test_error_report():
     assert not report.has_errors()
     assert not report.has_warnings()
 
-    report.add_error(a, error)
+    report.add_node_error(a, error)
 
-    assert report.errors[a] == error
-    assert b not in report.errors
+    assert report.node_errors[a] == error
+    assert b not in report.node_errors
     assert report.has_errors()
     assert not report.has_warnings()
 
-    report.add_warnings(b, [warning, warning])
+    report.add_node_warnings(b, [warning, warning])
 
-    assert report.warnings[b] == [warning, warning]
-    assert a not in report.warnings
+    assert report.node_warnings[b] == [warning, warning]
+    assert a not in report.node_warnings
     assert report.has_errors()
     assert report.has_warnings()
+
+
+def test_error_report_global_error():
+    report = ErrorReport([])
+    assert not report.has_errors()
+    report.set_global_error(EricError())
+    assert report.has_errors()
 
 
 def test_requests_error_handler():

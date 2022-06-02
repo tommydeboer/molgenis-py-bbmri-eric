@@ -1,14 +1,14 @@
 from typing import List, Optional
 
-from molgenis.bbmri_eric.bbmri_client import EricSession
+from molgenis.bbmri_eric.bbmri_client import AttributesRequest, EricSession
 from molgenis.bbmri_eric.errors import EricError, ErrorReport, requests_error_handler
-from molgenis.bbmri_eric.model import ExternalServerNode, Node, NodeData
+from molgenis.bbmri_eric.model import ExternalServerNode, Node
+from molgenis.bbmri_eric.pid_manager import PidManagerFactory
 from molgenis.bbmri_eric.pid_service import BasePidService
 from molgenis.bbmri_eric.printer import Printer
-from molgenis.bbmri_eric.publisher import Publisher
+from molgenis.bbmri_eric.publication_preparer import PublicationPreparer
+from molgenis.bbmri_eric.publisher import Publisher, PublishingState
 from molgenis.bbmri_eric.stager import Stager
-from molgenis.bbmri_eric.validation import Validator
-from molgenis.client import MolgenisRequestError
 
 
 class Eric:
@@ -20,11 +20,20 @@ class Eric:
         self, session: EricSession, pid_service: Optional[BasePidService] = None
     ):
         """
-        :param BbmriSession session: an authenticated session with an ERIC directory
+        :param session: an authenticated session with an ERIC directory
+        :param pid_service: a configured PidService, required for publishing. When no
+        PidService is provided, nodes can only be staged.
         """
         self.session = session
         self.printer = Printer()
+        self.stager = Stager(self.session, self.printer)
         self.pid_service: Optional[BasePidService] = pid_service
+        if pid_service:
+            self.pid_manager = PidManagerFactory.create(self.pid_service, self.printer)
+            self.preparator = PublicationPreparer(
+                self.printer, self.pid_manager, self.session
+            )
+            self.publisher = Publisher(self.session, self.printer, self.pid_manager)
 
     def stage_external_nodes(self, nodes: List[ExternalServerNode]) -> ErrorReport:
         """
@@ -40,7 +49,7 @@ class Eric:
                 self._stage_node(node)
             except EricError as e:
                 self.printer.print_error(e)
-                report.add_error(node, e)
+                report.add_node_error(node, e)
 
         self.printer.print_summary(report)
         return report
@@ -57,61 +66,72 @@ class Eric:
             raise ValueError("A PID service is required to publish nodes")
 
         report = ErrorReport(nodes)
-        publisher = Publisher(self.session, self.printer, self.pid_service)
-        for node in nodes:
-            self.printer.print_node_title(node)
-            try:
-                self._publish_node(node, report, publisher)
-            except EricError as e:
-                self.printer.print_error(e)
-                report.add_error(node, e)
+        try:
+            state = self._init_state(nodes, report)
+        except EricError as e:
+            self.printer.print_error(e)
+            report.set_global_error(e)
+        else:
+            self._prepare_nodes(nodes, state)
+            self._publish_nodes(state)
 
         self.printer.print_summary(report)
         return report
 
     @requests_error_handler
-    def _publish_node(self, node: Node, report: ErrorReport, publisher: Publisher):
-        # Stage the data if this node has an external server
-        if isinstance(node, ExternalServerNode):
-            self._stage_node(node)
+    def _init_state(self, nodes: List[Node], report: ErrorReport) -> PublishingState:
+        self.printer.print_header("⚙️ Preparation")
 
-        # Get the data from the staging area
-        node_data = self._get_node_data(node)
+        self.printer.print("📦 Retrieving existing published data")
+        published_data = self.session.get_published_data(
+            nodes,
+            AttributesRequest(
+                persons=["id", "national_node"],
+                networks=["id", "national_node"],
+                biobanks=["id", "pid", "name", "national_node"],
+                collections=["id", "national_node"],
+            ),
+        )
 
-        # Validate all the rows in the staging area
-        self._validate_node(node_data, report)
+        self.printer.print("📦 Retrieving quality information")
+        quality_info = self.session.get_quality_info()
 
-        # Copy the data from staging to the combined tables
-        self._publish_node_data(node_data, publisher, report)
+        self.printer.print("📦 Retrieving data of node EU")
+        eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
+
+        return PublishingState(
+            existing_data=published_data,
+            quality_info=quality_info,
+            eu_node_data=eu_node_data,
+            nodes=nodes,
+            report=report,
+        )
+
+    def _prepare_nodes(self, nodes, state):
+        for node in nodes:
+            self.printer.print_node_title(node)
+            try:
+                if isinstance(node, ExternalServerNode):
+                    self._stage_node(node)
+                node_data = self.preparator.prepare(node, state)
+                state.data_to_publish.merge(node_data)
+            except EricError as e:
+                self.printer.print_error(e)
+                state.existing_data.remove_node_rows(node)
+                state.report.add_node_error(node, e)
+
+    def _publish_nodes(self, state: PublishingState):
+        self.printer.print_header(
+            f"🎁 Publishing node{'s' if len(state.nodes) > 1 else ''}"
+        )
+        try:
+            self.publisher.publish(state)
+        except EricError as e:
+            self.printer.print_error(e)
+            state.report.set_global_error(e)
 
     @requests_error_handler
     def _stage_node(self, node: ExternalServerNode):
-        self.printer.print_sub_header(f"📥 Staging data of node {node.code}")
+        self.printer.print(f"📥 Staging data of node {node.code}")
         with self.printer.indentation():
-            Stager(self.session, self.printer).stage(node)
-
-    def _publish_node_data(
-        self, node_data: NodeData, publisher: Publisher, report: ErrorReport
-    ):
-        self.printer.print_sub_header(f"📤 Publishing node {node_data.node.code}")
-        with self.printer.indentation():
-            warnings = publisher.publish(node_data)
-            report.add_warnings(node_data.node, warnings)
-
-    def _validate_node(self, node_data: NodeData, report: ErrorReport):
-        self.printer.print_sub_header(
-            f"🔎 Validating staging data of node {node_data.node.code}"
-        )
-        with self.printer.indentation():
-            warnings = Validator(node_data, self.printer).validate()
-            if warnings:
-                report.add_warnings(node_data.node, warnings)
-
-    def _get_node_data(self, node: Node) -> NodeData:
-        try:
-            self.printer.print_sub_header(
-                f"📦 Retrieving staging data of node {node.code}"
-            )
-            return self.session.get_staging_node_data(node)
-        except MolgenisRequestError as e:
-            raise EricError(f"Error retrieving data of node {node.code}") from e
+            self.stager.stage(node)

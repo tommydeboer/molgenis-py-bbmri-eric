@@ -3,13 +3,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from molgenis.bbmri_eric.model import NodeData, QualityInfo, TableType
-
-
-@pytest.fixture
-def transformer_init():
-    with patch("molgenis.bbmri_eric.publisher.Transformer") as transformer_mock:
-        yield transformer_mock
+from molgenis.bbmri_eric.errors import ErrorReport
+from molgenis.bbmri_eric.model import (
+    MixedData,
+    Node,
+    NodeData,
+    QualityInfo,
+    Source,
+    Table,
+    TableType,
+)
+from molgenis.bbmri_eric.publisher import Publisher, PublishingState
 
 
 @pytest.fixture
@@ -20,60 +24,42 @@ def pid_manager_factory():
         yield pid_manager_factory_mock
 
 
-def test_publish(
-    publisher,
-    transformer_init,
-    pid_manager_factory,
-    pid_service,
-    node_data: NodeData,
-    session,
-    printer,
-):
+@pytest.fixture
+def publisher(session, printer, pid_service) -> Publisher:
+    return Publisher(session, printer, pid_service)
+
+
+def test_publish(publisher, session):
     publisher._delete_rows = MagicMock()
-    existing_node_data = MagicMock()
-    biobanks = MagicMock()
-    collections = MagicMock()
-    networks = MagicMock()
-    persons = MagicMock()
-    existing_node_data.table_by_type = {
-        TableType.BIOBANKS: biobanks,
-        TableType.PERSONS: persons,
-        TableType.NETWORKS: networks,
-        TableType.COLLECTIONS: collections,
-    }
-    session.get_published_node_data.return_value = existing_node_data
-    pid_manager = pid_manager_factory.create.return_value = MagicMock()
 
-    publisher.publish(node_data)
-
-    assert transformer_init.called_with(node_data, printer)
-    transformer_init.return_value.enrich.assert_called_once()
-
-    assert pid_manager.called_with(pid_service, printer, "url")
-    assert pid_manager.assign_biobank_pids.called_with(node_data.biobanks)
-    assert pid_manager.update_biobank_pids.called_with(
-        node_data.biobanks, existing_node_data.biobanks
+    state = PublishingState(
+        nodes=[Node.of("NL"), Node.of("BE")],
+        existing_data=MixedData(
+            source=Source.TRANSFORMED,
+            persons=Table.of_empty(TableType.PERSONS, MagicMock()),
+            networks=Table.of_empty(TableType.NETWORKS, MagicMock()),
+            biobanks=Table.of_empty(TableType.BIOBANKS, MagicMock()),
+            collections=Table.of_empty(TableType.COLLECTIONS, MagicMock()),
+        ),
+        eu_node_data=MagicMock(),
+        quality_info=MagicMock(),
+        report=MagicMock(),
     )
 
-    assert session.upsert_batched.mock_calls == [
-        mock.call(node_data.persons.type.base_id, node_data.persons.rows),
-        mock.call(node_data.networks.type.base_id, node_data.networks.rows),
-        mock.call(node_data.biobanks.type.base_id, node_data.biobanks.rows),
-        mock.call(node_data.collections.type.base_id, node_data.collections.rows),
-    ]
+    publisher.publish(state)
 
+    session.import_as_csv.assert_called_with(state.data_to_publish)
     assert publisher._delete_rows.mock_calls == [
-        mock.call(node_data.collections, collections),
-        mock.call(node_data.biobanks, biobanks),
-        mock.call(node_data.networks, networks),
-        mock.call(node_data.persons, persons),
+        mock.call(
+            state.data_to_publish.collections, state.existing_data.collections, state
+        ),
+        mock.call(state.data_to_publish.biobanks, state.existing_data.biobanks, state),
+        mock.call(state.data_to_publish.networks, state.existing_data.networks, state),
+        mock.call(state.data_to_publish.persons, state.existing_data.persons, state),
     ]
 
 
 def test_delete_rows(publisher, pid_service, node_data: NodeData, session):
-    publisher.quality_info = QualityInfo(
-        biobanks={"undeletable_id": ["quality"]}, collections={}
-    )
     existing_biobanks_table = MagicMock()
     existing_biobanks_table.rows_by_id.return_value = {
         "bbmri-eric:ID:NO_OUS": {"pid": "pid1"},
@@ -85,10 +71,15 @@ def test_delete_rows(publisher, pid_service, node_data: NodeData, session):
         "delete_this_row",
         "undeletable_id",
     }
+    state: PublishingState = MagicMock()
+    state.quality_info = QualityInfo(
+        biobanks={"undeletable_id": ["quality"]}, collections={}
+    )
+    state.report = ErrorReport([Node.of("NO")])
 
-    publisher._delete_rows(node_data.biobanks, existing_biobanks_table)
+    publisher._delete_rows(node_data.biobanks, existing_biobanks_table, state)
 
-    publisher.pid_manager.terminate_biobanks({"pid2"})
+    publisher.pid_manager.terminate_biobanks(["pid2"])
     session.delete_list.assert_called_with(
         "eu_bbmri_eric_biobanks", ["delete_this_row"]
     )

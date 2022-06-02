@@ -1,13 +1,22 @@
+import csv
 import json
+import tempfile
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from enum import Enum
+from pathlib import Path
+from time import sleep
 from typing import List, Optional
 from urllib.parse import quote_plus
+from zipfile import ZipFile
 
 import requests
 
 from molgenis.bbmri_eric import utils
 from molgenis.bbmri_eric.model import (
+    EricData,
     ExternalServerNode,
+    MixedData,
     Node,
     NodeData,
     QualityInfo,
@@ -16,8 +25,37 @@ from molgenis.bbmri_eric.model import (
     TableMeta,
     TableType,
 )
-from molgenis.bbmri_eric.utils import batched
-from molgenis.client import Session
+from molgenis.client import MolgenisRequestError, Session
+
+
+@dataclass
+class AttributesRequest:
+    persons: List[str]
+    networks: List[str]
+    biobanks: List[str]
+    collections: List[str]
+
+
+class MolgenisImportError(MolgenisRequestError):
+    pass
+
+
+class ImportDataAction(Enum):
+    """Enum of MOLGENIS import actions"""
+
+    ADD = "add"
+    ADD_UPDATE_EXISTING = "add_update_existing"
+    UPDATE = "update"
+    ADD_IGNORE_EXISTING = "add_ignore_existing"
+
+
+class ImportMetadataAction(Enum):
+    """Enum of MOLGENIS import metadata actions"""
+
+    ADD = "add"
+    UPDATE = "update"
+    UPSERT = "upsert"
+    IGNORE = "ignore"
 
 
 class ExtendedSession(Session):
@@ -26,9 +64,12 @@ class ExtendedSession(Session):
     does not have. Methods in this class could be moved to molgenis-py-client someday.
     """
 
+    IMPORT_API_LOC = "plugin/importwizard/importFile/"
+
     def __init__(self, url: str, token: Optional[str] = None):
         super(ExtendedSession, self).__init__(url, token)
         self.url = self._root_url
+        self.import_api = self._root_url + self.IMPORT_API_LOC
 
     def get_uploadable_data(self, entity_type_id: str, *args, **kwargs) -> List[dict]:
         """
@@ -36,34 +77,6 @@ class ExtendedSession(Session):
         """
         rows = self.get(entity_type_id, *args, **kwargs)
         return utils.to_upload_format(rows)
-
-    def upsert_batched(self, entity_type_id: str, entities: List[dict]):
-        """
-        Upserts entities in an entity type (in batches, if needed).
-        @param entity_type_id: the id of the entity type to upsert to
-        @param entities: the entities to upsert
-        """
-        # Get the existing identifiers
-        meta = self.get_meta(entity_type_id)
-        id_attr = meta.id_attribute
-        existing_entities = self.get(meta.id, batch_size=10000, attributes=id_attr)
-        existing_ids = {entity[id_attr] for entity in existing_entities}
-
-        # Based on the existing identifiers, decide which rows should be added/updated
-        add = list()
-        update = list()
-        for entity in entities:
-            if entity[id_attr] in existing_ids:
-                update.append(entity)
-            else:
-                add.append(entity)
-
-        # Sanitize data: rows that are added should not contain one_to_manys
-        add = utils.remove_one_to_manys(add, meta)
-
-        # Do the adds and updates in batches
-        self.add_batched(meta.id, meta.self_references, add)
-        self.update_batched(meta.id, meta.self_references, update)
 
     def update(self, entity_type_id: str, entities: List[dict]):
         """Updates multiple entities."""
@@ -80,34 +93,6 @@ class ExtendedSession(Session):
 
         return response
 
-    def update_batched(
-        self, entity_type_id: str, self_references: List[str], entities: List[dict]
-    ):
-        """Updates multiple entities in batches of 1000."""
-        # TODO updating things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed.
-        #  2022-03: Partly solved by the next two lines. However this might not be
-        #  enough for more complex cases.
-        if self_references and len(entities) > 1000:
-            entities = utils.sort_self_references(entities, self_references)
-        batches = list(batched(entities, 1000))
-        for batch in batches:
-            self.update(entity_type_id, batch)
-
-    def add_batched(
-        self, entity_type_id: str, self_references: List[str], entities: List[dict]
-    ):
-        """Adds multiple entities in batches of 1000."""
-        # TODO adding things in bulk will fail if there are self-references across
-        #  batches. Dependency resolving is needed.
-        #  2022-03: Partly solved by the next two lines. However this might not be
-        #  enough for more complex cases.
-        if self_references and len(entities) > 1000:
-            entities = utils.sort_self_references(entities, self_references)
-        batches = list(batched(entities, 1000))
-        for batch in batches:
-            self.add_all(entity_type_id, batch)
-
     def get_meta(self, entity_type_id: str) -> TableMeta:
         """Similar to get_entity_meta_data() of the parent Session class, but uses the
         newer Metadata API instead of the REST API V1."""
@@ -121,6 +106,43 @@ class ExtendedSession(Session):
             self._raise_exception(ex)
 
         return TableMeta(meta=response.json())
+
+    def import_emx_file(
+        self,
+        file: Path,
+        action: ImportDataAction,
+        metadata_action: ImportMetadataAction,
+    ):
+        """
+        Imports a file with the Import API.
+        :param file: the Path to the file
+        :param action: the ImportDataAction to use when importing
+        :param metadata_action: the ImportMetadataAction to use when importing
+        """
+        response = self._session.post(
+            self.import_api,
+            headers=self._get_token_header(),
+            files={"file": open(file, "rb")},
+            params={"action": action.value, "metadataAction": metadata_action.value},
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.RequestException as ex:
+            self._raise_exception(ex)
+
+        self._await_import_job(response.text.split("/")[-1])
+
+    def _await_import_job(self, job: str):
+        while True:
+            sleep(5)
+            import_run = self.get_by_id(
+                "sys_ImportRun", job, attributes="status,message"
+            )
+            if import_run["status"] == "FAILED":
+                raise MolgenisImportError(import_run["message"])
+            if import_run["status"] != "RUNNING":
+                return
 
 
 class EricSession(ExtendedSession):
@@ -248,7 +270,7 @@ class EricSession(ExtendedSession):
             id_ = node.get_staging_id(table_type)
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),
@@ -270,7 +292,7 @@ class EricSession(ExtendedSession):
             id_ = table_type.base_id
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(
@@ -279,6 +301,80 @@ class EricSession(ExtendedSession):
             )
 
         return NodeData.from_dict(node=node, source=Source.PUBLISHED, tables=tables)
+
+    def get_published_data(
+        self, nodes: List[Node], attributes: AttributesRequest
+    ) -> MixedData:
+        """
+        Gets the four tables that belong to one or more nodes from the published tables.
+        Filters the rows based on the national_node field.
+
+        :param List[Node] nodes: the node(s) to get the published data for
+        :param AttributesRequest attributes: the attributes to get for each table
+        :return: an EricData object
+        """
+
+        if len(nodes) == 0:
+            raise ValueError("No nodes provided")
+
+        attributes = asdict(attributes)
+        codes = [node.code for node in nodes]
+        tables = dict()
+        for table_type in TableType.get_import_order():
+            id_ = table_type.base_id
+            meta = self.get_meta(id_)
+            attrs = attributes[table_type.value]
+
+            tables[table_type.value] = Table.of(
+                table_type=table_type,
+                meta=meta,
+                rows=self.get_uploadable_data(
+                    id_,
+                    batch_size=10000,
+                    q=f"national_node=in=({','.join(codes)})",
+                    attributes=",".join(attrs),
+                ),
+            )
+
+        return MixedData.from_mixed_dict(source=Source.PUBLISHED, tables=tables)
+
+    def import_as_csv(self, data: EricData):
+        """
+        Converts the four tables of an EricData object to CSV, bundles them in
+        a ZIP archive and imports them through the import API.
+        :param data: an EricData object
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            archive = self._create_emx_archive(data, tmpdir)
+            self.import_emx_file(
+                archive,
+                action=ImportDataAction.ADD_UPDATE_EXISTING,
+                metadata_action=ImportMetadataAction.IGNORE,
+            )
+
+    @classmethod
+    def _create_emx_archive(cls, data: EricData, directory: str) -> Path:
+        archive_name = f"{directory}/archive.zip"
+        with ZipFile(archive_name, "w") as archive:
+            for table_type in TableType.get_import_order():
+                file_name = f"{data.table_by_type[table_type].full_name}.csv"
+                file_path = f"{directory}/{file_name}"
+                cls._create_csv(data.table_by_type[table_type], file_path)
+                archive.write(file_path, file_name)
+        return Path(archive_name)
+
+    @staticmethod
+    def _create_csv(table: Table, file_name: str):
+        with open(file_name, "w", encoding="utf-8") as fp:
+            writer = csv.DictWriter(
+                fp, fieldnames=table.meta.attributes, quoting=csv.QUOTE_ALL
+            )
+            writer.writeheader()
+            for row in table.rows:
+                for key, value in row.items():
+                    if isinstance(value, list):
+                        row[key] = ",".join(value)
+                writer.writerow(row)
 
 
 class ExternalServerSession(ExtendedSession):
@@ -302,7 +398,7 @@ class ExternalServerSession(ExtendedSession):
             id_ = table_type.base_id
             meta = self.get_meta(id_)
 
-            tables[table_type] = Table.of(
+            tables[table_type.value] = Table.of(
                 table_type=table_type,
                 meta=meta,
                 rows=self.get_uploadable_data(id_, batch_size=10000),

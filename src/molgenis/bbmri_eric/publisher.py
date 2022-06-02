@@ -1,13 +1,34 @@
+from dataclasses import dataclass, field
 from typing import List
 
 from molgenis.bbmri_eric.bbmri_client import EricSession
-from molgenis.bbmri_eric.errors import EricError, EricWarning
-from molgenis.bbmri_eric.model import NodeData, QualityInfo, Table, TableType
-from molgenis.bbmri_eric.pid_manager import PidManagerFactory
-from molgenis.bbmri_eric.pid_service import BasePidService
+from molgenis.bbmri_eric.errors import EricError, EricWarning, ErrorReport
+from molgenis.bbmri_eric.model import (
+    MixedData,
+    Node,
+    NodeData,
+    QualityInfo,
+    Source,
+    Table,
+    TableType,
+)
+from molgenis.bbmri_eric.pid_manager import BasePidManager
 from molgenis.bbmri_eric.printer import Printer
-from molgenis.bbmri_eric.transformer import Transformer
 from molgenis.client import MolgenisRequestError
+
+
+@dataclass
+class PublishingState:
+    existing_data: MixedData
+    eu_node_data: NodeData
+    quality_info: QualityInfo
+    nodes: List[Node]
+    report: ErrorReport
+    data_to_publish: MixedData = field(init=False)
+
+    def __post_init__(self):
+        self.data_to_publish = self.existing_data.copy_empty()
+        self.data_to_publish.source = Source.TRANSFORMED
 
 
 class Publisher:
@@ -17,91 +38,61 @@ class Publisher:
     """
 
     def __init__(
-        self, session: EricSession, printer: Printer, pid_service: BasePidService
+        self,
+        session: EricSession,
+        printer: Printer,
+        pid_manager: BasePidManager,
     ):
         self.session = session
         self.printer = printer
-        self.pid_service = pid_service
-        self.pid_manager = PidManagerFactory.create(pid_service, printer)
-        self.warnings: List[EricWarning] = []
-        self.quality_info: QualityInfo = session.get_quality_info()
-        self.eu_node_data: NodeData = session.get_staging_node_data(
-            session.get_node("EU")
-        )
+        self.pid_manager = pid_manager
 
-    def publish(self, node_data: NodeData) -> List[EricWarning]:
+    def publish(self, state: PublishingState):
         """
-        Publishes data from the provided node to the production tables. Before being
-        copied over, the data is enriched with additional information.
-        """
-        self.warnings = []
-        node = node_data.node
-
-        self.printer.print(f"📦 Retrieving existing published data of node {node.code}")
-        existing_node_data = self.session.get_published_node_data(node)
-
-        self.printer.print("✏️ Preparing data")
-        with self.printer.indentation():
-            self.warnings += Transformer(
-                node_data=node_data,
-                quality=self.quality_info,
-                printer=self.printer,
-                existing_biobanks=existing_node_data.biobanks,
-                eu_node_data=self.eu_node_data,
-            ).enrich()
-
-        self.printer.print("🆔 Managing PIDs")
-        with self.printer.indentation():
-            self.warnings += self.pid_manager.assign_biobank_pids(node_data.biobanks)
-            self.pid_manager.update_biobank_pids(
-                node_data.biobanks, existing_node_data.biobanks
-            )
-
-        self.printer.print("💾 Copying data to combined tables")
-        with self.printer.indentation():
-            self._copy_node_data(node_data, existing_node_data)
-        return self.warnings
-
-    def _copy_node_data(self, node_data: NodeData, existing_node_data: NodeData):
-        """
-        Copies the data of a staging area to the combined tables. This happens in two
-        phases:
+        Copies staging data to the combined tables. This happens in two phases:
         1. New/existing rows are upserted in the combined tables
         2. Removed rows are deleted from the combined tables
         """
-        for table in node_data.import_order:
-            self.printer.print(f"Upserting rows in {table.type.base_id}")
-            try:
-                self.session.upsert_batched(table.type.base_id, table.rows)
-            except MolgenisRequestError as e:
-                raise EricError(f"Error upserting rows to {table.type.base_id}") from e
+        self.printer.print("💾 Saving new and updated data to combined tables")
+        with self.printer.indentation():
+            self._upsert_data(state)
 
-        for table in reversed(node_data.import_order):
-            self.printer.print(f"Deleting rows in {table.type.base_id}")
+        self.printer.print("🧼 Cleaning up removed data in combined tables")
+        with self.printer.indentation():
+            self._delete_data(state)
+
+    def _upsert_data(self, state):
+        try:
+            self.session.import_as_csv(state.data_to_publish)
+        except MolgenisRequestError as e:
+            raise EricError("Error importing data to combined tables") from e
+
+    def _delete_data(self, state):
+        for table in reversed(state.data_to_publish.import_order):
             try:
                 with self.printer.indentation():
                     self._delete_rows(
-                        table, existing_node_data.table_by_type[table.type]
+                        table, state.existing_data.table_by_type[table.type], state
                     )
             except MolgenisRequestError as e:
                 raise EricError(f"Error deleting rows from {table.type.base_id}") from e
 
-    def _delete_rows(self, table: Table, existing_table: Table):
+    def _delete_rows(self, table: Table, existing_table: Table, state: PublishingState):
         """
         Deletes rows from a combined table that are not present in the staging area's
         table. If a row is referenced from the quality info tables, it is not deleted
         but a warning will be raised.
 
         :param Table table: the staging area's table
-        :node Node node: the Node that is being published
+        :param Table existing_table: the existing rows
         """
         # Compare the ids from staging and production to see what was deleted
-        staging_ids = {row["id"] for row in table.rows}
+        staging_ids = table.rows_by_id.keys()
         production_ids = set(existing_table.rows_by_id.keys())
         deleted_ids = production_ids.difference(staging_ids)
 
         # Remove ids that we are not allowed to delete
-        undeletable_ids = self.quality_info.get_qualities(table.type).keys()
+        undeletable_ids = state.quality_info.get_qualities(table.type).keys()
         deletable_ids = deleted_ids.difference(undeletable_ids)
 
         # For deleted biobanks, update the handle
@@ -110,7 +101,7 @@ class Publisher:
                 [existing_table.rows_by_id[id_]["pid"] for id_ in deletable_ids]
             )
 
-        # Actually delete the rows in the combined tables
+        # Actually delete the rows in the combined table
         if deletable_ids:
             self.printer.print(
                 f"Deleting {len(deletable_ids)} row(s) in {table.type.base_id}"
@@ -126,4 +117,6 @@ class Publisher:
                         f"the quality info: {table.type.value} {id_}."
                     )
                     self.printer.print_warning(warning)
-                    self.warnings.append(warning)
+
+                    code = existing_table.rows_by_id[id_]["national_node"]
+                    state.report.add_node_warnings(Node.of(code), [warning])
