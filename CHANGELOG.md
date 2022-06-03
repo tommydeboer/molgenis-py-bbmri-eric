@@ -1,5 +1,7 @@
 # Changelog
-## Version 1.6.0 (development)
+## Version 1.7.0 (development)
+
+## Version 1.6.0
 - Improves indexing performance:
   - by publishing all nodes at once
   - by using the Import API
