@@ -6,7 +6,7 @@ such a way that is safe to use as an acceptance test environment:
 1. Changes the password
 2. Removes production PIDs and replaces them with test PIDs
 3. Disables some scheduled jobs
-4. Removes people from email lists in scheduled jobs
+4. Removes people from email lists in scheduled jobs (except the support email)
 
 Requires a .env file next to it to configure. Example:
 
@@ -15,6 +15,7 @@ HOOK_NEW_PASSWORD=newpassword
 HOOK_SERVER_URL=https://myserver/
 HOOK_PYHANDLE_CREDS_JSON=pyhandle_creds.json
 HOOK_USE_LIVE_PID_SERVICE=True
+HOOK_MOLGENIS_SUPPORT_EMAIL=molgenis-support@umcg.nl
 
 Setting HOOK_USE_LIVE_PID_SERVICE to False will use the DummyPidService instead, which
 will not create actual handles but will fill the column with fake PIDs.
@@ -36,6 +37,7 @@ new_password = config["HOOK_NEW_PASSWORD"]
 url = config["HOOK_SERVER_URL"]
 pyhandle_creds = config["HOOK_PYHANDLE_CREDS_JSON"]
 use_live_pid_service = config["HOOK_USE_LIVE_PID_SERVICE"].lower() == "true"
+support_email = config["HOOK_MOLGENIS_SUPPORT_EMAIL"]
 
 
 def run():
@@ -118,10 +120,13 @@ def disable_jobs(session: EricSession, logger):
 def remove_job_emails(session: EricSession, logger):
     logger.info("Removing email addresses from all scheduled jobs")
 
-    jobs = session.get("sys_job_ScheduledJob")
+    job_entity = "sys_job_ScheduledJob"
+    jobs = session.get(job_entity)
     for job in jobs:
-        session.update_one("sys_job_ScheduledJob", job["id"], "failureEmail", "")
-        session.update_one("sys_job_ScheduledJob", job["id"], "successEmail", "")
+        failure_email = support_email if support_email in job["failureEmail"] else ""
+        success_email = support_email if support_email in job["successEmail"] else ""
+        session.update_one(job_entity, job["id"], "failureEmail", failure_email)
+        session.update_one(job_entity, job["id"], "successEmail", success_email)
 
 
 if __name__ == "__main__":
