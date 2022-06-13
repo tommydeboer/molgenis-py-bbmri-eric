@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric.printer import Printer
@@ -34,6 +36,7 @@ class Transformer:
         4. Adds PIDs to biobanks
         5. Replaces a node's EU rows with the data from node EU's staging area
         6. Adds the combined networks' ids to collections
+        7. Merges biobank 'covid19biobank' values into 'capabilities'
         """
         self._set_national_node_code()
         self._replace_eu_rows()
@@ -41,6 +44,7 @@ class Transformer:
         self._set_quality_info()
         self._set_biobank_pids()
         self._set_combined_networks()
+        self._merge_covid19_capabilities()
         return self.warnings
 
     def _set_commercial_use_bool(self):
@@ -141,3 +145,31 @@ class Transformer:
             collection["combined_network"] = list(
                 set(biobank["network"] + collection["network"])
             )
+
+    def _merge_covid19_capabilities(self):
+        """
+        Merges each biobank's 'covid19biobank' column into its 'capabilities' column and
+        then removes it.
+        """
+        self.printer.print("Merging 'covid19biobank' into 'capabilities'")
+
+        covid = "covid19biobank"
+        caps = "capabilities"
+        for biobank in self.node_data.biobanks.rows:
+            if covid in biobank and biobank[covid]:
+
+                warning = EricWarning(
+                    f"Biobank {biobank['id']} uses deprecated '{covid}' column. "
+                    f"Use '{caps}' instead."
+                )
+                self.printer.print_warning(warning, indent=1)
+                self.warnings.append(warning)
+
+                if not biobank[caps]:
+                    biobank[caps] = []
+
+                biobank[caps] = list(
+                    OrderedDict.fromkeys(biobank[caps] + biobank[covid])
+                )
+
+            biobank.pop(covid, None)

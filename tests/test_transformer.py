@@ -210,3 +210,32 @@ def test_transformer_create_combined_networks():
         "network2",
     }
     assert set(node_data.collections.rows[5]["combined_network"]) == set()
+
+
+def test_merge_covid19_capabilities():
+    node_data = MagicMock()
+    node_data.biobanks.rows = [
+        {"id": "0"},
+        {"id": "1", "covid19biobank": None, "capabilities": None},
+        {"id": "2", "covid19biobank": None, "capabilities": ["a", "b"]},
+        {"id": "3", "covid19biobank": ["c"], "capabilities": ["a", "b"]},
+        {"id": "4", "covid19biobank": ["c"], "capabilities": None},
+        {"id": "5", "covid19biobank": ["a"], "capabilities": ["a", "b"]},
+    ]
+
+    Transformer(
+        node_data=node_data,
+        quality=MagicMock(),
+        printer=MagicMock(),
+        existing_biobanks=MagicMock(),
+        eu_node_data=MagicMock(),
+    )._merge_covid19_capabilities()
+
+    assert node_data.biobanks.rows == [
+        {"id": "0"},
+        {"id": "1", "capabilities": None},
+        {"id": "2", "capabilities": ["a", "b"]},
+        {"id": "3", "capabilities": ["a", "b", "c"]},
+        {"id": "4", "capabilities": ["c"]},
+        {"id": "5", "capabilities": ["a", "b"]},
+    ]
