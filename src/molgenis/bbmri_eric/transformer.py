@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Node, NodeData, QualityInfo, Table
 from molgenis.bbmri_eric.printer import Printer
@@ -166,6 +168,8 @@ class Transformer:
                 if not biobank[caps]:
                     biobank[caps] = []
 
-                biobank[caps].extend(biobank[covid])
+                biobank[caps] = list(
+                    OrderedDict.fromkeys(biobank[caps] + biobank[covid])
+                )
 
             biobank.pop(covid, None)

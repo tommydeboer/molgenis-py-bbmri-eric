@@ -220,6 +220,7 @@ def test_merge_covid19_capabilities():
         {"id": "2", "covid19biobank": None, "capabilities": ["a", "b"]},
         {"id": "3", "covid19biobank": ["c"], "capabilities": ["a", "b"]},
         {"id": "4", "covid19biobank": ["c"], "capabilities": None},
+        {"id": "5", "covid19biobank": ["a"], "capabilities": ["a", "b"]},
     ]
 
     Transformer(
@@ -236,4 +237,5 @@ def test_merge_covid19_capabilities():
         {"id": "2", "capabilities": ["a", "b"]},
         {"id": "3", "capabilities": ["a", "b", "c"]},
         {"id": "4", "capabilities": ["c"]},
+        {"id": "5", "capabilities": ["a", "b"]},
     ]
