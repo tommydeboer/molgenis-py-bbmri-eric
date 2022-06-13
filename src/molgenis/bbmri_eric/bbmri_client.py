@@ -356,10 +356,10 @@ class EricSession(ExtendedSession):
     def _create_emx_archive(cls, data: EricData, directory: str) -> Path:
         archive_name = f"{directory}/archive.zip"
         with ZipFile(archive_name, "w") as archive:
-            for table_type in TableType.get_import_order():
-                file_name = f"{data.table_by_type[table_type].full_name}.csv"
+            for table in data.import_order:
+                file_name = f"{table.full_name}.csv"
                 file_path = f"{directory}/{file_name}"
-                cls._create_csv(data.table_by_type[table_type], file_path)
+                cls._create_csv(table, file_path)
                 archive.write(file_path, file_name)
         return Path(archive_name)
 
