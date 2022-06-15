@@ -19,6 +19,7 @@ from molgenis.bbmri_eric.model import (
     MixedData,
     Node,
     NodeData,
+    OntologyTable,
     QualityInfo,
     Source,
     Table,
@@ -155,6 +156,21 @@ class EricSession(ExtendedSession):
         super(EricSession, self).__init__(*args, **kwargs)
 
     NODES_TABLE = "eu_bbmri_eric_national_nodes"
+
+    def get_ontology(
+        self, entity_type_id: str, parent_attr: str = "parentId"
+    ) -> OntologyTable:
+        """
+        Retrieves an ontology table.
+        :param entity_type_id: the identifier of the table
+        :param parent_attr: the name of the attribute that contains the parent relation
+        :return: an OntologyTable
+        """
+        rows = self.get_uploadable_data(
+            entity_type_id, batch_size=10000, attributes=f"id,{parent_attr}"
+        )
+        meta = self.get_meta(entity_type_id)
+        return OntologyTable.of(meta, rows, parent_attr)
 
     def get_quality_info(self) -> QualityInfo:
         """

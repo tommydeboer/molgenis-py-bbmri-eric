@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
+from molgenis.bbmri_eric.utils import to_ordered_dict
+
 
 class TableType(Enum):
     """Enum representing the four tables each national node has."""
@@ -29,6 +31,12 @@ class TableMeta:
     """Convenient wrapper for the output of the metadata API."""
 
     meta: dict
+    id_attribute: str = field(init=False)
+
+    def __post_init__(self):
+        for attribute in self.meta["data"]["attributes"]["items"]:
+            if attribute["data"]["idAttribute"] is True:
+                object.__setattr__(self, "id_attribute", attribute["data"]["name"])
 
     @property
     def id(self):
@@ -41,12 +49,6 @@ class TableMeta:
         ]
 
     @property
-    def id_attribute(self):
-        for attribute in self.meta["data"]["attributes"]["items"]:
-            if attribute["data"]["idAttribute"] is True:
-                return attribute["data"]["name"]
-
-    @property
     def one_to_manys(self) -> List[str]:
         one_to_manys = []
         for attribute in self.meta["data"]["attributes"]["items"]:
@@ -56,13 +58,12 @@ class TableMeta:
 
 
 @dataclass(frozen=True)
-class Table:
+class BaseTable(ABC):
     """
-    Simple representation of a BBMRI ERIC node table. The rows should be in the
-    uploadable format. (See _utils.py)
+    Simple representation of a MOLGENIS table. The rows should be in the uploadable
+    format. (See utils.py)
     """
 
-    type: TableType
     rows_by_id: "typing.OrderedDict[str, dict]"
     meta: TableMeta
 
@@ -74,22 +75,60 @@ class Table:
     def full_name(self) -> str:
         return self.meta.id
 
+
+@dataclass(frozen=True)
+class Table(BaseTable):
+    """
+    Simple representation of a BBMRI ERIC node table.
+    """
+
+    type: TableType
+
     @staticmethod
     def of(table_type: TableType, meta: TableMeta, rows: List[dict]) -> "Table":
         """Factory method that takes a list of rows instead of an OrderedDict of
         ids/rows."""
-        rows_by_id = OrderedDict()
-        for row in rows:
-            rows_by_id[row["id"]] = row
-        return Table(
-            type=table_type,
-            meta=meta,
-            rows_by_id=rows_by_id,
-        )
+        return Table(rows_by_id=to_ordered_dict(rows), meta=meta, type=table_type)
 
     @staticmethod
     def of_empty(table_type: TableType, meta: TableMeta):
-        return Table(table_type, OrderedDict(), meta)
+        return Table(rows_by_id=OrderedDict(), meta=meta, type=table_type)
+
+
+@dataclass(frozen=True)
+class OntologyTable(BaseTable):
+    """
+    Simple representation of an ontology table where the parent/child relations are
+    persisted with self-references.
+    """
+
+    parent_attr: str
+
+    def is_descendant_of(self, descendant_id: str, ancestor_id: str) -> bool:
+        """
+        Will walk from the descendant up through the parents until it finds the
+        ancestor, or return False if there are no parents left.
+
+        :param descendant_id: the id of the descendant
+        :param ancestor_id: the id of the ancestor
+        :return: True if the descendant_id is a descendant of ancestor_id
+        """
+        found = False
+        current = self.rows_by_id[descendant_id]
+        while not found:
+            if current[self.meta.id_attribute] == ancestor_id:
+                return True
+            if self.parent_attr not in current:
+                return False
+            current = self.rows_by_id[current[self.parent_attr]]
+
+    @staticmethod
+    def of(meta: TableMeta, rows: List[dict], parent_attr: str) -> "OntologyTable":
+        """Factory method that takes a list of rows instead of an OrderedDict of
+        ids/rows."""
+        return OntologyTable(
+            rows_by_id=to_ordered_dict(rows), meta=meta, parent_attr=parent_attr
+        )
 
 
 @dataclass(frozen=True)
@@ -215,7 +254,7 @@ class NodeData(EricData):
             metadata = deepcopy(table.meta.meta)
             metadata["data"]["id"] = self.node.get_staging_id(table.type)
             tables[table.type.value] = Table(
-                table.type, table.rows_by_id, TableMeta(metadata)
+                table.rows_by_id, TableMeta(metadata), table.type
             )
 
         return NodeData(node=self.node, source=Source.STAGING, **tables)
