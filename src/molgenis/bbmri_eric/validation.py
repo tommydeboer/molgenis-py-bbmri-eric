@@ -54,6 +54,35 @@ class Validator:
             self._validate_xref(collection, "biobank")
             self._validate_xref(collection, "parent_collection")
             self._validate_mref(collection, "networks")
+            self._validate_ages(
+                collection,
+            )
+
+    def _validate_ages(self, collection: dict):
+        low = collection.get("age_low", None)
+        high = collection.get("age_high", None)
+        unit = collection.get("age_unit", None)
+
+        if unit and len(unit) > 1:
+            self._warn(
+                f"Collection {collection['id']} has more than one age_unit: {unit}"
+            )
+
+        if low == 0 and high == 0:
+            self._warn(
+                f"Collection {collection['id']} has invalid ages: age_low = 0 and "
+                f"age_high = 0"
+            )
+
+        if (low is not None or high is not None) and not unit:
+            self._warn(
+                f"Collection {collection['id']} has age_low/age_high without age_unit"
+            )
+
+        if low is not None and high is not None and (low > high):
+            self._warn(
+                f"Collection {collection['id']} has invalid ages: age_low > age_high"
+            )
 
     def _validate_xref(self, row: dict, ref_attr: str):
         if ref_attr in row:
