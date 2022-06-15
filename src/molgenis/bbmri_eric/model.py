@@ -4,7 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from molgenis.bbmri_eric.utils import to_ordered_dict
 
@@ -104,19 +104,19 @@ class OntologyTable(BaseTable):
 
     parent_attr: str
 
-    def is_descendant_of(self, descendant_id: str, ancestor_id: str) -> bool:
+    def is_descendant_of_any(self, descendant_id: str, ancestor_ids: Set[str]) -> bool:
         """
-        Will walk from the descendant up through the parents until it finds the
-        ancestor, or return False if there are no parents left.
+        Will walk from the descendant up through the parents until it finds one of the
+        provided ancestors, or return False if it reaches an element without a parent.
+        Will also return True if the descendant_id itself is in de ancestor_ids.
 
         :param descendant_id: the id of the descendant
-        :param ancestor_id: the id of the ancestor
-        :return: True if the descendant_id is a descendant of ancestor_id
+        :param ancestor_ids: the ids of the ancestors
+        :return: True if the descendant_id is a descendant of any of the ancestor_ids
         """
-        found = False
         current = self.rows_by_id[descendant_id]
-        while not found:
-            if current[self.meta.id_attribute] == ancestor_id:
+        while True:
+            if current[self.meta.id_attribute] in ancestor_ids:
                 return True
             if self.parent_attr not in current:
                 return False

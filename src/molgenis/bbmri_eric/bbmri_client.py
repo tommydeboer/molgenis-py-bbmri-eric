@@ -158,7 +158,9 @@ class EricSession(ExtendedSession):
     NODES_TABLE = "eu_bbmri_eric_national_nodes"
 
     def get_ontology(
-        self, entity_type_id: str, parent_attr: str = "parentId"
+        self,
+        entity_type_id: str,
+        parent_attr: str = "parentId",
     ) -> OntologyTable:
         """
         Retrieves an ontology table.
@@ -166,8 +168,9 @@ class EricSession(ExtendedSession):
         :param parent_attr: the name of the attribute that contains the parent relation
         :return: an OntologyTable
         """
+        # TODO add attributes parameter
         rows = self.get_uploadable_data(
-            entity_type_id, batch_size=10000, attributes=f"id,{parent_attr}"
+            entity_type_id, batch_size=10000, attributes=f"id,{parent_attr},ontology"
         )
         meta = self.get_meta(entity_type_id)
         return OntologyTable.of(meta, rows, parent_attr)

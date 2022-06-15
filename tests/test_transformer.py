@@ -1,28 +1,36 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
+
+import pytest
 
 from molgenis.bbmri_eric.errors import EricWarning
 from molgenis.bbmri_eric.model import Node, QualityInfo, Table, TableType
-from molgenis.bbmri_eric.printer import Printer
 from molgenis.bbmri_eric.transformer import Transformer
 
 
-def test_transformer_node_codes(node_data):
+@pytest.fixture
+def transformer():
+    return Transformer(
+        node_data=MagicMock(),
+        quality=MagicMock(),
+        printer=MagicMock(),
+        existing_biobanks=MagicMock(),
+        eu_node_data=MagicMock(),
+        diseases=MagicMock(),
+    )
+
+
+def test_transformer_node_codes(node_data, transformer):
     for table in node_data.import_order:
         assert "national_node" not in table.rows[0]
 
-    Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )._set_national_node_code()
+    transformer.node_data = node_data
+    transformer._set_national_node_code()
 
     for table in node_data.import_order:
         assert table.rows[0]["national_node"] == "NO"
 
 
-def test_transformer_commercial_use():
+def test_transformer_commercial_use(transformer):
     node_data = MagicMock()
     node_data.collections.rows = [
         {"biobank": "biobank1", "collaboration_commercial": True},
@@ -41,13 +49,8 @@ def test_transformer_commercial_use():
         "biobank3": {"collaboration_commercial": False},
     }
 
-    Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )._set_commercial_use_bool()
+    transformer.node_data = node_data
+    transformer._set_commercial_use_bool()
 
     assert node_data.collections.rows[0]["commercial_use"] is True
     assert node_data.collections.rows[1]["commercial_use"] is False
@@ -60,7 +63,7 @@ def test_transformer_commercial_use():
     assert node_data.collections.rows[8]["commercial_use"] is False
 
 
-def test_transformer_quality(node_data):
+def test_transformer_quality(node_data, transformer):
     q_info = QualityInfo(
         biobanks={
             "bbmri-eric:ID:NO_BIOBANK1": ["quality1", "quality2"],
@@ -71,14 +74,10 @@ def test_transformer_quality(node_data):
             ":all_samples_samples": ["quality1"]
         },
     )
+    transformer.node_data = node_data
+    transformer.quality = q_info
 
-    Transformer(
-        node_data=node_data,
-        quality=q_info,
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )._set_quality_info()
+    transformer._set_quality_info()
 
     assert node_data.biobanks.rows_by_id["bbmri-eric:ID:NO_BIOBANK1"]["quality"] == [
         "quality1",
@@ -100,18 +99,11 @@ def test_transformer_quality(node_data):
     )
 
 
-def test_transformer_replace_eu_rows_skip_eu():
+def test_transformer_replace_eu_rows_skip_eu(transformer):
     eu = Node("EU", "Europe")
-
     node_data = MagicMock()
     node_data.node = eu
-    transformer = Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )
+    transformer.node_data = node_data
     transformer._replace_rows = MagicMock()
 
     transformer._replace_eu_rows()
@@ -119,7 +111,7 @@ def test_transformer_replace_eu_rows_skip_eu():
     transformer._replace_rows.assert_not_called()
 
 
-def test_transformer_replace_eu_rows():
+def test_transformer_replace_eu_rows(transformer):
     cy = Node("CY", "Cyprus")
     eu = Node("EU", "Europe")
 
@@ -149,14 +141,9 @@ def test_transformer_replace_eu_rows():
 
     node_data.node = cy
     eu_node_data.node = eu
+    transformer.node_data = node_data
+    transformer.eu_node_data = eu_node_data
 
-    transformer = Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=eu_node_data,
-    )
     transformer._replace_rows(cy, persons, eu_persons)
 
     assert persons.rows_by_id["bbmri-eric:contactID:EU_person2"]["name"] == "person2"
@@ -168,7 +155,7 @@ def test_transformer_replace_eu_rows():
     ]
 
 
-def test_transformer_create_combined_networks():
+def test_transformer_create_combined_networks(transformer):
     node_data = MagicMock()
     node_data.collections.rows = [
         {"biobank": "biobank1", "network": []},
@@ -186,14 +173,9 @@ def test_transformer_create_combined_networks():
         "biobank5": {"network": []},
         "biobank6": {"network": []},
     }
+    transformer.node_data = node_data
 
-    Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=Printer(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )._set_combined_networks()
+    transformer._set_combined_networks()
 
     assert set(node_data.collections.rows[0]["combined_network"]) == {
         "network1",
@@ -212,7 +194,7 @@ def test_transformer_create_combined_networks():
     assert set(node_data.collections.rows[5]["combined_network"]) == set()
 
 
-def test_merge_covid19_capabilities():
+def test_merge_covid19_capabilities(transformer):
     node_data = MagicMock()
     node_data.biobanks.rows = [
         {"id": "0"},
@@ -222,14 +204,9 @@ def test_merge_covid19_capabilities():
         {"id": "4", "covid19biobank": ["c"], "capabilities": None},
         {"id": "5", "covid19biobank": ["a"], "capabilities": ["a", "b"]},
     ]
+    transformer.node_data = node_data
 
-    Transformer(
-        node_data=node_data,
-        quality=MagicMock(),
-        printer=MagicMock(),
-        existing_biobanks=MagicMock(),
-        eu_node_data=MagicMock(),
-    )._merge_covid19_capabilities()
+    transformer._merge_covid19_capabilities()
 
     assert node_data.biobanks.rows == [
         {"id": "0"},
@@ -239,3 +216,17 @@ def test_merge_covid19_capabilities():
         {"id": "4", "capabilities": ["c"]},
         {"id": "5", "capabilities": ["a", "b"]},
     ]
+
+
+def test_map_categories(transformer):
+    node_data = MagicMock()
+    collection1 = MagicMock()
+    collection2 = MagicMock()
+    node_data.collections.rows = [collection1, collection2]
+    category_mapper = MagicMock()
+    transformer.node_data = node_data
+    transformer.category_mapper = category_mapper
+
+    transformer._set_collection_categories()
+
+    category_mapper.map.assert_has_calls([call(collection1), call(collection2)])
