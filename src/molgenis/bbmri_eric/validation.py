@@ -35,9 +35,8 @@ class Validator:
     def _validate_ids(self, table: Table):
         for row in table.rows:
             id_ = row["id"]
-            errors = self._validate_id(table, row["id"])
-            if errors:
-                self._add_invalid_id(id_, errors)
+            self._validate_id_prefix(id_, table)
+            self._validate_id_chars(id_, table)
 
     def _validate_networks(self):
         for network in self.node_data.networks.rows:
@@ -71,44 +70,34 @@ class Validator:
             self.printer.print_warning(warning)
             self.warnings.append(warning)
 
-    def _validate_id(self, table: Table, id_: str) -> List[EricWarning]:
-        errors = []
-
-        self._validate_id_prefix(errors, id_, table)
-        self._validate_id_chars(errors, id_, table)
-
-        return errors
-
-    def _validate_id_prefix(self, errors: List[EricWarning], id_: str, table: Table):
+    def _validate_id_prefix(self, id_: str, table: Table):
         node = self.node_data.node
 
         prefix = node.get_id_prefix(table.type)
         if table.type in self.ALLOWS_EU_PREFIXES:
             eu_prefix = node.get_eu_id_prefix(table.type)
             if not id_.startswith((prefix, eu_prefix)):
-                warning = EricWarning(
+                self._warn(
                     f"{id_} in entity: {table.full_name} does not start with {prefix} "
                     f"or {eu_prefix}"
                 )
-                self.printer.print_warning(warning)
-                errors.append(warning)
+                self.invalid_ids.add(id_)
         else:
             if not id_.startswith(prefix):
-                warning = EricWarning(
+                self._warn(
                     f"{id_} in entity: {table.full_name} does not start with {prefix}"
                 )
-                self.printer.print_warning(warning)
-                errors.append(warning)
+                self.invalid_ids.add(id_)
 
-    def _validate_id_chars(self, errors: List[EricWarning], id_: str, table: Table):
+    def _validate_id_chars(self, id_: str, table: Table):
         if not re.search("^[A-Za-z0-9-_:]+$", id_):
-            warning = EricWarning(
+            self._warn(
                 f"{id_} in entity: {table.full_name} contains"
                 f" invalid characters. Only alphanumerics and -_: are allowed."
             )
-            self.printer.print_warning(warning)
-            errors.append(warning)
+            self.invalid_ids.add(id_)
 
-    def _add_invalid_id(self, id_: str, warnings: List[EricWarning]):
-        self.invalid_ids.add(id_)
-        self.warnings.extend(warnings)
+    def _warn(self, message: str):
+        warning = EricWarning(message)
+        self.printer.print_warning(warning)
+        self.warnings.append(warning)
