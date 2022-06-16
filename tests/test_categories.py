@@ -41,6 +41,34 @@ def disease_ontology() -> OntologyTable:
     "collection,expected",
     [
         (dict(), []),
+        ({"age_unit": ["WEEK", "MONTH"]}, []),
+        ({"age_high": 8}, []),
+        ({"age_high": 8, "age_unit": ["YEAR"]}, [Category.PAEDIATRIC.value]),
+        ({"age_high": 365 * 18 + 1, "age_unit": ["DAY"]}, []),
+        ({"age_high": 365 * 18 - 1, "age_unit": ["DAY"]}, [Category.PAEDIATRIC.value]),
+        ({"age_high": 52 * 18 + 1, "age_unit": ["WEEK"]}, []),
+        ({"age_high": 52 * 18 - 1, "age_unit": ["WEEK"]}, [Category.PAEDIATRIC.value]),
+        ({"age_high": 12 * 18 + 1, "age_unit": ["MONTH"]}, []),
+        ({"age_high": 12 * 18 - 1, "age_unit": ["MONTH"]}, [Category.PAEDIATRIC.value]),
+        ({"age_low": 0, "age_high": 0, "age_unit": ["YEAR"]}, []),
+        ({"age_low": 10, "age_high": 1, "age_unit": ["YEAR"]}, []),
+        (
+            {"age_low": 0, "age_high": 20, "age_unit": ["YEAR"]},
+            [Category.PAEDIATRIC_INCLUDED.value],
+        ),
+        ({"age_low": 18, "age_high": 40, "age_unit": ["YEAR"]}, []),
+    ],
+)
+def test_map_paediatric(mapper, collection: dict, expected: List[str]):
+    categories = []
+    mapper._map_paediatric(collection, categories)
+    assert categories == expected
+
+
+@pytest.mark.parametrize(
+    "collection,expected",
+    [
+        (dict(), []),
         ({"diagnosis_available": ["urn:miriam:icd:T18.5"]}, []),
         ({"diagnosis_available": ["ORPHA:93969"]}, [Category.RARE_DISEASE.value]),
         ({"diagnosis_available": ["urn:miriam:icd:C97"]}, [Category.CANCER.value]),

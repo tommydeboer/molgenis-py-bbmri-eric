@@ -17,6 +17,24 @@ class Category(Enum):
     CANCER = "cancer"
 
 
+class AgeUnit(Enum):
+    """
+    Enum of age units with identifiers found in the eu_bbmri_eric_age_units table.
+    """
+
+    DAY = "DAY"
+    WEEK = "WEEK"
+    MONTH = "MONTH"
+    YEAR = "YEAR"
+
+
+PAEDIATRIC_AGE_LIMIT = {
+    AgeUnit.DAY: 365 * 18,
+    AgeUnit.WEEK: 52 * 18,
+    AgeUnit.MONTH: 12 * 18,
+    AgeUnit.YEAR: 18,
+}
+
 CANCER_TERMS = {
     "urn:miriam:icd:C00-C97",
     "urn:miriam:icd:D00-D09",
@@ -54,21 +72,23 @@ class CategoryMapper:
 
     @classmethod
     def _map_paediatric(cls, collection: dict, categories: List[str]):
-        age_low, age_high = cls._get_ages(collection)
-        if age_high < 18:
-            categories.append(Category.PAEDIATRIC.value)
-        elif age_low < 18:
-            categories.append(Category.PAEDIATRIC_INCLUDED.value)
+        unit = collection.get("age_unit", None)
+        if unit and len(unit) == 1:
+            low = collection.get("age_low", None)
+            high = collection.get("age_high", None)
 
-    @staticmethod
-    def _get_ages(collection: dict) -> (int, int):
-        age_low = collection.get("age_low", None)
-        age_high = collection.get("age_high", None)
-        if age_low and age_low == 0:
-            age_low = None
-        if age_high and age_high == 0:
-            age_high = None
-        return age_low, age_high
+            if (
+                low is not None
+                and high is not None
+                and ((low == 0 and high == 0) or (low > high))
+            ):
+                return
+
+            age_limit = PAEDIATRIC_AGE_LIMIT[AgeUnit[unit[0]]]
+            if high is not None and (high < age_limit):
+                categories.append(Category.PAEDIATRIC.value)
+            elif low is not None and (low < age_limit):
+                categories.append(Category.PAEDIATRIC_INCLUDED.value)
 
     def _map_diseases(self, collection: dict, categories: List[str]):
         diagnoses = collection.get("diagnosis_available", [])
