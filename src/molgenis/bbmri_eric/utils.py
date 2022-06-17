@@ -6,6 +6,9 @@ def to_upload_format(rows: List[dict]) -> List[dict]:
     Changes the output of the REST Client such that it can be uploaded again:
     1. Non-data fields are removed (_href and _meta).
     2. Reference objects are removed and replaced with their identifiers.
+
+    Note: will only work for the BBMRI-ERIC model because it assumes all identifiers are
+    named 'id'.
     """
     upload_format = []
     for row in rows:
