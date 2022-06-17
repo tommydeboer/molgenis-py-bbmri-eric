@@ -168,7 +168,6 @@ class EricSession(ExtendedSession):
         :param parent_attr: the name of the attribute that contains the parent relation
         :return: an OntologyTable
         """
-        # TODO add attributes parameter
         rows = self.get_uploadable_data(
             entity_type_id, batch_size=10000, attributes=f"id,{parent_attr},ontology"
         )
