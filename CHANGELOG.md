@@ -1,5 +1,6 @@
 # Changelog
 ## Version 1.7.0 (development)
+- The 'categories' field in collections is automatically filled during publishing
 - The 'covid19biobank' column is merged into the 'capabilities' column during publishing
 
 ## Version 1.6.0
