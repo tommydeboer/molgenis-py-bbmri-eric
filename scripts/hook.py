@@ -123,8 +123,14 @@ def remove_job_emails(session: EricSession, logger):
     job_entity = "sys_job_ScheduledJob"
     jobs = session.get(job_entity)
     for job in jobs:
-        failure_email = support_email if support_email in job["failureEmail"] else ""
-        success_email = support_email if support_email in job["successEmail"] else ""
+        failure_email = ""
+        success_email = ""
+
+        if "failureEmail" in job and support_email in job["failureEmail"]:
+            failure_email = support_email
+        if "successEmail" in job and support_email in job["successEmail"]:
+            success_email = support_email
+
         session.update_one(job_entity, job["id"], "failureEmail", failure_email)
         session.update_one(job_entity, job["id"], "successEmail", success_email)
 
