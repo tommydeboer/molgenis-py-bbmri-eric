@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import List
 
 
@@ -28,3 +29,10 @@ def to_upload_format(rows: List[dict]) -> List[dict]:
 
         upload_format.append(row)
     return upload_format
+
+
+def to_ordered_dict(rows: List[dict]) -> OrderedDict:
+    rows_by_id = OrderedDict()
+    for row in rows:
+        rows_by_id[row["id"]] = row
+    return rows_by_id

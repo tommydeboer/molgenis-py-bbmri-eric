@@ -1,7 +1,8 @@
 from collections import OrderedDict
 
+from molgenis.bbmri_eric.categories import CategoryMapper
 from molgenis.bbmri_eric.errors import EricWarning
-from molgenis.bbmri_eric.model import Node, NodeData, QualityInfo, Table
+from molgenis.bbmri_eric.model import Node, NodeData, OntologyTable, QualityInfo, Table
 from molgenis.bbmri_eric.printer import Printer
 
 
@@ -19,12 +20,15 @@ class Transformer:
         printer: Printer,
         existing_biobanks: Table,
         eu_node_data: NodeData,
+        diseases: OntologyTable,
     ):
         self.node_data = node_data
         self.quality = quality
         self.printer = printer
         self.existing_biobanks = existing_biobanks.rows_by_id
         self.eu_node_data = eu_node_data
+        self.category_mapper = CategoryMapper(diseases)
+
         self.warnings = []
 
     def transform(self):
@@ -45,6 +49,7 @@ class Transformer:
         self._set_biobank_pids()
         self._set_combined_networks()
         self._merge_covid19_capabilities()
+        self._set_collection_categories()
         return self.warnings
 
     def _set_commercial_use_bool(self):
@@ -173,3 +178,11 @@ class Transformer:
                 )
 
             biobank.pop(covid, None)
+
+    def _set_collection_categories(self):
+        """
+        Sets the 'categories' field of each collection based on the collection values.
+        """
+        self.printer.print("Setting collection categories")
+        for collection in self.node_data.collections.rows:
+            collection["categories"] = self.category_mapper.map(collection)

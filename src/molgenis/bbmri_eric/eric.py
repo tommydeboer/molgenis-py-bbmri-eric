@@ -99,10 +99,14 @@ class Eric:
         self.printer.print("📦 Retrieving data of node EU")
         eu_node_data = self.session.get_staging_node_data(self.session.get_node("EU"))
 
+        self.printer.print("📦 Retrieving disease ontologies")
+        diseases = self.session.get_ontology("eu_bbmri_eric_disease_types")
+
         return PublishingState(
             existing_data=published_data,
             quality_info=quality_info,
             eu_node_data=eu_node_data,
+            diseases=diseases,
             nodes=nodes,
             report=report,
         )

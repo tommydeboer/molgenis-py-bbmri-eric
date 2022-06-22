@@ -44,6 +44,7 @@ def test_publish(publisher, session):
         eu_node_data=MagicMock(),
         quality_info=MagicMock(),
         report=MagicMock(),
+        diseases=MagicMock(),
     )
 
     publisher.publish(state)

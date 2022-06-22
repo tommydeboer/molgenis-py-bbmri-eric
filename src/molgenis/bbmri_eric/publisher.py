@@ -7,6 +7,7 @@ from molgenis.bbmri_eric.model import (
     MixedData,
     Node,
     NodeData,
+    OntologyTable,
     QualityInfo,
     Source,
     Table,
@@ -24,6 +25,7 @@ class PublishingState:
     quality_info: QualityInfo
     nodes: List[Node]
     report: ErrorReport
+    diseases: OntologyTable
     data_to_publish: MixedData = field(init=False)
 
     def __post_init__(self):

@@ -1,3 +1,4 @@
+from typing import List
 from unittest.mock import MagicMock
 
 import pytest
@@ -118,6 +119,11 @@ def mock_node_data():
     )
 
 
+@pytest.fixture
+def validator() -> Validator:
+    return Validator(MagicMock(), MagicMock())
+
+
 def test_validate_id(mock_node_data):
     validator = Validator(mock_node_data, Printer())
 
@@ -193,3 +199,40 @@ def test_validate_id(mock_node_data):
             "bbmri-eric:ID:NL_invalid_classifier"
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    "collection,expected",
+    [
+        (dict(), []),
+        ({"id": "0", "age_low": 0, "age_unit": ["YEAR"]}, []),
+        (
+            {"id": "1", "age_low": 0, "age_unit": ["YEAR", "MONTH"]},
+            [EricWarning("Collection 1 has more than one age_unit: ['YEAR', 'MONTH']")],
+        ),
+        (
+            {"id": "2", "age_low": 5},
+            [EricWarning("Collection 2 has age_low/age_high without age_unit")],
+        ),
+        (
+            {"id": "3", "age_low": 0, "age_high": 0, "age_unit": ["YEAR"]},
+            [
+                EricWarning(
+                    "Collection 3 has invalid ages: age_low = 0 and age_high = " "0"
+                )
+            ],
+        ),
+        (
+            {"id": "4", "age_low": 40, "age_high": 20},
+            [
+                EricWarning("Collection 4 has age_low/age_high without age_unit"),
+                EricWarning("Collection 4 has invalid ages: age_low > age_high"),
+            ],
+        ),
+    ],
+)
+def test_validate_collection_ages(
+    validator: Validator, collection: dict, expected: List[EricWarning]
+):
+    validator._validate_ages(collection)
+    assert validator.warnings == expected
