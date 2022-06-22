@@ -7,7 +7,7 @@ from molgenis.bbmri_eric.model import OntologyTable
 class Category(Enum):
     """
     Enum of Collection Categories with identifiers found in the
-    eu_bbmri_eric_collection_category table.
+    eu_bbmri_eric_category table.
     """
 
     PAEDIATRIC = "paediatric_only"
