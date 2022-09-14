@@ -47,6 +47,7 @@ class Transformer:
         self._set_commercial_use_bool()
         self._set_quality_info()
         self._set_biobank_pids()
+        self._set_biobank_labels()
         self._set_combined_networks()
         self._set_combined_qualities()
         self._merge_covid19_capabilities()
@@ -139,6 +140,16 @@ class Transformer:
                     )
                     self.printer.print_warning(warning, indent=1)
                     self.warnings.append(warning)
+
+    def _set_biobank_labels(self):
+        """
+        For every collection of the Node, adds the `biobank_label` field, with the
+        name of its biobank
+        """
+        self.printer.print("Adding biobank labels")
+        for collection in self.node_data.collections.rows:
+            biobank = self.node_data.biobanks.rows_by_id[collection["biobank"]]
+            collection["biobank_label"] = biobank["name"]
 
     def _set_combined_networks(self):
         """

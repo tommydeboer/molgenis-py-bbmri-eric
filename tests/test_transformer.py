@@ -157,6 +157,25 @@ def test_transformer_replace_eu_rows(transformer):
     ]
 
 
+def test_transformer_set_biobank_labels(transformer):
+    node_data = MagicMock()
+    node_data.collections.rows = [
+        {"biobank": "biobank1", "name": "Collections1"},
+        {"biobank": "biobank2", "name": "Collections2"},
+    ]
+    node_data.biobanks.rows_by_id = {
+        "biobank1": {"name": "BIOBANK1"},
+        "biobank2": {"name": ""},
+    }
+    transformer.node_data = node_data
+
+    transformer._set_biobank_labels()
+
+    assert node_data.collections.rows[0]["biobank_label"] == "BIOBANK1"
+
+    assert node_data.collections.rows[1]["biobank_label"] == ""
+
+
 def test_transformer_create_combined_networks(transformer):
     node_data = MagicMock()
     node_data.collections.rows = [
