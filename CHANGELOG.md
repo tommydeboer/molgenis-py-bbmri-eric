@@ -1,5 +1,7 @@
 # Changelog
-## Version 1.8.0 (development)
+## Version 1.9.0 (development)
+
+## Version 1.8.0
 - The 'combined quality' field in collections is automatically filled during publishing
 - The 'biobank_label' field in collections is automatically filled during publishing
 
