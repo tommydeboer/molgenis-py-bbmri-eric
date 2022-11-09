@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "17db686f0c6c16c8d102de5497447a49138e65d50d30820fef767bdd288cc054"
+            "sha256": "c6f68307ad5ff59d182042494a9981fca972478815c820ed3145e553ea3b44a1"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -66,17 +66,16 @@
         },
         "molgenis-py-client": {
             "hashes": [
-                "sha256:625aae68977c69a5508a9304e0eb749976d8f03ddb895f00121ca8faf06e9f84",
-                "sha256:9c61bd2d5cced23471c831adcf504ac44534bf7891c7693ea183a663d70fff72"
+                "sha256:7c57abb1e6ed05fa72837cc314066bdf6c1dfbbed7e5a080ea65fa2606497c50",
+                "sha256:aa839f0cfe40b7afad071634e7cbb2f01ce4d7daca425256dc4649b0b4332d31"
             ],
-            "markers": "python_version >= '3.6'",
-            "version": "==2.4.0"
+            "version": "==2.3.1"
         },
         "pyhandle": {
             "hashes": [
                 "sha256:d2ff59263c061c51ab7e2d0e69e1d8549600da4e64a2cacee11469bb4b67e4ab"
             ],
-            "markers": "python_version >= '3.6.*<3.11'",
+            "index": "pypi",
             "version": "==1.1.1"
         },
         "pymysql": {
@@ -84,6 +83,7 @@
                 "sha256:04fa19fad017fdb21394fad2878c1d6bd346959d4fbfd1b66050a09fc636a321",
                 "sha256:32da4a66397077d42908e449688f2ec71c2b18892a6cd04f03ab2aa828a70f40"
             ],
+            "markers": "python_version < '3.11.0'",
             "version": "==0.8.0"
         },
         "pytz": {
